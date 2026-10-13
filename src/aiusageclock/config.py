@@ -10,11 +10,11 @@ from typing import Annotated, Any, Literal
 import keyring
 from pydantic import BaseModel, Field
 
+from .identity import KEYRING_SERVICE
 from .platforms import APP_NAME, get_platform
 
 log = logging.getLogger("aiusageclock.config")
 
-KEYRING_SERVICE = "ai-usage-clock"
 KEYRING_GITHUB_PAT = "github-pat"
 KEYRING_OPENROUTER_KEY = "openrouter-key"
 KEYRING_OPENROUTER_MGMT_KEY = "openrouter-mgmt-key"

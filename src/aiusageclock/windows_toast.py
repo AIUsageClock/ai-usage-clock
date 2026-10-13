@@ -5,9 +5,11 @@ import sys
 from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
+from .identity import ICON_BASENAME, PRODUCT_NAME, WINDOWS_AUMID
 
-AUMID = "AIUsageClock.AIUsageClock"
-DISPLAY_NAME = "AI Usage Clock"
+
+AUMID = WINDOWS_AUMID
+DISPLAY_NAME = PRODUCT_NAME
 
 log = logging.getLogger(__name__)
 _registered = False
@@ -20,7 +22,7 @@ def ensure_registered() -> bool:
 
         key_path = rf"Software\Classes\AppUserModelId\{AUMID}"
         values = {"DisplayName": DISPLAY_NAME}
-        icon_path = Path(__file__).resolve().parent / "assets" / "aiusageclockicon.png"
+        icon_path = Path(__file__).resolve().parent / "assets" / f"{ICON_BASENAME}.png"
         if icon_path.is_file():
             values["IconUri"] = str(icon_path)
 

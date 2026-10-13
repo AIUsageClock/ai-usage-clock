@@ -11,6 +11,7 @@ from typing import Callable
 import requests
 
 from .. import __version__
+from ..identity import REPO_URL, SLUG
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
 
@@ -285,8 +286,8 @@ class ResetsProviderBase(Provider):
     def _get_json(self, url: str, use_etag: bool) -> dict | None:
         headers = {
             "User-Agent": (
-                f"ai-usage-clock/{__version__} "
-                "(+https://github.com/AIUsageClock/ai-usage-clock)"
+                f"{SLUG}/{__version__} "
+                f"(+{REPO_URL})"
             )
         }
         if use_etag and self._etag:

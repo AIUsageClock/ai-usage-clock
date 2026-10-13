@@ -16,12 +16,13 @@ from pathlib import Path
 
 import keyring
 
+from ..identity import KEYRING_SERVICE, LINUX_DESKTOP_FILENAME, PRODUCT_NAME
 from .base import APP_NAME, Platform, autostart_command
 
 log = logging.getLogger("aiusageclock.platforms.linux")
 
-_KEYRING_SERVICE = "ai-usage-clock"
-_DESKTOP_FILENAME = f"{APP_NAME}.desktop"
+_KEYRING_SERVICE = KEYRING_SERVICE
+_DESKTOP_FILENAME = LINUX_DESKTOP_FILENAME
 
 
 def _xdg_config_home() -> Path:
@@ -74,7 +75,7 @@ class LinuxPlatform(Platform):
                 [
                     "[Desktop Entry]",
                     "Type=Application",
-                    "Name=AI Usage Clock",
+                    f"Name={PRODUCT_NAME}",
                     "Comment=AI usage monitor for Claude / Codex / Copilot",
                     f"Exec={exec_line}",
                     "Terminal=false",

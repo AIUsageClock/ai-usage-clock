@@ -17,6 +17,7 @@ except ModuleNotFoundError as exc:
     FastMCP = None
 
 from .config import Config, browser_accounts, display_name_for_account
+from .identity import MCP_SERVER_NAME, MCP_URI_SCHEME, SLUG
 from .usage_cache import CACHE_SCHEMA_VERSION, read_usage_cache
 
 INSTRUCTIONS = """
@@ -40,7 +41,7 @@ class _UnavailableMCP:
 
 
 mcp = (
-    FastMCP("AI Usage Clock", instructions=INSTRUCTIONS, json_response=True)
+    FastMCP(MCP_SERVER_NAME, instructions=INSTRUCTIONS, json_response=True)
     if FastMCP is not None
     else _UnavailableMCP()
 )
@@ -361,13 +362,13 @@ def recommend_ai_account() -> dict[str, Any]:
     }
 
 
-@mcp.resource("aiusageclock://usage")
+@mcp.resource(f"{MCP_URI_SCHEME}://usage")
 def usage_resource() -> str:
     """Current sanitized usage snapshot as JSON."""
     return json.dumps(get_ai_usage(), indent=2)
 
 
-@mcp.resource("aiusageclock://guard-instructions")
+@mcp.resource(f"{MCP_URI_SCHEME}://guard-instructions")
 def guard_instructions_resource() -> str:
     """Instructions clients should follow to honor pause policies."""
     return INSTRUCTIONS
@@ -421,7 +422,7 @@ def main() -> None:
     if FastMCP is None:
         print(
             "The MCP SDK is not installed. Install AI Usage Clock with: "
-            "pip install 'ai-usage-clock[mcp]'",
+            f"pip install '{SLUG}[mcp]'",
             file=sys.stderr,
         )
         raise SystemExit(2)

@@ -4,10 +4,12 @@ from pathlib import Path
 
 from PyQt6.QtGui import QIcon
 
+from .identity import ICON_BASENAME
+
 
 def app_icon_path(extension: str = "png") -> Path:
     """Return the packaged AI Usage Clock application-icon asset."""
-    return Path(__file__).resolve().parent / "assets" / f"aiusageclockicon.{extension}"
+    return Path(__file__).resolve().parent / "assets" / f"{ICON_BASENAME}.{extension}"
 
 
 def app_icon() -> QIcon:

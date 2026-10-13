@@ -61,6 +61,7 @@ from .config import (
 )
 from .error_dialog import reveal_path
 from .icons import app_icon
+from .identity import KEYRING_SERVICE, LOG_FILENAME, MCP_COMMAND, PRODUCT_NAME
 from .local_usage.settings_panel import LocalUsagePanel
 from .logging_setup import log_path
 from .providers.claude import CLAUDE_USAGE_URL
@@ -649,7 +650,7 @@ class SettingsDialog(QDialog):
         # Intentionally NOT stays-on-top or app-modal: users may need to switch
         # to their normal browser, and clicking the status panel should bring
         # this existing Settings window back to the foreground.
-        self.setWindowTitle("AI Usage Clock — Settings")
+        self.setWindowTitle(f"{PRODUCT_NAME} — Settings")
         self.setModal(False)
         self.resize(620, 520)
         self.setMinimumSize(560, 420)
@@ -1267,7 +1268,7 @@ class SettingsDialog(QDialog):
         mcp_layout.addWidget(policies_box)
         command = QLabel(
             "Bind each client profile to the account it actually uses:<br>"
-            "<code>ai-usage-clock-mcp --account-id &lt;account-id&gt;</code><br>"
+            f"<code>{MCP_COMMAND} --account-id &lt;account-id&gt;</code><br>"
             "Guard instruction: Call <code>check_current_account_usage</code> "
             "before costly work and stop whenever <code>allowed</code> is false."
         )
@@ -1305,9 +1306,9 @@ class SettingsDialog(QDialog):
         self.brand_icon.setObjectName("brand_icon")
         self.brand_icon.setPixmap(app_icon().pixmap(56, 56))
         self.brand_icon.setFixedSize(56, 56)
-        self.brand_icon.setToolTip("AI Usage Clock")
+        self.brand_icon.setToolTip(PRODUCT_NAME)
 
-        self.brand_title = QLabel("AI Usage Clock")
+        self.brand_title = QLabel(PRODUCT_NAME)
         self.brand_title.setObjectName("brand_title")
         self.brand_title.setStyleSheet(
             "color:#f9fafb; font-size:22px; font-weight:700;"
@@ -1342,7 +1343,7 @@ class SettingsDialog(QDialog):
 
         log_btn = QPushButton("Open log folder")
         log_btn.setToolTip(
-            "Reveal ai-usage-clock.log in Explorer — useful when reporting a problem."
+            f"Reveal {LOG_FILENAME} in Explorer — useful when reporting a problem."
         )
         log_btn.clicked.connect(lambda: reveal_path(log_path()))
 
@@ -1541,7 +1542,7 @@ class SettingsDialog(QDialog):
                 write_error="The saved token could not be cleared",
                 verify_error=(
                     "The token still appears to be available after clearing. "
-                    "Remove the 'ai-usage-clock' / 'github-pat' credential from "
+                    f"Remove the '{KEYRING_SERVICE}' / 'github-pat' credential from "
                     "your system keychain."
                 ),
             ):
@@ -1572,7 +1573,7 @@ class SettingsDialog(QDialog):
                 write_error="The saved key could not be cleared",
                 verify_error=(
                     "The key still appears to be available after clearing. "
-                    "Remove the 'ai-usage-clock' / 'openrouter-key' credential from "
+                    f"Remove the '{KEYRING_SERVICE}' / 'openrouter-key' credential from "
                     "your system keychain."
                 ),
             ):
@@ -1603,7 +1604,7 @@ class SettingsDialog(QDialog):
                 write_error="The saved key could not be cleared",
                 verify_error=(
                     "The key still appears to be available after clearing. "
-                    "Remove the 'ai-usage-clock' / 'openrouter-mgmt-key' credential "
+                    f"Remove the '{KEYRING_SERVICE}' / 'openrouter-mgmt-key' credential "
                     "from your system keychain."
                 ),
             ):

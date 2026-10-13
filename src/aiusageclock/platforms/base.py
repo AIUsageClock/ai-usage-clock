@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Literal
 
-APP_NAME = "ai-usage-clock"
+from ..identity import APP_NAME, PACKAGE_NAME
 
 # Tests (and portable installs) can redirect every platform's app_data_dir by
 # setting this env var. We honour APPDATA on every platform — not just Windows
@@ -44,7 +44,7 @@ def autostart_command() -> list[str]:
         launcher = pythonw if pythonw.exists() else python
     else:
         launcher = python
-    return [str(launcher), "-m", "aiusageclock"]
+    return [str(launcher), "-m", PACKAGE_NAME]
 
 
 class Platform(ABC):

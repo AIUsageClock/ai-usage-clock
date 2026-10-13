@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 from PyQt6.QtCore import QObject
 
+from ..identity import ENV_FORCE_WEBENGINE
 from ..models import SnapshotStatus, UsageSnapshot
 from ..webview import runtime as webengine
 
@@ -82,7 +83,7 @@ class ScrapeRunner:
                         # Chromium sometimes finds one where Qt cannot, so
                         # point at the override rather than leaving a dead end.
                         "If this machine does have working OpenGL, set "
-                        "AIUSAGECLOCK_FORCE_WEBENGINE=1 to skip this check."
+                        f"{ENV_FORCE_WEBENGINE}=1 to skip this check."
                     ),
                 )
             )

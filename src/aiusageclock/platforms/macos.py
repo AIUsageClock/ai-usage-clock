@@ -18,12 +18,13 @@ from pathlib import Path
 
 import keyring
 
+from ..identity import KEYRING_SERVICE, MACOS_LAUNCH_AGENT_LABEL
 from .base import APP_NAME, Platform, UIMode, autostart_command
 
 log = logging.getLogger("aiusageclock.platforms.macos")
 
-_LAUNCH_AGENT_LABEL = "com.aiusageclock.ai-usage-clock"
-_KEYRING_SERVICE = "ai-usage-clock"
+_LAUNCH_AGENT_LABEL = MACOS_LAUNCH_AGENT_LABEL
+_KEYRING_SERVICE = KEYRING_SERVICE
 
 
 def _launch_agent_path() -> Path:

@@ -15,13 +15,14 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from ..identity import PRODUCT_NAME, WINDOWS_TASK_AUTHOR, WINDOWS_TASK_NAME
 from .base import APP_NAME, Platform, autostart_command
 
 log = logging.getLogger("aiusageclock.platforms.windows")
 
-TASK_NAME = "AI Usage Clock"
-TASK_AUTHOR = "AloeDesk"
-TASK_DESCRIPTION = "Starts AI Usage Clock when the user signs in."
+TASK_NAME = WINDOWS_TASK_NAME
+TASK_AUTHOR = WINDOWS_TASK_AUTHOR
+TASK_DESCRIPTION = f"Starts {PRODUCT_NAME} when the user signs in."
 _TASK_NS = "http://schemas.microsoft.com/windows/2004/02/mit/task"
 
 

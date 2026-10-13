@@ -5,9 +5,9 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from .config import app_data_dir
+from .identity import LOG_FILENAME, LOGGER_NAME
 
-LOGGER_NAME = "aiusageclock"
-_LOG_FILENAME = "ai-usage-clock.log"
+_LOG_FILENAME = LOG_FILENAME
 
 
 def log_path() -> Path:

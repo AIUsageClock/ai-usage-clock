@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 from .config import app_data_dir
+from .identity import ENV_ALLOW_PLAINTEXT_SECRETS
 
 log = logging.getLogger("aiusageclock.secret_storage")
 
@@ -33,7 +34,7 @@ _SECRETS_FILENAME = "secrets.dat"
 # normal case) writes on non-Windows refuse loudly so a misconfigured macOS
 # or Linux box cannot silently produce an unencrypted secrets.dat next to a
 # real cookie.
-_ALLOW_PLAINTEXT_ENV = "AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS"
+_ALLOW_PLAINTEXT_ENV = ENV_ALLOW_PLAINTEXT_SECRETS
 
 
 class _DataBlob(ctypes.Structure):
@@ -127,7 +128,7 @@ def _save_all(data: dict[str, str]) -> None:
     if os.environ.get(_ALLOW_PLAINTEXT_ENV) == "1":
         log.warning(
             "secret_storage: writing PLAINTEXT secrets.dat on non-Windows host "
-            "(AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS=1). This is a development-only "
+            f"({_ALLOW_PLAINTEXT_ENV}=1). This is a development-only "
             "escape hatch; do not use it with real provider cookies."
         )
         path.write_bytes(payload)
@@ -136,7 +137,7 @@ def _save_all(data: dict[str, str]) -> None:
         "secret_storage: refusing to write secrets on non-Windows host. "
         "DPAPI encryption is unavailable, so writing here would store the "
         "value in plaintext. Run on Windows, or set "
-        "AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS=1 to opt in (development only)."
+        f"{_ALLOW_PLAINTEXT_ENV}=1 to opt in (development only)."
     )
 
 

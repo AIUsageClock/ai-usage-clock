@@ -35,6 +35,14 @@ from .cookie_dialog import CookieDialog
 from .error_dialog import ErrorDetailsDialog
 from .history import HistoryStore
 from .icons import app_icon
+from .identity import (
+    ENV_FORCE_WEBENGINE,
+    LOCK_FILENAME,
+    PRODUCT_NAME,
+    QT_APPLICATION_NAME,
+    QT_ORGANIZATION_NAME,
+    SLUG,
+)
 from .logging_setup import LOGGER_NAME, setup_logging
 from .menubar import render_menubar_pixmap
 from .models import SnapshotStatus, UsageSnapshot
@@ -230,7 +238,7 @@ def _preserve_error_metrics(
 
 
 def _acquire_instance_lock() -> QLockFile | None:
-    lock_path = app_data_dir() / "ai-usage-clock.lock"
+    lock_path = app_data_dir() / LOCK_FILENAME
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock = QLockFile(str(lock_path))
     if not lock.tryLock(100):
@@ -256,7 +264,8 @@ class App(QObject):
         super().__init__()
         setup_logging()
         log.info(
-            "ai-usage-clock %s starting platform=%s frozen=%s executable=%s cwd=%s app_data=%s",
+            "%s %s starting platform=%s frozen=%s executable=%s cwd=%s app_data=%s",
+            SLUG,
             __version__,
             get_platform().name,
             bool(getattr(sys, "frozen", False)),
@@ -336,7 +345,7 @@ class App(QObject):
                     _enabled_providers(self._config),
                     self._config,
                 )
-                self._native_status.set_tooltip(f"AI Usage Clock {__version__}")
+                self._native_status.set_tooltip(f"{PRODUCT_NAME} {__version__}")
                 self._tray = None
                 log.info("using native macOS status item")
             except Exception as exc:  # noqa: BLE001
@@ -350,7 +359,7 @@ class App(QObject):
             pass
         elif tray_available:
             self._tray = QSystemTrayIcon(self._render_tray_icon())
-            self._tray.setToolTip(f"AI Usage Clock {__version__}")
+            self._tray.setToolTip(f"{PRODUCT_NAME} {__version__}")
             if self._ui_mode != "menubar":
                 self._tray.setContextMenu(self._app_menu)
             self._tray.activated.connect(self._on_tray_activated)
@@ -960,9 +969,9 @@ class App(QObject):
                     continue
                 lines.append(f"{display_name} {m.label}: {m.percent_used:.0f}%")
         tooltip = (
-            f"AI Usage Clock {__version__}\n" + "\n".join(lines)
+            f"{PRODUCT_NAME} {__version__}\n" + "\n".join(lines)
             if lines
-            else f"AI Usage Clock {__version__}"
+            else f"{PRODUCT_NAME} {__version__}"
         )
         if self._native_status is not None:
             self._native_status.update(
@@ -1066,7 +1075,7 @@ class App(QObject):
             f"{webengine.unavailable_reason()}\n\n"
             "Providers that use an API key or token (GitHub Copilot, "
             "OpenRouter) work without it. If you believe this is wrong, set "
-            "AIUSAGECLOCK_FORCE_WEBENGINE=1 to skip this check.",
+            f"{ENV_FORCE_WEBENGINE}=1 to skip this check.",
         )
 
     def _remember_sign_in_browser(self, browser_id: str) -> None:
@@ -1728,8 +1737,8 @@ def main() -> int:
     # no visible windows, and closing a transient dialog/message box must not
     # quit it. (Called pre-construction this silently no-ops.)
     qt_app.setQuitOnLastWindowClosed(False)
-    qt_app.setApplicationName("ai-usage-clock")
-    qt_app.setOrganizationName("ai-usage-clock")
+    qt_app.setApplicationName(QT_APPLICATION_NAME)
+    qt_app.setOrganizationName(QT_ORGANIZATION_NAME)
     qt_app.setApplicationVersion(__version__)
     qt_app.setWindowIcon(app_icon())
     _app = App()  # noqa: F841 - keeps refs alive
