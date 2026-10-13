@@ -1,6 +1,6 @@
 [project]
 name = "ai-usage-clock"
-version = "0.9.0"
+version = "1.0.0"
 description = "Compact cross-platform desktop monitor for Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, and OpenRouter usage, with quota reset alerts."
 readme = "README.md"
 requires-python = ">=3.11"

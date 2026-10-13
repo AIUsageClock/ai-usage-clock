@@ -27,7 +27,7 @@ AI Usage Clock 是一款小巧的桌面监控工具，支持 **Claude.ai**、**C
 
 > **需要 Python 3.11 及以上版本。** 机密信息存放在操作系统原生的凭据存储中（Windows 凭据管理器／DPAPI、macOS 钥匙串、Linux Secret Service）。开机自启动采用各平台的标准机制（Windows 任务计划程序／LaunchAgent／`~/.config/autostart`）。
 
-当前版本：**0.9.0**。发行说明请见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本：**1.0.0**。发行说明请见 [CHANGELOG.md](CHANGELOG.md)。
 
 AI Usage Clock 是独立的开源项目，属于非官方的本地桌面小工具，与 Anthropic、OpenAI、GitHub、Microsoft、OpenRouter 或任何其他服务提供商均无关联。各提供商的页面和 API 可能随时变更，恕不另行通知。
 

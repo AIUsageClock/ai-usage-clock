@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.0.0 - 2026-10-13
+
+### Renamed
+
+- The product is now **AI Usage Clock**. It continues the AI Gauge 0.9.0 code under a new name and a new app icon; features and provider support are the same as in 0.9.0.
+- Source, issues, and release downloads are at [AIUsageClock/ai-usage-clock](https://github.com/AIUsageClock/ai-usage-clock).
+- When the window is too narrow for the title, it shortens to **AI Usage Clock**, then **AI Clock**, then **AI**.
+- Windows file properties list `AI Usage Clock contributors` as the publisher.
+
+### Changed names
+
+- Release archives: `ai-usage-clock-<version>-windows.zip`, `-macos.tar.gz`, and `-linux.tar.gz` (were `ai-gauge-<version>-…`).
+- Executables: `ai-usage-clock.exe` and the MCP helper `ai-usage-clock-mcp` (were `ai-gauge.exe` and `ai-gauge-mcp`).
+- Python package and command: `ai-usage-clock` and `python -m aiusageclock` (were `ai-gauge` and `python -m aigauge`).
+- Data folder, with the log file `ai-usage-clock.log` inside it: Windows `%APPDATA%\ai-usage-clock`, macOS `~/Library/Application Support/ai-usage-clock`, Linux `~/.config/ai-usage-clock` (or under `$XDG_CONFIG_HOME`). The old folders had the same locations with `ai-gauge`.
+- Credential store (keyring) service: `ai-usage-clock` (was `ai-gauge`).
+- Environment variables: `AIUSAGECLOCK_FORCE_WEBENGINE` and `AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS` (were `AIGAUGE_FORCE_WEBENGINE` and `AIGAUGE_ALLOW_PLAINTEXT_SECRETS`).
+- Windows Start at login task: `AI Usage Clock` (was `AI Gauge`).
+- Windows notification identity (AppUserModelID): `AIUsageClock.AIUsageClock`.
+- macOS bundle identifier and login launch agent label: `com.aiusageclock.ai-usage-clock` (was `org.aigauge.ai-gauge`).
+- Linux Start at login entry: `ai-usage-clock.desktop` in `autostart/` under your config folder (was `ai-gauge.desktop`).
+- MCP server name `AI Usage Clock` and resources `aiusageclock://usage` and `aiusageclock://guard-instructions` (were `AI Gauge`, `aigauge://usage`, and `aigauge://guard-instructions`).
+- User-Agent sent to the reset trackers: `ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)`.
+
+### Upgrading from AI Gauge 0.9.0
+
+Nothing is migrated automatically, and nothing of the old version is removed.
+
+1. If AI Gauge starts at login, turn off **Start at login** in its Settings, then quit it and any MCP client that uses `ai-gauge-mcp`.
+2. To keep your settings and usage history, copy the old data folder to the new folder name (for example `%APPDATA%\ai-gauge` to `%APPDATA%\ai-usage-clock`) before starting AI Usage Clock for the first time. Copy it rather than renaming it, so the old one stays as a backup.
+3. Start AI Usage Clock. Enter your API keys again (GitHub, OpenRouter, OpenCode Go): they live in the system credential store under the old service name and are not copied. Claude and ChatGPT may also need a fresh sign-in.
+4. Turn **Start at login** on again in Settings.
+5. In each MCP client configuration, change the command to `ai-usage-clock-mcp` and keep the same `--account-id`.
+6. When everything works, you can delete the old app, its data folder, and its `ai-gauge` credential-store entries.
+
+### Added
+
+- Every release archive includes `LICENSE` and `THIRD_PARTY_NOTICES.txt`.
+
 ## 0.9.0 - 2026-10-05
 
 ### Inherited upstream cleanup
