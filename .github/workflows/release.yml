@@ -180,6 +180,17 @@ jobs:
           $zipName = "ai-usage-clock-$version-windows.zip"
           $shaName = "$zipName.sha256"
           Compress-Archive -Path dist\ai-usage-clock -DestinationPath $zipName -Force
+          # The license files must ship inside the archive, next to the exe.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zipName).Path)
+          try {
+              $entries = @($zip.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+          } finally {
+              $zip.Dispose()
+          }
+          foreach ($required in @("ai-usage-clock/LICENSE", "ai-usage-clock/THIRD_PARTY_NOTICES.txt")) {
+              if ($entries -notcontains $required) { throw "$required is missing from $zipName" }
+          }
           $sha = (Get-FileHash $zipName -Algorithm SHA256).Hash.ToLower()
           "$sha *$zipName" | Out-File -Encoding ascii -FilePath $shaName
           "archive=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -195,10 +206,20 @@ jobs:
           sha="${archive}.sha256"
           # On mac, archive the .app bundle. On Linux, archive the dist folder.
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-              tar -C dist -czf "$archive" ai-usage-clock.app ai-usage-clock-mcp
+              tar -C dist -czf "$archive" ai-usage-clock.app ai-usage-clock-mcp LICENSE THIRD_PARTY_NOTICES.txt
+              prefix=""
           else
               tar -C dist -czf "$archive" ai-usage-clock
+              prefix="ai-usage-clock/"
           fi
+          # The license files must ship inside the archive, next to the app.
+          listing="$(tar -tzf "$archive")"
+          for required in LICENSE THIRD_PARTY_NOTICES.txt; do
+              if ! grep -qxF "${prefix}${required}" <<< "$listing"; then
+                  echo "${prefix}${required} is missing from $archive" >&2
+                  exit 1
+              fi
+          done
           shasum -a 256 "$archive" | awk '{print $1 " *" $2}' > "$sha"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
           echo "sha=$sha"         >> "$GITHUB_OUTPUT"

@@ -139,6 +139,25 @@ if [ "$ONEFILE" -eq 0 ]; then
     "$VENV_PY" "$SCRIPT_DIR/tools/prune_bundle.py" "$PRUNE_TARGET"
 fi
 
+# The MIT License requires its text to travel with every copy, and the bundled
+# PyQt6/Qt/Chromium and the other dependencies each carry terms of their own.
+# Ship LICENSE and THIRD_PARTY_NOTICES.txt with the build output: inside the
+# folder on Linux, beside the .app and the MCP helper on macOS (and for
+# one-file builds, which have no folder).
+if [ "$(uname -s)" = "Darwin" ] || [ "$ONEFILE" -eq 1 ]; then
+    NOTICE_DIR="dist"
+else
+    NOTICE_DIR="dist/ai-usage-clock"
+fi
+cp "$SCRIPT_DIR/LICENSE" "$NOTICE_DIR/LICENSE"
+"$VENV_PY" "$SCRIPT_DIR/tools/write_third_party_notices.py" "$NOTICE_DIR/THIRD_PARTY_NOTICES.txt"
+for NOTICE_FILE in LICENSE THIRD_PARTY_NOTICES.txt; do
+    if [ ! -f "$NOTICE_DIR/$NOTICE_FILE" ]; then
+        echo "$NOTICE_FILE missing from the build output: $NOTICE_DIR" >&2
+        exit 1
+    fi
+done
+
 echo
 echo "Build complete."
 case "$(uname -s)" in

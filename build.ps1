@@ -198,6 +198,23 @@ if (-not $OneFile) {
     if ($LASTEXITCODE -ne 0) { Write-Error "Bundle prune failed." }
 }
 
+# The MIT License requires its text to travel with every copy, and the bundled
+# PyQt6/Qt/Chromium and the other dependencies each carry terms of their own.
+# Ship LICENSE and THIRD_PARTY_NOTICES.txt at the root of the build output.
+$noticeDir = if ($OneFile) {
+    Join-Path $PSScriptRoot "dist"
+} else {
+    Join-Path $PSScriptRoot "dist\ai-usage-clock"
+}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot "LICENSE") -Destination (Join-Path $noticeDir "LICENSE") -Force
+& $venvPython (Join-Path $PSScriptRoot "tools\write_third_party_notices.py") (Join-Path $noticeDir "THIRD_PARTY_NOTICES.txt")
+if ($LASTEXITCODE -ne 0) { Write-Error "Could not write THIRD_PARTY_NOTICES.txt." }
+foreach ($noticeFile in @("LICENSE", "THIRD_PARTY_NOTICES.txt")) {
+    if (-not (Test-Path -LiteralPath (Join-Path $noticeDir $noticeFile))) {
+        Write-Error "$noticeFile missing from the build output: $noticeDir"
+    }
+}
+
 Write-Host ""
 Write-Host "Build complete." -ForegroundColor Green
 if ($OneFile) {

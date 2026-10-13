@@ -107,6 +107,10 @@ def expectations() -> dict[str, list[Expectation]]:
             _lit("MCP target", f'"{mcp}": '),
             _lit("product name", f'"ProductName": "{identity.PRODUCT_NAME}"'),
         ],
+        "tools/write_third_party_notices.py": [
+            _lit("project distribution name", f'PROJECT = "{slug}"'),
+            _lit("repository URL", f'REPO_URL = "{identity.REPO_URL}"'),
+        ],
     }
 
 
@@ -193,6 +197,8 @@ def test_a_longer_name_does_not_satisfy_a_shorter_one():
         ("APP_NAME", "tools/smoke_test_gui.py"),
         ("REPO_URL", "tools/wdsi_submission.py"),
         ("PRODUCT_NAME", "tools/write_pyinstaller_version_info.py"),
+        ("SLUG", "tools/write_third_party_notices.py"),
+        ("REPO_URL", "tools/write_third_party_notices.py"),
     ],
 )
 def test_changing_an_identifier_is_reported_by_the_files_that_use_it(
