@@ -15,6 +15,8 @@ from __future__ import annotations
 
 #: Name shown to the user (window titles, tray tooltip, toast, MCP server name).
 PRODUCT_NAME = "AI Usage Clock"
+#: Shorter name for headers that cannot fit ``PRODUCT_NAME``.
+PRODUCT_SHORT_NAME = "AI Clock"
 #: Lower-case, hyphenated form used for files, folders and service names.
 SLUG = "ai-usage-clock"
 #: Python import name; also the root of the logger hierarchy.

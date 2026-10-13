@@ -10,6 +10,7 @@ that rejects a bare string literal equal to an identifier outside ``identity``.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import re
 import tomllib
 from pathlib import Path
@@ -101,11 +102,13 @@ def expectations() -> dict[str, list[Expectation]]:
         "tools/wdsi_submission.py": [
             _lit("default executable", f'"dist" / "{slug}" / "{slug}.exe"'),
             _lit("repository URL", f'REPO_URL = "{identity.REPO_URL}"'),
+            _lit("company line", f"Company:         {identity.PUBLISHER}\n"),
         ],
         "tools/write_pyinstaller_version_info.py": [
             _lit("GUI target", f'"{slug}": '),
             _lit("MCP target", f'"{mcp}": '),
             _lit("product name", f'"ProductName": "{identity.PRODUCT_NAME}"'),
+            _lit("publisher", f'"CompanyName": "{identity.PUBLISHER}"'),
         ],
         "tools/write_third_party_notices.py": [
             _lit("project distribution name", f'PROJECT = "{slug}"'),
@@ -197,6 +200,8 @@ def test_a_longer_name_does_not_satisfy_a_shorter_one():
         ("APP_NAME", "tools/smoke_test_gui.py"),
         ("REPO_URL", "tools/wdsi_submission.py"),
         ("PRODUCT_NAME", "tools/write_pyinstaller_version_info.py"),
+        ("PUBLISHER", "tools/write_pyinstaller_version_info.py"),
+        ("PUBLISHER", "tools/wdsi_submission.py"),
         ("SLUG", "tools/write_third_party_notices.py"),
         ("REPO_URL", "tools/write_third_party_notices.py"),
     ],
@@ -209,6 +214,53 @@ def test_changing_an_identifier_is_reported_by_the_files_that_use_it(
     monkeypatch.setattr(identity, attribute, "changed-value")
 
     assert missing(path) != []
+
+
+# --- the generated Windows version resource names the publisher -------------
+
+VERSION_INFO_TOOL = "tools/write_pyinstaller_version_info.py"
+
+
+def _render_version_info(target: str) -> str:
+    spec = importlib.util.spec_from_file_location(
+        "write_pyinstaller_version_info", REPO_ROOT / VERSION_INFO_TOOL
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.render("1.2.3", target)
+
+
+def _company_name(version_info: str) -> str | None:
+    match = re.search(r"StringStruct\('CompanyName', '((?:[^'\\]|\\.)*)'\)", version_info)
+    return match.group(1) if match else None
+
+
+@pytest.mark.parametrize("target", [identity.SLUG, identity.MCP_COMMAND])
+def test_generated_version_info_names_the_publisher(target):
+    assert _company_name(_render_version_info(target)) == identity.PUBLISHER
+
+
+def test_a_version_info_with_another_company_is_reported():
+    rendered = _render_version_info(identity.SLUG)
+    wrong = rendered.replace(
+        f"StringStruct('CompanyName', '{identity.PUBLISHER}')",
+        "StringStruct('CompanyName', 'Some Other Company')",
+    )
+    assert wrong != rendered
+
+    assert _company_name(rendered) == identity.PUBLISHER
+    assert _company_name(wrong) != identity.PUBLISHER
+    assert _company_name("no company here") is None
+
+
+def test_changing_the_publisher_is_reported_by_the_generated_version_info(monkeypatch):
+    assert _company_name(_render_version_info(identity.SLUG)) == identity.PUBLISHER
+
+    monkeypatch.setattr(identity, "PUBLISHER", "changed-value")
+
+    # The tool spells the publisher out, so it now disagrees with identity.
+    assert _company_name(_render_version_info(identity.SLUG)) != identity.PUBLISHER
 
 
 # --- identity stays a leaf and well-formed ----------------------------------

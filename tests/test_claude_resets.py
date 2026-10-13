@@ -4,6 +4,7 @@ from pathlib import Path
 
 import responses
 
+from aiusageclock import __version__, identity
 from aiusageclock.models import SnapshotStatus
 from aiusageclock.providers.claude_resets import CLAUDE_RESETS_URL, ClaudeResetsProvider
 
@@ -74,6 +75,6 @@ def test_missing_provider_is_error_and_http_headers(monkeypatch):
     assert snapshots[0].error == "unexpected payload"
     headers = responses.calls[0].request.headers
     assert headers["User-Agent"] == (
-        "ai-usage-clock/0.9.0 (+https://github.com/AIUsageClock/ai-usage-clock)"
+        f"ai-usage-clock/{__version__} (+{identity.REPO_URL})"
     )
     assert "If-None-Match" not in headers

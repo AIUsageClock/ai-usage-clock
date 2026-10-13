@@ -6,7 +6,7 @@
 ## Product boundary
 
 Keep the contributor's core feature: an MCP-aware client can read sanitized AI
-Gauge usage and honor a user-configured pause threshold for one explicitly
+Usage Clock usage and honor a user-configured pause threshold for one explicitly
 selected account.
 
 The integration is optional and disabled by default. Users who do not enable

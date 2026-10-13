@@ -17,16 +17,6 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" />
 </p>
 
-This is the **DraftingDreamer fork** of [AI Usage Clock by John Pajak](https://github.com/jpajak/ai-gauge), maintained at [AIUsageClock/ai-usage-clock](https://github.com/AIUsageClock/ai-usage-clock). It retains the upstream project's MIT license and source attribution. Fork-specific additions are summarized here; see the [upstream project](https://github.com/jpajak/ai-gauge) for its original features and history.
-
-| Fork addition | What it does |
-| --- | --- |
-| Antigravity quota | Reads local `agy /quota` output, supports executable selection and Gemini / Claude+GPT display groups, and stops polling when a response may have consumed tokens. |
-| Reset announcements | Adds Codex Resets and Claude Resets tiles; Windows uses concurrent native toast notifications, with tray-balloon fallback. |
-| Refresh status | Error labels show the cause and mark retained values as stale. |
-| Codex Overview | Reads current quota from the Overview page in English and Traditional Chinese, includes weekly reset countdowns, and rejects Analytics history as current quota. |
-| Claude sign-in | Shows a Sign in action for recognized sign-in redirects; based in part on changes by [innoscoutpro](https://github.com/innoscoutpro/ai-gauge/commits?author=innoscoutpro). |
-
 AI Usage Clock is a compact desktop monitor for **Claude.ai**, **ChatGPT Codex**,
 **Antigravity**, **OpenCode Go**, **GitHub Copilot**, and **OpenRouter**. It shows
 usage limits, reset times, balances, and spend at a glance. Optional local
@@ -45,17 +35,27 @@ utility. It is not affiliated with Anthropic, OpenAI, GitHub, Microsoft,
 OpenRouter, or any other provider. Provider pages and APIs may change without
 notice.
 
+## Highlights
+
+| Feature | What it does |
+| --- | --- |
+| Antigravity quota | Reads local `agy /quota` output, supports executable selection and Gemini / Claude+GPT display groups, and stops polling when a response may have consumed tokens. |
+| Reset announcements | Shows Codex Resets and Claude Resets tiles (off by default); on Windows, alerts use concurrent native toast notifications, with a tray-balloon fallback. |
+| Refresh status | Error labels show the cause and mark retained values as stale. |
+| Codex Overview | Reads current quota from the Overview page in English and Traditional Chinese, includes weekly reset countdowns, and rejects Analytics history as current quota. |
+| Claude sign-in | Shows a **Sign in** action when a recognized sign-in redirect is detected. |
+
 ## Screenshots
 
-**DraftingDreamer fork 0.9.0 — Windows**
+**AI Usage Clock — Windows**
 
 <p align="center">
-  <img src="docs/screenshots/fork-0.9.0-windows.png" alt="AI Usage Clock 0.9.0 on Windows showing Claude and Codex usage, Antigravity quotas, and Codex and Claude reset announcements" width="520" />
+  <img src="docs/screenshots/fork-0.9.0-windows.png" alt="AI Usage Clock on Windows showing Claude and Codex usage, Antigravity quotas, and Codex and Claude reset announcements" width="520" />
 </p>
 
 Captured from the running Windows release. Usage values reflect the capture time.
 
-**Upstream UI examples — Windows / Linux** — always-on-top floating widget in full and compact modes:
+**Windows / Linux** — always-on-top floating widget in full and compact modes:
 
 <p align="center">
   <img src="docs/screenshots/win-panel-full.png" alt="AI Usage Clock full panel showing provider usage" width="320" />
@@ -63,15 +63,9 @@ Captured from the running Windows release. Usage values reflect the capture time
   <img src="docs/screenshots/win-panel-compact.png" alt="AI Usage Clock collapsed pill mode" width="320" />
 </p>
 
-**Upstream UI example — macOS** — native menu-bar usage summary:
-
-<p align="center">
-  <img src="docs/screenshots/mac-menubar.png" alt="AI Usage Clock macOS menu-bar item showing provider usage" width="400" />
-</p>
-
 ## Download
 
-Pre-built binaries for each release are published on the [DraftingDreamer Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases). Pick the archive for your OS, extract, and run:
+Pre-built binaries for each release are published on the [Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases). Pick the archive for your OS, extract, and run:
 
 | OS      | Archive                              | Run                                |
 | ------- | ------------------------------------ | ---------------------------------- |
@@ -161,7 +155,7 @@ and logs deleted before AI Usage Clock imports them are not included.
 ### How browser sign-in works
 
 Google does not allow OAuth sign-in inside embedded browser controls, so AI
-Gauge can open Chrome, Edge, Brave, or Chromium instead. On first use it asks
+Usage Clock can open Chrome, Edge, Brave, or Chromium instead. On first use it asks
 which one you want and remembers the choice; change it later under **Settings →
 General → Sign-in browser**. The flow is local:
 
@@ -181,7 +175,7 @@ General → Sign-in browser**. The flow is local:
 The small AI Usage Clock window shown alongside the external browser is a status and
 recovery dialog, not a second active browser. The embedded webview loads only
 when you choose it. If the external browser closes before authentication, AI
-Gauge returns to the browser choice instead of opening the fallback on its own.
+Usage Clock returns to the browser choice instead of opening the fallback on its own.
 In embedded mode, a recognized session is verified automatically; **I'm signed
 in** remains available as a manual fallback.
 
@@ -310,8 +304,8 @@ macOS quarantine handling, and the guard's security model.
 
 ## Contributing
 
-Bug reports, provider-layout fixes, and PRs are welcome. Open fork-specific
-issues on the [DraftingDreamer issue tracker](https://github.com/AIUsageClock/ai-usage-clock/issues).
+Bug reports, provider-layout fixes, and PRs are welcome. Open issues on the
+[issue tracker](https://github.com/AIUsageClock/ai-usage-clock/issues).
 See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, test commands,
 and the issue templates to use.
 
@@ -322,10 +316,10 @@ and the issue templates to use.
 - Antigravity usage, reset tiles, and native notifications have been tested on
   Windows 11 only; macOS and Linux are untested.
 - **Why does Sign in open a separate Chrome-family window?** Google blocks OAuth in embedded user-agents, while Chrome's App-Bound Encryption prevents AI Usage Clock from reading an existing everyday browser profile. AI Usage Clock therefore opens a fresh temporary browser profile, receives only the selected provider's cookies through Chrome's loopback debugging interface, imports them into the app, and deletes the temporary profile.
-- **Claude / Codex layouts may change.** If a browser-backed provider tile shows "error" after an upstream UI update, its page-extractor JS under `src/aiusageclock/providers/` may need adjusting — the rest of the app keeps working.
-- **Remote desktops and GPU-less sessions need one caveat.** The gauge is plain Qt Widgets and runs anywhere, including over RDP/XRDP and on machines with no GPU. Claude and Codex are read by driving an embedded Chromium, which needs an OpenGL context; a session offering neither GLX nor EGL cannot provide one. In that case those tiles report that they need a browser, while OpenCode Go, GitHub Copilot, and OpenRouter use API credentials and work normally. Most Linux desktops supply software GL through Mesa, so this only bites on bare X servers and some remote sessions. If AI Usage Clock misjudges your session, set `AIUSAGECLOCK_FORCE_WEBENGINE=1` to skip the check.
+- **Claude / Codex layouts may change.** If a browser-backed provider tile shows "error" after the provider updates its UI, its page-extractor JS under `src/aiusageclock/providers/` may need adjusting — the rest of the app keeps working.
+- **Remote desktops and GPU-less sessions need one caveat.** The widget is plain Qt Widgets and runs anywhere, including over RDP/XRDP and on machines with no GPU. Claude and Codex are read by driving an embedded Chromium, which needs an OpenGL context; a session offering neither GLX nor EGL cannot provide one. In that case those tiles report that they need a browser, while OpenCode Go, GitHub Copilot, and OpenRouter use API credentials and work normally. Most Linux desktops supply software GL through Mesa, so this only bites on bare X servers and some remote sessions. If AI Usage Clock misjudges your session, set `AIUSAGECLOCK_FORCE_WEBENGINE=1` to skip the check.
 - The Copilot REST endpoint returns the _current calendar month_ of billing usage. The widget tracks gross AI credits consumed against the included allowance; net quantity/amount is only the billable overage. Reset is computed as the 1st of the next month. GitHub does not currently expose a reliable personal-plan allowance field, so Settings uses a plan dropdown with a Custom fallback. Annual/request-based accounts are handled with a legacy premium-request fallback.
-- **Copilot usage lags upstream.** The Copilot REST endpoint updates noticeably slower than Claude or Codex — credit counts can take hours to reflect recent activity. The widget shows the most recent value GitHub returns; treat the Copilot tile as a trailing indicator, not real-time.
+- **Copilot usage lags.** The Copilot REST endpoint updates noticeably slower than Claude or Codex — credit counts can take hours to reflect recent activity. The widget shows the most recent value GitHub returns; treat the Copilot tile as a trailing indicator, not real-time.
 - **Copilot AI credits.** GitHub moved Copilot from per-request quotas to token-based AI credits. Code completions and next edit suggestions remain included for paid plans, while Chat, CLI, cloud agent, Spaces, Spark, and third-party coding agents consume AI credits. The app shows the credit usage GitHub returns; if your account is org-billed, enter the billing organization so AI Usage Clock reads the organization billing pool.
 - **OpenRouter uses two key types.** The inference key is used for `/key` spend data. The management key is required for `/credits` account balance and `/activity` model history. Without a management key, AI Usage Clock still shows key-level spend but cannot show balance or model activity.
 - **OpenRouter time windows are UTC.** Today/month spend come from OpenRouter's current UTC day and month fields. Model activity comes from OpenRouter's default `/activity` history window: the last 30 completed UTC days, excluding the current UTC day.

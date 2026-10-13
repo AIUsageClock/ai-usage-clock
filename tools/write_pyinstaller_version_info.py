@@ -25,8 +25,8 @@ def _string(value: str) -> str:
 
 
 TARGETS = {
-    "ai-usage-clock": "AloeDesk AI Usage Clock utility",
-    "ai-usage-clock-mcp": "AloeDesk AI Usage Clock MCP usage guard",
+    "ai-usage-clock": "AI Usage Clock",
+    "ai-usage-clock-mcp": "AI Usage Clock MCP helper",
 }
 
 
@@ -34,11 +34,11 @@ def render(version: str, name: str = "ai-usage-clock") -> str:
     version_tuple = _version_tuple(version)
     dotted = ".".join(str(part) for part in version_tuple)
     strings = {
-        "CompanyName": "AloeDesk",
+        "CompanyName": "AI Usage Clock contributors",
         "FileDescription": TARGETS.get(name, TARGETS["ai-usage-clock"]),
         "FileVersion": dotted,
         "InternalName": name,
-        "LegalCopyright": "Copyright (c) AloeDesk",
+        "LegalCopyright": "Released under the MIT License; see LICENSE",
         "OriginalFilename": f"{name}.exe",
         "ProductName": "AI Usage Clock",
         "ProductVersion": version,

@@ -53,7 +53,7 @@ count as real-account testing on macOS or Linux.
 After release preparation is committed to `main`, push the matching `v<version>`
 tag. The `v*` release workflow builds Windows, macOS, and Linux bundles, creates
 SHA256 files, and attaches each archive/checksum pair to a **draft** release on
-the [DraftingDreamer Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases):
+the [Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases):
 
 - `ai-usage-clock-<version>-windows.zip` (+ `.sha256`)
 - `ai-usage-clock-<version>-macos.tar.gz` (+ `.sha256`)
@@ -68,7 +68,7 @@ successful workflow run alone is not approval to publish.
 ## Manual fallback
 
 If the automated workflow is unavailable (e.g. you're publishing from a
-fork without Actions enabled), the manual flow still works — but you'll
+repository without Actions enabled), the manual flow still works — but you'll
 need access to a machine of each OS you intend to ship for, since
 PyInstaller cross-compilation isn't supported.
 
@@ -99,7 +99,7 @@ PyInstaller cross-compilation isn't supported.
    shasum -a 256 ai-usage-clock-<ver>-macos.tar.gz
    ```
 
-4. Push the version tag, then in GitHub go to the DraftingDreamer repository's
+4. Push the version tag, then in GitHub go to this repository's
    **Releases** → **Draft a new release**, select the tag, paste the changelog
    notes, and attach all archive + `.sha256` pairs. Publish only after checking
    all archives, hashes, and isolated GUI/MCP smoke results.
@@ -137,7 +137,7 @@ SHA256: see the `.sha256` next to each archive.
 
 Windows releases are built with PyInstaller metadata generated from
 `pyproject.toml` so `ai-usage-clock.exe` has a stable ProductName, CompanyName,
-FileDescription, FileVersion, ProductVersion, OriginalFilename, and copyright.
+FileDescription, FileVersion, ProductVersion, OriginalFilename, and license notice.
 The app's Start at login setting uses a named Task Scheduler entry (`AI Usage Clock`)
 instead of writing to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 

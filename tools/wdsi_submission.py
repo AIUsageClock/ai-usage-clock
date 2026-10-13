@@ -117,10 +117,10 @@ Intelligence ver:{intel}
 --- Paste into "Additional information" ---
 This file is a false positive. It is AI Usage Clock {version}, a desktop usage
 monitor for AI coding tools (Claude, Codex, GitHub Copilot, OpenRouter),
-published by AloeDesk as open source.
+published by AI Usage Clock contributors as open source.
 
 Product name:    AI Usage Clock
-Company:         AloeDesk
+Company:         AI Usage Clock contributors
 Version:         {version}
 Git tag:         {tag}
 Git commit:      {commit}

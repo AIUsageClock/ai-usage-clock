@@ -17,16 +17,6 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT 授權" />
 </p>
 
-這是 [John Pajak 的 AI Usage Clock](https://github.com/jpajak/ai-gauge) 的 **DraftingDreamer 分支版本（fork）**，維護於 [AIUsageClock/ai-usage-clock](https://github.com/AIUsageClock/ai-usage-clock)。本分支保留上游專案的 MIT 授權與原始碼出處標示。此處僅摘要分支專屬的新增功能；上游專案的原有功能與沿革，請參閱[上游專案](https://github.com/jpajak/ai-gauge)。
-
-| 分支新增功能 | 說明 |
-| --- | --- |
-| Antigravity 額度 | 讀取本機 `agy /quota` 的輸出，支援選擇執行檔，以及 Gemini／Claude+GPT 顯示群組；當某次回應可能已消耗 token 時，會停止輪詢。 |
-| 重置公告 | 新增 Codex Resets 與 Claude Resets 磚塊；Windows 上使用並行的原生 Toast 通知，並以系統匣氣泡通知作為備援。 |
-| 重新整理狀態 | 錯誤標籤會顯示原因，並將保留的數值標示為過期（stale）。 |
-| Codex 總覽 | 從總覽頁面讀取目前額度（支援英文與繁體中文介面），包含每週重置倒數，並拒絕將 Analytics 歷史資料誤判為目前額度。 |
-| Claude 登入 | 偵測到可辨識的登入重新導向時，顯示「Sign in」操作；部分內容改編自 [innoscoutpro](https://github.com/innoscoutpro/ai-gauge/commits?author=innoscoutpro) 的變更。 |
-
 AI Usage Clock 是一款精巧的桌面監控工具，支援 **Claude.ai**、**ChatGPT Codex**、
 **Antigravity**、**OpenCode Go**、**GitHub Copilot** 與 **OpenRouter**，
 讓您一眼掌握用量上限、重置時間、餘額與花費。另可選擇啟用本機追蹤功能，
@@ -41,17 +31,27 @@ AI Usage Clock 是一款精巧的桌面監控工具，支援 **Claude.ai**、**C
 
 AI Usage Clock 是獨立的開源專案，屬於非官方的本機桌面小工具，與 Anthropic、OpenAI、GitHub、Microsoft、OpenRouter 或任何其他服務供應商皆無隸屬關係。各供應商的頁面與 API 可能隨時異動，恕不另行通知。
 
+## 重點功能
+
+| 功能 | 說明 |
+| --- | --- |
+| Antigravity 額度 | 讀取本機 `agy /quota` 的輸出，支援選擇執行檔，以及 Gemini／Claude+GPT 顯示群組；當某次回應可能已消耗 token 時，會停止輪詢。 |
+| 重置公告 | 提供 Codex Resets 與 Claude Resets 磚塊（預設關閉）；Windows 上使用並行的原生 Toast 通知，並以系統匣氣泡通知作為備援。 |
+| 重新整理狀態 | 錯誤標籤會顯示原因，並將保留的數值標示為過期（stale）。 |
+| Codex 總覽 | 從總覽頁面讀取目前額度（支援英文與繁體中文介面），包含每週重置倒數，並拒絕將 Analytics 歷史資料誤判為目前額度。 |
+| Claude 登入 | 偵測到可辨識的登入重新導向時，顯示「Sign in」操作。 |
+
 ## 螢幕截圖
 
-**DraftingDreamer 分支 0.9.0 — Windows**
+**AI Usage Clock — Windows**
 
 <p align="center">
-  <img src="docs/screenshots/fork-0.9.0-windows.png" alt="Windows 上的 AI Usage Clock 0.9.0，顯示 Claude 與 Codex 用量、Antigravity 額度，以及 Codex 與 Claude 重置公告" width="520" />
+  <img src="docs/screenshots/fork-0.9.0-windows.png" alt="Windows 上的 AI Usage Clock，顯示 Claude 與 Codex 用量、Antigravity 額度，以及 Codex 與 Claude 重置公告" width="520" />
 </p>
 
 擷取自執行中的 Windows 發行版本。用量數值為擷取當下的狀態。
 
-**上游介面範例 — Windows / Linux** — 永遠置頂的浮動小工具，分為完整與精簡模式：
+**Windows / Linux** — 永遠置頂的浮動小工具，分為完整與精簡模式：
 
 <p align="center">
   <img src="docs/screenshots/win-panel-full.png" alt="AI Usage Clock 完整面板，顯示各供應商的用量" width="320" />
@@ -59,15 +59,9 @@ AI Usage Clock 是獨立的開源專案，屬於非官方的本機桌面小工�
   <img src="docs/screenshots/win-panel-compact.png" alt="AI Usage Clock 收合的膠囊模式" width="320" />
 </p>
 
-**上游介面範例 — macOS** — 原生選單列用量摘要：
-
-<p align="center">
-  <img src="docs/screenshots/mac-menubar.png" alt="AI Usage Clock macOS 選單列項目，顯示各供應商的用量" width="400" />
-</p>
-
 ## 下載
 
-每個版本的預先建置執行檔都發布在 [DraftingDreamer Releases 頁面](https://github.com/AIUsageClock/ai-usage-clock/releases)。請選擇對應您作業系統的壓縮檔，解壓縮後即可執行：
+每個版本的預先建置執行檔都發布在 [Releases 頁面](https://github.com/AIUsageClock/ai-usage-clock/releases)。請選擇對應您作業系統的壓縮檔，解壓縮後即可執行：
 
 | 作業系統 | 壓縮檔                               | 執行方式                           |
 | ------- | ------------------------------------ | ---------------------------------- |
@@ -152,7 +146,7 @@ AI Usage Clock 僅會開啟追蹤服務所提供且使用 `http` 或
 ### 瀏覽器登入的運作方式
 
 Google 不允許在內嵌瀏覽器控制項內進行 OAuth 登入，因此 AI
-Gauge 會改為開啟 Chrome、Edge、Brave 或 Chromium。首次使用時會詢問
+Usage Clock 會改為開啟 Chrome、Edge、Brave 或 Chromium。首次使用時會詢問
 您要用哪一個並記住選擇；之後可在 **設定 →
 General → Sign-in browser**（登入用瀏覽器）中變更。整個流程皆在本機進行：
 
@@ -172,7 +166,7 @@ General → Sign-in browser**（登入用瀏覽器）中變更。整個流程皆
 與外部瀏覽器並列顯示的小型 AI Usage Clock 視窗，是狀態與
 復原用的對話方塊，而不是第二個作用中的瀏覽器。內嵌 WebView 僅在
 您選擇時才會載入。若外部瀏覽器在驗證完成前被關閉，AI
-Gauge 會回到瀏覽器選擇畫面，而不會自行開啟備援方式。
+Usage Clock 會回到瀏覽器選擇畫面，而不會自行開啟備援方式。
 在內嵌模式下，系統會自動驗證已辨識的工作階段；**I'm signed
 in**（我已登入）仍可作為手動備援。
 
@@ -300,8 +294,8 @@ ai-usage-clock-mcp --account-id codex-work
 
 ## 參與貢獻
 
-歡迎提交錯誤回報、供應商版面修正與 PR。分支專屬的問題請至
-[DraftingDreamer issue 追蹤頁面](https://github.com/AIUsageClock/ai-usage-clock/issues)提出。
+歡迎提交錯誤回報、供應商版面修正與 PR。請至
+[issue 追蹤頁面](https://github.com/AIUsageClock/ai-usage-clock/issues)提出問題。
 環境設定、測試指令與應使用的 issue 範本，請參閱 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 注意事項／限制
@@ -311,8 +305,8 @@ ai-usage-clock-mcp --account-id codex-work
 - Antigravity 用量、重置磚塊與原生通知僅在
   Windows 11 上測試過；macOS 與 Linux 尚未測試。
 - **為什麼「Sign in」會開啟另一個 Chrome 系列視窗？** Google 會封鎖內嵌 user-agent 中的 OAuth，而 Chrome 的應用程式繫結加密（App-Bound Encryption）又使 AI Usage Clock 無法讀取您日常使用的瀏覽器設定檔。因此 AI Usage Clock 會開啟一個全新的暫時性瀏覽器設定檔，透過 Chrome 的本機回送偵錯介面僅接收所選供應商的 Cookie，將其匯入應用程式，然後刪除該暫時性設定檔。
-- **Claude／Codex 的頁面版面可能會改變。** 若某個以瀏覽器為基礎的供應商磚塊在上游 UI 更新後顯示「error」，可能需要調整 `src/aiusageclock/providers/` 下的頁面擷取 JS — 應用程式的其餘部分仍可正常運作。
-- **遠端桌面與沒有 GPU 的工作階段需要注意一點。** 這個儀表本身是純 Qt Widgets，可在任何環境執行，包括透過 RDP/XRDP，以及沒有 GPU 的機器。Claude 與 Codex 是透過驅動內嵌的 Chromium 來讀取的，這需要 OpenGL 環境；若工作階段既不提供 GLX 也不提供 EGL，就無法提供此環境。在這種情況下，這些磚塊會回報需要瀏覽器，而 OpenCode Go、GitHub Copilot 與 OpenRouter 使用 API 憑證，可正常運作。大多數 Linux 桌面環境會透過 Mesa 提供軟體 GL，因此這只會發生在單純的 X 伺服器與部分遠端工作階段上。若 AI Usage Clock 誤判您的工作階段，請設定 `AIUSAGECLOCK_FORCE_WEBENGINE=1` 以略過檢查。
+- **Claude／Codex 的頁面版面可能會改變。** 若某個以瀏覽器為基礎的供應商磚塊在供應商更新 UI 後顯示「error」，可能需要調整 `src/aiusageclock/providers/` 下的頁面擷取 JS — 應用程式的其餘部分仍可正常運作。
+- **遠端桌面與沒有 GPU 的工作階段需要注意一點。** 這個小工具本身是純 Qt Widgets，可在任何環境執行，包括透過 RDP/XRDP，以及沒有 GPU 的機器。Claude 與 Codex 是透過驅動內嵌的 Chromium 來讀取的，這需要 OpenGL 環境；若工作階段既不提供 GLX 也不提供 EGL，就無法提供此環境。在這種情況下，這些磚塊會回報需要瀏覽器，而 OpenCode Go、GitHub Copilot 與 OpenRouter 使用 API 憑證，可正常運作。大多數 Linux 桌面環境會透過 Mesa 提供軟體 GL，因此這只會發生在單純的 X 伺服器與部分遠端工作階段上。若 AI Usage Clock 誤判您的工作階段，請設定 `AIUSAGECLOCK_FORCE_WEBENGINE=1` 以略過檢查。
 - Copilot REST 端點回傳的是帳單用量的_當前日曆月_資料。小工具追蹤的是已消耗的 AI 點數總額相對於內含額度的使用情形；淨數量／金額僅為需付費的超額部分。重置時間以下個月 1 日計算。GitHub 目前並未提供可靠的個人方案額度欄位，因此「設定」使用方案下拉選單，並提供「自訂」作為備援。年繳／以請求次數計費的帳號，則以舊版 premium request 機制作為備援處理。
 - **Copilot 用量會有延遲。** Copilot REST 端點的更新速度明顯比 Claude 或 Codex 慢 — 點數統計可能需要數小時才會反映最近的活動。小工具顯示的是 GitHub 回傳的最新數值；請將 Copilot 磚塊視為落後指標，而非即時資料。
 - **Copilot AI 點數。** GitHub 已將 Copilot 從依請求次數計算的額度，改為以 token 為基礎的 AI 點數。付費方案仍包含程式碼補全與下一步編輯建議，而 Chat、CLI、雲端代理、Spaces、Spark 與第三方程式碼代理則會消耗 AI 點數。應用程式顯示的是 GitHub 回傳的點數用量；若您的帳號由組織計費，請填入計費組織，讓 AI Usage Clock 讀取該組織的計費點數池。

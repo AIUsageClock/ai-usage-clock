@@ -64,7 +64,7 @@ from .config import (
 )
 from .gauge import color_for_percent, thresholds_for_provider
 from .icons import app_icon
-from .identity import PRODUCT_NAME, SLUG
+from .identity import PRODUCT_NAME, PRODUCT_SHORT_NAME, SLUG
 from .models import SnapshotStatus, UsageSnapshot
 from .ratio import (
     MIN_SAMPLES,
@@ -2258,9 +2258,10 @@ class UsageWidget(QWidget):
     def _apply_responsive_collapsed_header(self) -> None:
         """Shed header detail as the pill narrows, least useful part first.
 
-        Mirrors _apply_responsive_header for the collapsed pill: version, then
-        the "Xs ago" stamp, then the cadence, then the name — leaving the icon
-        and the three buttons, which always stay.
+        Mirrors _apply_responsive_header for the collapsed pill: the version,
+        then "Usage" (the title shrinks to the short name), then the "Xs ago"
+        stamp, then the cadence, then the name — leaving the icon and the
+        three buttons, which always stay.
         """
         if not self._header_visible:
             return
@@ -2281,6 +2282,8 @@ class UsageWidget(QWidget):
         self._collapsed_age_label.setVisible(bool(self._collapsed_age_label.text()))
         if overflows():
             self._collapsed_title.setText(PRODUCT_NAME)
+        if overflows():
+            self._collapsed_title.setText(PRODUCT_SHORT_NAME)
         if overflows() and not self._collapsed_age_label.isHidden():
             self._collapsed_age_label.hide()
         if overflows() and not self._collapsed_cadence_label.isHidden():
@@ -2430,9 +2433,14 @@ class UsageWidget(QWidget):
         header_layout.activate()
 
         # Progressively reduce the identity text only when the measured header
-        # no longer fits. Core controls always remain visible.
+        # no longer fits: name and version, name, short name, then "AI".
+        # Core controls always remain visible.
         if header_layout.minimumSize().width() > self.width():
             self.title_label.setText(PRODUCT_NAME)
+            header_layout.invalidate()
+            header_layout.activate()
+        if header_layout.minimumSize().width() > self.width():
+            self.title_label.setText(PRODUCT_SHORT_NAME)
             header_layout.invalidate()
             header_layout.activate()
         if header_layout.minimumSize().width() > self.width():

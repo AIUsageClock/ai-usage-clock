@@ -1243,30 +1243,124 @@ def test_expanded_header_compacts_progressively_when_it_cannot_fit(
 ):
     """Safety net for a title bar narrower than its own contents.
 
-    The widths are measured rather than hardcoded: the point at which each
-    step is needed depends on the platform's font metrics.
+    The title steps down one level at a time, each only when the previous one
+    does not fit: name and version, name, short name, then "AI". The widths
+    are measured rather than hardcoded: the point at which each step is needed
+    depends on the platform's font metrics.
     """
     widget = UsageWidget(Config())
     qtbot.addWidget(widget)
     full_title = f"AI Usage Clock {__version__}"
+    layout = widget._header_widget.layout()  # noqa: SLF001
 
     def title_at(width: int) -> str:
         monkeypatch.setattr(widget, "width", lambda: width)
         widget._apply_responsive_header()  # noqa: SLF001
         return widget.title_label.text()
 
-    assert title_at(WINDOW_MAX_WIDTH) == full_title
-    fits_full = widget._header_widget.layout().minimumSize().width()  # noqa: SLF001
+    def width_of(title: str, *, tight: bool = False) -> int:
+        """Narrowest header showing ``title``, with normal or tightened margins."""
+        widget.title_label.setText(title)
+        layout.setContentsMargins(*((4, 4, 2, 2) if tight else (8, 4, 4, 2)))
+        layout.setSpacing(2 if tight else 4)
+        layout.invalidate()
+        layout.activate()
+        return layout.minimumSize().width()
 
+    fits_full = width_of(full_title)
+    fits_name = width_of("AI Usage Clock")
+    fits_short = width_of("AI Clock")
+    fits_short_tight = width_of("AI Clock", tight=True)
+    # Every step has to be narrower than the one before, or the ladder below
+    # would not be testing what it claims to.
+    assert fits_full > fits_name > fits_short > fits_short_tight
+
+    # 1. Name and version while they fit.
+    assert title_at(WINDOW_MAX_WIDTH) == full_title
     assert title_at(fits_full) == full_title
-    # One pixel short of the full title, the version goes first.
+    # 2. One pixel short of that, only the version goes.
     assert title_at(fits_full - 1) == "AI Usage Clock"
-    # Far past every step, the name itself is abbreviated but the controls
-    # are all still there.
+    assert title_at(fits_name) == "AI Usage Clock"
+    # 3. One pixel short of the name, it shrinks to the short name.
+    assert title_at(fits_name - 1) == "AI Clock"
+    assert title_at(fits_short) == "AI Clock"
+    # Tightening the margins comes before giving up the short name.
+    assert title_at(fits_short - 1) == "AI Clock"
+    assert title_at(fits_short_tight) == "AI Clock"
+    # 4. Only when even that cannot fit is the name abbreviated to "AI"; the
+    # controls are all still there.
+    assert title_at(fits_short_tight - 1) == "AI"
     assert title_at(10) == "AI"
     assert not widget.refresh_btn.isHidden()
     assert not widget.settings_btn.isHidden()
     assert not widget.close_btn.isHidden()
+
+
+def test_collapsed_title_steps_down_only_when_it_cannot_fit(qtbot, monkeypatch):
+    """The collapsed pill sheds the version, then "Usage", then the rest.
+
+    The title goes name and version, name, short name; only after that do the
+    "Xs ago" stamp, the cadence and finally the title itself give way.
+    """
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    widget.update_snapshot(_ok_snapshot("codex"), "Codex")
+    widget.set_collapsed(True)
+    # The responsive pass reads these texts to decide what can be shed.
+    widget._collapsed_age_label.setText("5s ago")  # noqa: SLF001
+    widget._collapsed_cadence_label.setText("5m")  # noqa: SLF001
+    full_title = f"AI Usage Clock {__version__}"
+    layout = widget._collapsed_header_layout  # noqa: SLF001
+    age = widget._collapsed_age_label  # noqa: SLF001
+    cadence = widget._collapsed_cadence_label  # noqa: SLF001
+
+    def title_at(width: int) -> str:
+        monkeypatch.setattr(widget, "width", lambda: width)
+        widget._apply_responsive_collapsed_header()  # noqa: SLF001
+        return widget._collapsed_title.text()  # noqa: SLF001
+
+    def width_of(title: str, *, age_shown: bool = True, cadence_shown: bool = True) -> int:
+        """Narrowest pill showing ``title`` and the chosen header labels."""
+        widget._collapsed_title.setText(title)  # noqa: SLF001
+        age.setVisible(age_shown)
+        cadence.setVisible(cadence_shown)
+        layout.invalidate()
+        layout.activate()
+        return layout.minimumSize().width() + widget._collapsed_chrome_width()  # noqa: SLF001
+
+    fits_full = width_of(full_title)
+    fits_name = width_of("AI Usage Clock")
+    fits_short = width_of("AI Clock")
+    fits_short_no_age = width_of("AI Clock", age_shown=False)
+    fits_short_bare = width_of("AI Clock", age_shown=False, cadence_shown=False)
+    assert fits_full > fits_name > fits_short > fits_short_no_age > fits_short_bare
+    assert fits_short_bare > widget._minimum_collapsed_width()  # noqa: SLF001
+
+    # 1. Name and version while they fit, with every label beside it.
+    assert title_at(WINDOW_MAX_WIDTH) == full_title
+    assert title_at(fits_full) == full_title
+    # 2. One pixel short of that, only the version goes.
+    assert title_at(fits_full - 1) == "AI Usage Clock"
+    assert title_at(fits_name) == "AI Usage Clock"
+    # 3. One pixel short of the name, it shrinks to the short name — before
+    # either label is given up.
+    assert title_at(fits_name - 1) == "AI Clock"
+    assert not age.isHidden()
+    assert not cadence.isHidden()
+    assert title_at(fits_short) == "AI Clock"
+    # Only then do the stamp and the cadence go, in that order, with the
+    # short name kept.
+    assert title_at(fits_short - 1) == "AI Clock"
+    assert age.isHidden()
+    assert not cadence.isHidden()
+    assert title_at(fits_short_no_age - 1) == "AI Clock"
+    assert age.isHidden()
+    assert cadence.isHidden()
+    # 4. When even the bare short name cannot fit, the title itself goes and
+    # only the icon and the buttons remain.
+    assert title_at(fits_short_bare) == "AI Clock"
+    assert title_at(fits_short_bare - 1) == ""
+    assert title_at(10) == ""
 
 
 def test_metric_row_clamps_overage_fill_and_uses_account_threshold_color(qtbot):
