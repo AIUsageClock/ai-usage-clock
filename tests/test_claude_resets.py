@@ -4,8 +4,8 @@ from pathlib import Path
 
 import responses
 
-from aigauge.models import SnapshotStatus
-from aigauge.providers.claude_resets import CLAUDE_RESETS_URL, ClaudeResetsProvider
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.claude_resets import CLAUDE_RESETS_URL, ClaudeResetsProvider
 
 FIXTURE = Path(__file__).parent / "fixtures" / "resets" / "claude_resets.json"
 NOW = datetime(2026, 9, 27, 12, tzinfo=timezone.utc)
@@ -74,6 +74,6 @@ def test_missing_provider_is_error_and_http_headers(monkeypatch):
     assert snapshots[0].error == "unexpected payload"
     headers = responses.calls[0].request.headers
     assert headers["User-Agent"] == (
-        "ai-gauge/0.9.0 (+https://github.com/DraftingDreamer/ai-gauge)"
+        "ai-usage-clock/0.9.0 (+https://github.com/AIUsageClock/ai-usage-clock)"
     )
     assert "If-None-Match" not in headers

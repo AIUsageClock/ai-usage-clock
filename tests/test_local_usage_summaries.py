@@ -2,13 +2,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from aigauge.config import Config
-from aigauge.history import PeriodRecord
-from aigauge.local_usage import summaries
-from aigauge.local_usage.claude_logs import ClaudeMessage
-from aigauge.local_usage.codex_logs import CodexQuotaReading, CodexUsage
-from aigauge.local_usage.store import UsageStore
-from aigauge.local_usage.summaries import (
+from aiusageclock.config import Config
+from aiusageclock.history import PeriodRecord
+from aiusageclock.local_usage import summaries
+from aiusageclock.local_usage.claude_logs import ClaudeMessage
+from aiusageclock.local_usage.codex_logs import CodexQuotaReading, CodexUsage
+from aiusageclock.local_usage.store import UsageStore
+from aiusageclock.local_usage.summaries import (
     FLAG_INCOMPLETE,
     FLAG_LIMIT_REACHED,
     FLAG_TIME_UNCERTAIN,
@@ -19,7 +19,7 @@ from aigauge.local_usage.summaries import (
     usage_from_json,
     usage_to_json,
 )
-from aigauge.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage.tokens import TokenCounts
 
 UTC = timezone.utc
 
@@ -59,7 +59,7 @@ def _record(label, resets, last_seen, pct, account="claude"):
 
 
 def test_usage_json_round_trip():
-    from aigauge.local_usage.store import ModelUsage
+    from aiusageclock.local_usage.store import ModelUsage
 
     rows = [ModelUsage("gpt-5.5", "long", TokenCounts(input=5, output=7), 2),
             ModelUsage("gpt-5.5", "", TokenCounts(cache_read=9), 1)]

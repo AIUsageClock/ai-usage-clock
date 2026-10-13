@@ -32,11 +32,11 @@ checkbox in the MCP Settings tab.
 When disabled:
 
 - the policy controls are disabled
-- AI Gauge does not publish the cache
+- AI Usage Clock does not publish the cache
 - an existing cache is removed
 - MCP tools return integration_disabled rather than reading stale data
 
-When enabled, AI Gauge immediately publishes its current snapshots and keeps
+When enabled, AI Usage Clock immediately publishes its current snapshots and keeps
 the cache updated after successful or failed provider refreshes and account
 configuration changes.
 
@@ -47,7 +47,7 @@ thresholds as integers from 1 through 100.
 
 Retain:
 
-    ai-gauge-mcp --account-id <account-id>
+    ai-usage-clock-mcp --account-id <account-id>
 
 Remove --auto-codex-account and the email-username/display-name matching
 heuristic. Automatic switching is useful but requires a trustworthy exact
@@ -80,7 +80,7 @@ present that result as verified safe capacity.
 Return stable reason_code values in addition to human-readable reasons so
 tests and clients do not parse prose.
 
-Distinguish "AI Gauge published nothing" from "the last refresh failed". An
+Distinguish "AI Usage Clock published nothing" from "the last refresh failed". An
 unreadable or absent cache is reported as cache_unavailable, not
 snapshot_not_ok: both block, but only one of them means a refresh happened.
 The cache carries an explicit availability flag so an empty-but-real
@@ -114,7 +114,7 @@ or metric notes. Retain the contributor's unique temporary file, fsync, atomic
 replace, Windows sharing retries, and temporary-file cleanup.
 
 Republish after snapshots and provider/account changes only when MCP is
-enabled. Remove the cache when MCP is disabled or AI Gauge exits cleanly.
+enabled. Remove the cache when MCP is disabled or AI Usage Clock exits cleanly.
 Freshness checks handle crashes.
 
 ### 6. Make recommendations use the same safety rules
@@ -135,10 +135,10 @@ over-threshold account.
 Move mcp out of the base dependencies into an optional mcp extra. Include it in
 the existing dev extra so tests and release builds still install it.
 
-The GUI must not import aigauge.mcp_server. The console entry point should
+The GUI must not import aiusageclock.mcp_server. The console entry point should
 produce a clear installation message if the optional SDK is absent.
 
-Build a separate console-mode, one-file ai-gauge-mcp helper and place it in each
+Build a separate console-mode, one-file ai-usage-clock-mcp helper and place it in each
 release artifact alongside the GUI application. Its stdout is reserved for MCP
 protocol traffic. Exercise initialize, tool discovery, a guard call, and clean
 shutdown against the frozen helper on every supported CI platform.
@@ -166,7 +166,7 @@ claims.
 
 ## File changes
 
-### src/aigauge/config.py
+### src/aiusageclock/config.py
 
 - Add mcp_enabled=false.
 - Constrain mcp_pause_policies values to 1–100.
@@ -174,26 +174,26 @@ claims.
   default Config on any validation error, so an out-of-range threshold would
   otherwise discard every unrelated setting the user has saved.
 
-### src/aigauge/settings_dialog.py
+### src/aiusageclock/settings_dialog.py
 
 - Add the master checkbox.
 - Gate the policy group.
 - Remove automatic-binding instructions.
 - Save the enabled state.
 
-### src/aigauge/usage_cache.py
+### src/aiusageclock/usage_cache.py
 
 - Add schema metadata and guard_eligible.
 - Remove error and note fields.
 - Add invalidate_usage_cache.
 
-### src/aigauge/app.py
+### src/aiusageclock/app.py
 
 - Gate cache publication.
 - Synchronize the cache after provider/account changes.
 - Invalidate it on disable and clean exit.
 
-### src/aigauge/mcp_server.py
+### src/aiusageclock/mcp_server.py
 
 - Remove automatic identity resolution.
 - Refuse disabled integration and invalid accounts.

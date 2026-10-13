@@ -43,9 +43,9 @@ def resolve_gui_executable(value: str | Path, *, platform: str | None = None) ->
     platform = platform or sys.platform
     path = Path(value).expanduser().resolve()
     if path.suffix.lower() == ".app":
-        path = path / "Contents" / "MacOS" / "ai-gauge"
+        path = path / "Contents" / "MacOS" / "ai-usage-clock"
     elif path.is_dir():
-        path = path / ("ai-gauge.exe" if platform == "win32" else "ai-gauge")
+        path = path / ("ai-usage-clock.exe" if platform == "win32" else "ai-usage-clock")
     if not path.is_file():
         raise FileNotFoundError(f"packaged GUI executable not found: {path}")
     return path
@@ -157,7 +157,7 @@ def wait_for_startup(
             raise RuntimeError(f"GUI startup reported a Qt/DLL initialization error: {error}")
         if all(marker in last_text for marker in STARTUP_MARKERS):
             startup = startup_line(last_text)
-            expected_token = f"ai-gauge {expected_version} starting platform="
+            expected_token = f"ai-usage-clock {expected_version} starting platform="
             if expected_token not in startup or "frozen=True" not in startup:
                 raise RuntimeError(
                     "GUI startup log did not identify the expected frozen build "
@@ -191,19 +191,19 @@ def smoke_test(
     startup_timeout: float = 30,
     stability_seconds: float = 2,
 ) -> dict[str, str]:
-    with tempfile.TemporaryDirectory(prefix="ai-gauge-gui-smoke-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="ai-usage-clock-gui-smoke-") as temporary:
         root = Path(temporary)
         env = isolated_child_environment(root)
         for variable in ("APPDATA", "LOCALAPPDATA", "USERPROFILE", "HOME", "XDG_CONFIG_HOME"):
             Path(env[variable]).mkdir(parents=True, exist_ok=True)
         # Platform.app_data_dir() intentionally honors APPDATA on every OS;
         # this matches the application's config.py/platforms/base.py paths.
-        config_dir = Path(env["APPDATA"]) / "ai-gauge"
+        config_dir = Path(env["APPDATA"]) / "ai-usage-clock"
         config_dir.mkdir(parents=True, exist_ok=True)
         (config_dir / "config.json").write_text(
             json.dumps(isolated_config(), indent=2), encoding="utf-8"
         )
-        log_path = config_dir / "ai-gauge.log"
+        log_path = config_dir / "ai-usage-clock.log"
         stdout_path = root / "stdout.log"
         stderr_path = root / "stderr.log"
         process: subprocess.Popen[bytes] | None = None

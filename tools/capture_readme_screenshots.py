@@ -22,10 +22,10 @@ from PyQt6.QtCore import Qt  # noqa: E402
 from PyQt6.QtGui import QFont  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
-from aigauge.config import Config  # noqa: E402
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot  # noqa: E402
-from aigauge.ratio import RatioEstimate  # noqa: E402
-from aigauge.widget import UsageWidget  # noqa: E402
+from aiusageclock.config import Config  # noqa: E402
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot  # noqa: E402
+from aiusageclock.ratio import RatioEstimate  # noqa: E402
+from aiusageclock.widget import UsageWidget  # noqa: E402
 
 
 def _snapshots(now: datetime) -> tuple[tuple[UsageSnapshot, str], ...]:

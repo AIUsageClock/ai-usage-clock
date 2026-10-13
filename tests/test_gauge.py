@@ -1,10 +1,10 @@
-from aigauge.config import ColorThresholds, Config
-from aigauge.gauge import (
+from aiusageclock.config import ColorThresholds, Config
+from aiusageclock.gauge import (
     band_for_percent,
     highest_indicator,
     provider_max_percent,
 )
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 
 
 def _snapshot(provider: str, *percentages: float) -> UsageSnapshot:

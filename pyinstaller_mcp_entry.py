@@ -1,4 +1,4 @@
-from aigauge.mcp_server import main
+from aiusageclock.mcp_server import main
 
 
 if __name__ == "__main__":

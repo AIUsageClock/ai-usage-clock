@@ -25,10 +25,10 @@ def _read_pyproject_version() -> str:
 
 
 def _read_init_version() -> str:
-    text = (REPO_ROOT / "src" / "aigauge" / "__init__.py").read_text(encoding="utf-8")
+    text = (REPO_ROOT / "src" / "aiusageclock" / "__init__.py").read_text(encoding="utf-8")
     m = re.search(r'__version__\s*=\s*"([^"]+)"', text)
     if not m:
-        raise SystemExit("could not find __version__ in src/aigauge/__init__.py")
+        raise SystemExit("could not find __version__ in src/aiusageclock/__init__.py")
     return m.group(1)
 
 
@@ -50,7 +50,7 @@ def main() -> int:
 
     if pyproject != init:
         failures.append(
-            f"pyproject.toml version ({pyproject}) != src/aigauge/__init__.py version ({init})"
+            f"pyproject.toml version ({pyproject}) != src/aiusageclock/__init__.py version ({init})"
         )
 
     if not _readme_mentions_version(pyproject):

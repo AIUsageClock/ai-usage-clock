@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 
-from aigauge.models import SnapshotStatus
-from aigauge.providers._resets_common import (
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers._resets_common import (
     ResetEvent,
     ResetsProviderBase,
     build_snapshot,
@@ -101,7 +101,7 @@ def test_refresh_throttles_successful_requests_for_15_minutes(monkeypatch):
 import json
 from pathlib import Path
 import responses
-from aigauge.providers.codex_resets import CODEX_RESETS_URL, CodexResetsProvider
+from aiusageclock.providers.codex_resets import CODEX_RESETS_URL, CodexResetsProvider
 
 FIXTURES = Path(__file__).parent / "fixtures" / "resets"
 

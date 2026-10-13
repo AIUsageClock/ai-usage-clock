@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from PyQt6.QtGui import QColor, QPixmap
 
-from aigauge.config import ColorThresholds, Config
-from aigauge.menubar import (
+from aiusageclock.config import ColorThresholds, Config
+from aiusageclock.menubar import (
     DOT_DIAMETER,
     OK_COLORS,
     NEUTRAL_COLOR,
@@ -21,7 +21,7 @@ from aigauge.menubar import (
     render_menubar_pixmap,
     status_items,
 )
-from aigauge.models import (
+from aiusageclock.models import (
     SnapshotStatus,
     UsageMetric,
     UsageSnapshot,

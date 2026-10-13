@@ -17,7 +17,7 @@ from ..config import (
     webview_profile_dir,
 )
 
-log = logging.getLogger("aigauge.webview.cookies")
+log = logging.getLogger("aiusageclock.webview.cookies")
 
 
 # Resolved on first use rather than imported at module scope: .profile pulls in

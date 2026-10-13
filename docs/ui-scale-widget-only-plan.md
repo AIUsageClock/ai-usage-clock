@@ -54,7 +54,7 @@ scale-aware:
 
 1. **Inline Qt stylesheets** with `font-size:Npx`, `padding`, `border-radius`,
    `width`, e.g. `widget.py:570, 582, 718, 1068, 1217` and ~25 more. Grep:
-   `grep -nE "px|font-size" src/aigauge/widget.py`.
+   `grep -nE "px|font-size" src/aiusageclock/widget.py`.
 2. **Numeric geometry calls** — `setFixedSize/Width/Height`, `setMinimumWidth`,
    `setPixelSize`, layout `setContentsMargins`/`setSpacing`, and the module
    constants:
@@ -199,7 +199,7 @@ plumbing and wiring `apply_ui_scale`. Custom-painter scaling is small.
 - [ ] Add `px()` / `qss()` helpers and thread `scale` into `_ProviderTile`,
       `_MetricRow`, `_SummaryChip`.
 - [ ] Wrap all inline stylesheets in `qss()`
-      (`grep -nE "setStyleSheet" src/aigauge/widget.py`).
+      (`grep -nE "setStyleSheet" src/aiusageclock/widget.py`).
 - [ ] Wrap all `setFixed*/setMinimum*/setMaximum*/setPixelSize/setContentsMargins/
       setSpacing` literals in `px()`.
 - [ ] Make every `WINDOW_*` / `ROW_BAR_HEIGHT` reader use the scaled value; audit

@@ -10,7 +10,7 @@ from pathlib import Path
 from .config import app_data_dir
 from .models import SnapshotStatus, UsageSnapshot
 
-log = logging.getLogger("aigauge.ratio")
+log = logging.getLogger("aiusageclock.ratio")
 
 # Mirrors history._ROLLOVER_THRESHOLD: a resets_at reading must jump forward by
 # at least this much to count as a real period rollover rather than minute-level

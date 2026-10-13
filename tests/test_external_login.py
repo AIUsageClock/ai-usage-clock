@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.webview import external_login
-from aigauge.webview.external_login import (
+from aiusageclock.webview import external_login
+from aiusageclock.webview.external_login import (
     ExternalLoginWorker,
     _create_websocket_connection,
     _domain_matches,

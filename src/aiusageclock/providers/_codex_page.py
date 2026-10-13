@@ -60,8 +60,8 @@ function maybeSelectOverview(bodyText) {
   if (tabSelected(overview)) return '';
   // The old analytics route has no quota card. The Overview tab is the only
   // safe in-page transition; never click a heading or a hidden tab.
-  if (document.__aigaugeCodexOverviewClicked) return 'waiting for Overview tab';
-  document.__aigaugeCodexOverviewClicked = true;
+  if (document.__aiusageclockCodexOverviewClicked) return 'waiting for Overview tab';
+  document.__aiusageclockCodexOverviewClicked = true;
   overview.click();
   return 'selected overview tab';
 }

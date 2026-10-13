@@ -1,10 +1,10 @@
 import pytest
 
-from aigauge.config import Config
-from aigauge.models import SnapshotStatus
-from aigauge.providers.copilot import CopilotProvider
-from aigauge.providers.opencode_go import OpenCodeGoProvider
-from aigauge.providers.openrouter import OpenRouterProvider
+from aiusageclock.config import Config
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.copilot import CopilotProvider
+from aiusageclock.providers.opencode_go import OpenCodeGoProvider
+from aiusageclock.providers.openrouter import OpenRouterProvider
 
 
 class _ImmediatePool:

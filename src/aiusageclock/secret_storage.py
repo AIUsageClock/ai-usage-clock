@@ -4,7 +4,7 @@ Windows Credential Manager caps the credential blob at ~2560 bytes, which is fin
 for short tokens (GitHub PAT) but fails for long session JWTs (ChatGPT's
 __Secure-next-auth.session-token can be 5-10KB).
 
-We store these in %APPDATA%/ai-gauge/secrets.dat, encrypted with DPAPI
+We store these in %APPDATA%/ai-usage-clock/secrets.dat, encrypted with DPAPI
 (CryptProtectData) — same per-user encryption that pre-v127 Chrome used. No
 new Python dependencies; calls into crypt32.dll via ctypes.
 
@@ -25,7 +25,7 @@ from pathlib import Path
 
 from .config import app_data_dir
 
-log = logging.getLogger("aigauge.secret_storage")
+log = logging.getLogger("aiusageclock.secret_storage")
 
 _SECRETS_FILENAME = "secrets.dat"
 
@@ -33,7 +33,7 @@ _SECRETS_FILENAME = "secrets.dat"
 # normal case) writes on non-Windows refuse loudly so a misconfigured macOS
 # or Linux box cannot silently produce an unencrypted secrets.dat next to a
 # real cookie.
-_ALLOW_PLAINTEXT_ENV = "AIGAUGE_ALLOW_PLAINTEXT_SECRETS"
+_ALLOW_PLAINTEXT_ENV = "AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS"
 
 
 class _DataBlob(ctypes.Structure):
@@ -127,7 +127,7 @@ def _save_all(data: dict[str, str]) -> None:
     if os.environ.get(_ALLOW_PLAINTEXT_ENV) == "1":
         log.warning(
             "secret_storage: writing PLAINTEXT secrets.dat on non-Windows host "
-            "(AIGAUGE_ALLOW_PLAINTEXT_SECRETS=1). This is a development-only "
+            "(AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS=1). This is a development-only "
             "escape hatch; do not use it with real provider cookies."
         )
         path.write_bytes(payload)
@@ -136,7 +136,7 @@ def _save_all(data: dict[str, str]) -> None:
         "secret_storage: refusing to write secrets on non-Windows host. "
         "DPAPI encryption is unavailable, so writing here would store the "
         "value in plaintext. Run on Windows, or set "
-        "AIGAUGE_ALLOW_PLAINTEXT_SECRETS=1 to opt in (development only)."
+        "AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS=1 to opt in (development only)."
     )
 
 

@@ -21,7 +21,7 @@ from ..config import app_data_dir
 from .store import ModelUsage
 from .tokens import TokenCounts
 
-log = logging.getLogger("aigauge.local_usage.rates")
+log = logging.getLogger("aiusageclock.local_usage.rates")
 
 OVERRIDE_FILENAME = "rates.override.json"
 PRICED_CATEGORIES = ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h")
@@ -133,7 +133,7 @@ def _parse_models(data: object, errors: list[str], origin: str) -> dict[str, Mod
 
 
 def bundled_rates_text() -> str:
-    return resources.files("aigauge.local_usage").joinpath("rates.json").read_text(encoding="utf-8")
+    return resources.files("aiusageclock.local_usage").joinpath("rates.json").read_text(encoding="utf-8")
 
 
 def default_override_path() -> Path:

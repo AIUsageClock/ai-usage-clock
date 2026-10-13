@@ -1,9 +1,9 @@
 import pytest
 import responses
 
-from aigauge.config import Config
-from aigauge.models import SnapshotStatus
-from aigauge.providers.openrouter import (
+from aiusageclock.config import Config
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.openrouter import (
     ACTIVITY_LABEL,
     MAX_MODEL_BREAKDOWN_ROWS,
     MODEL_BREAKDOWN_TAG,
@@ -255,7 +255,7 @@ def test_build_snapshot_no_metrics_no_crash():
 
 @responses.activate
 def test_fetch_credits_returns_data():
-    from aigauge.providers.openrouter import _fetch_credits
+    from aiusageclock.providers.openrouter import _fetch_credits
 
     responses.add(
         responses.GET,
@@ -274,7 +274,7 @@ def test_fetch_credits_raises_on_401():
     """A 401 from /credits means the management key is bad, callers must
     surface this rather than silently returning empty credits."""
     import requests
-    from aigauge.providers.openrouter import _fetch_credits
+    from aiusageclock.providers.openrouter import _fetch_credits
 
     responses.add(
         responses.GET,
@@ -288,7 +288,7 @@ def test_fetch_credits_raises_on_401():
 
 @responses.activate
 def test_fetch_key_info_returns_data():
-    from aigauge.providers.openrouter import _fetch_key_info
+    from aiusageclock.providers.openrouter import _fetch_key_info
 
     responses.add(
         responses.GET,
@@ -304,7 +304,7 @@ def test_fetch_key_info_returns_data():
 def test_fetch_activity_returns_error_on_404():
     """Activity failures must surface as a string error so the snapshot can
     show a visible 'Top models unavailable' row."""
-    from aigauge.providers.openrouter import _fetch_activity
+    from aiusageclock.providers.openrouter import _fetch_activity
 
     responses.add(
         responses.GET,
@@ -318,7 +318,7 @@ def test_fetch_activity_returns_error_on_404():
 
 @responses.activate
 def test_fetch_activity_returns_error_on_network_failure():
-    from aigauge.providers.openrouter import _fetch_activity
+    from aiusageclock.providers.openrouter import _fetch_activity
     import requests as _requests
 
     responses.add(
@@ -333,7 +333,7 @@ def test_fetch_activity_returns_error_on_network_failure():
 
 @responses.activate
 def test_fetch_activity_success():
-    from aigauge.providers.openrouter import _fetch_activity
+    from aiusageclock.providers.openrouter import _fetch_activity
 
     responses.add(
         responses.GET,
@@ -350,7 +350,7 @@ def test_activity_model_costs_empty_no_log():
     """If /activity returned 0 rows, do NOT log a warning, because that's normal."""
     import logging
 
-    logger = logging.getLogger("aigauge.providers.openrouter")
+    logger = logging.getLogger("aiusageclock.providers.openrouter")
     handler_records: list[logging.LogRecord] = []
 
     class _Capture(logging.Handler):
@@ -368,7 +368,7 @@ def test_activity_model_costs_empty_no_log():
 
 
 def test_provider_construction_smoke():
-    from aigauge.providers.openrouter import OpenRouterProvider
+    from aiusageclock.providers.openrouter import OpenRouterProvider
 
     cfg = Config()
     provider = OpenRouterProvider(cfg, pool=None)
@@ -379,7 +379,7 @@ def test_provider_construction_smoke():
 def test_management_key_helpers_roundtrip(monkeypatch):
     """Storing and retrieving the management key uses a separate keyring slot
     from the inference key, so setting one does not overwrite the other."""
-    import aigauge.config as cfg_mod
+    import aiusageclock.config as cfg_mod
 
     store: dict[tuple[str, str], str] = {}
 
@@ -412,8 +412,8 @@ def test_refresh_uses_mgmt_key_for_credits_when_set(monkeypatch):
     """When a management key is configured, /credits is called with it
     (not the inference key), /activity is called with it, and /key still uses
     the inference key."""
-    from aigauge.providers.openrouter import OpenRouterProvider
-    import aigauge.providers.openrouter as or_mod
+    from aiusageclock.providers.openrouter import OpenRouterProvider
+    import aiusageclock.providers.openrouter as or_mod
 
     monkeypatch.setattr(or_mod, "get_openrouter_key", lambda: "inference-key")
     monkeypatch.setattr(or_mod, "get_openrouter_mgmt_key", lambda: "mgmt-key")
@@ -470,8 +470,8 @@ def test_refresh_skips_management_endpoints_when_no_mgmt_key(monkeypatch):
     """Without a management key, management endpoints must NOT be called at all
     (no silent fallback). The snapshot still renders OK with visible opt-in
     rows."""
-    from aigauge.providers.openrouter import OpenRouterProvider
-    import aigauge.providers.openrouter as or_mod
+    from aiusageclock.providers.openrouter import OpenRouterProvider
+    import aiusageclock.providers.openrouter as or_mod
 
     monkeypatch.setattr(or_mod, "get_openrouter_key", lambda: "inference-key")
     monkeypatch.setattr(or_mod, "get_openrouter_mgmt_key", lambda: None)
@@ -513,8 +513,8 @@ def test_refresh_skips_management_endpoints_when_no_mgmt_key(monkeypatch):
 def test_refresh_surfaces_mgmt_key_401_as_auth_required(monkeypatch):
     """A 401 from /credits when a management key is configured means the key
     is bad. Surface as AUTH_REQUIRED so the user knows to fix it, never silent."""
-    from aigauge.providers.openrouter import OpenRouterProvider
-    import aigauge.providers.openrouter as or_mod
+    from aiusageclock.providers.openrouter import OpenRouterProvider
+    import aiusageclock.providers.openrouter as or_mod
 
     monkeypatch.setattr(or_mod, "get_openrouter_key", lambda: "inference-key")
     monkeypatch.setattr(or_mod, "get_openrouter_mgmt_key", lambda: "bad-mgmt-key")
@@ -542,8 +542,8 @@ def test_refresh_surfaces_activity_failure_as_visible_row(monkeypatch):
     """When /activity returns a non-200, the snapshot is still OK (other
     metrics are valid) but the model breakdown is replaced by a clearly
     visible top models unavailable row."""
-    from aigauge.providers.openrouter import OpenRouterProvider
-    import aigauge.providers.openrouter as or_mod
+    from aiusageclock.providers.openrouter import OpenRouterProvider
+    import aiusageclock.providers.openrouter as or_mod
 
     monkeypatch.setattr(or_mod, "get_openrouter_key", lambda: "inference-key")
     monkeypatch.setattr(or_mod, "get_openrouter_mgmt_key", lambda: "mgmt-key")

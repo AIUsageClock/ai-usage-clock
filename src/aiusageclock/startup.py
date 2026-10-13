@@ -2,7 +2,7 @@
 
 Thin wrapper around the platform seam. The actual per-OS work (registry on
 Windows, LaunchAgent plist on macOS, .desktop file on Linux) lives in
-``aigauge.platforms``.
+``aiusageclock.platforms``.
 """
 from __future__ import annotations
 

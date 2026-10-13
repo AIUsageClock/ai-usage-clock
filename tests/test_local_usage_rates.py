@@ -2,14 +2,14 @@ import json
 
 import pytest
 
-from aigauge.local_usage.rates import (
+from aiusageclock.local_usage.rates import (
     format_cost,
     format_total_cost,
     load_rate_table,
     summarize_costs,
 )
-from aigauge.local_usage.store import ModelUsage
-from aigauge.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage.store import ModelUsage
+from aiusageclock.local_usage.tokens import TokenCounts
 
 MILLION = 1_000_000
 

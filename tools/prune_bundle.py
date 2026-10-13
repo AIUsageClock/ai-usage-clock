@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Strip files PyInstaller collects but AI Gauge never uses.
+"""Strip files PyInstaller collects but AI Usage Clock never uses.
 
 `--collect-all PyQt6.QtWebEngineCore` rakes in everything shipped alongside
 Qt's Chromium build: debug variants of every resource pack, the DevTools
@@ -15,13 +15,13 @@ Two tiers, because they are not equally free:
 * **localisation** (~54 MB) — Qt's `.qm` files and Chromium's locale packs.
   Removing these does have an effect: on a non-English system the embedded
   sign-in browser's context menus and error pages, and Qt's stock dialog
-  buttons, fall back to English. AI Gauge's own UI is English-only, so this is
+  buttons, fall back to English. AI Usage Clock's own UI is English-only, so this is
   consistent rather than broken — but it is a real change, so
   `--keep-localisation` opts out.
 
 Run after PyInstaller, before archiving:
 
-    python tools/prune_bundle.py dist/ai-gauge
+    python tools/prune_bundle.py dist/ai-usage-clock
 """
 
 from __future__ import annotations

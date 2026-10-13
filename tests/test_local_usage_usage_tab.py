@@ -6,16 +6,16 @@ from types import SimpleNamespace
 import pytest
 from PyQt6.QtWidgets import QMenu
 
-from aigauge import app as app_module
-from aigauge.config import Config
-from aigauge.local_usage.claude_logs import ClaudeMessage
-from aigauge.local_usage.codex_logs import CodexQuotaReading
-from aigauge.local_usage.rates import load_rate_table, summarize_costs
-from aigauge.local_usage.service import LocalUsageService
-from aigauge.local_usage.store import ModelUsage
-from aigauge.local_usage.summaries import WindowSummary, save_summary
-from aigauge.local_usage.tokens import TokenCounts
-from aigauge.local_usage.usage_tab import (
+from aiusageclock import app as app_module
+from aiusageclock.config import Config
+from aiusageclock.local_usage.claude_logs import ClaudeMessage
+from aiusageclock.local_usage.codex_logs import CodexQuotaReading
+from aiusageclock.local_usage.rates import load_rate_table, summarize_costs
+from aiusageclock.local_usage.service import LocalUsageService
+from aiusageclock.local_usage.store import ModelUsage
+from aiusageclock.local_usage.summaries import WindowSummary, save_summary
+from aiusageclock.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage.usage_tab import (
     RANGES,
     UNAVAILABLE,
     UsageCostTab,
@@ -26,13 +26,13 @@ from aigauge.local_usage.usage_tab import (
     token_volume,
     unpriced_note,
 )
-from aigauge.local_usage.windows import (
+from aiusageclock.local_usage.windows import (
     claude_windows_from_snapshot,
     codex_windows_from_readings,
     current_windows,
 )
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.ratio_dialog import RatioHistoryDialog
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.ratio_dialog import RatioHistoryDialog
 
 FIXTURES = Path(__file__).parent / "fixtures" / "local_usage"
 UTC = timezone.utc

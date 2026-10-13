@@ -5,16 +5,16 @@ from unittest.mock import Mock
 import pytest
 from PyQt6.QtWidgets import QSystemTrayIcon
 
-from aigauge import app as app_module
-from aigauge import config as config_module
-from aigauge import widget as widget_module
-from aigauge.app import App, _enabled_providers
-from aigauge.config import Config, ResetsConfig, display_name_for_account
-from aigauge.menubar import status_items
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.providers._resets_common import ResetEvent, build_snapshot
-from aigauge.settings_dialog import SettingsDialog
-from aigauge.widget import UsageWidget
+from aiusageclock import app as app_module
+from aiusageclock import config as config_module
+from aiusageclock import widget as widget_module
+from aiusageclock.app import App, _enabled_providers
+from aiusageclock.config import Config, ResetsConfig, display_name_for_account
+from aiusageclock.menubar import status_items
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.providers._resets_common import ResetEvent, build_snapshot
+from aiusageclock.settings_dialog import SettingsDialog
+from aiusageclock.widget import UsageWidget
 
 
 NOW = datetime(2026, 9, 27, 12, tzinfo=timezone.utc)
@@ -325,9 +325,9 @@ def test_other_provider_error_link_still_requests_details(qtbot):
 
 
 def test_settings_reset_alerts_tab_and_save(qtbot, monkeypatch):
-    monkeypatch.setattr("aigauge.settings_dialog.resolve_cli", lambda _: None)
+    monkeypatch.setattr("aiusageclock.settings_dialog.resolve_cli", lambda _: None)
     monkeypatch.setattr(
-        "aigauge.settings_dialog.set_start_at_login", lambda _: None
+        "aiusageclock.settings_dialog.set_start_at_login", lambda _: None
     )
     monkeypatch.setattr(Config, "save", lambda self: None)
     config = Config()
@@ -371,13 +371,13 @@ import logging
 import subprocess
 from pathlib import Path
 from xml.etree import ElementTree
-from aigauge.app import _snapshot_signature
-from aigauge.providers import _resets_common, antigravity
-from aigauge.providers._resets_common import ResetWatch, ResetsProviderBase
-from aigauge.providers.antigravity import AntigravityProvider
-from aigauge.providers.claude_resets import ClaudeResetsProvider
-from aigauge.providers.codex_resets import CodexResetsProvider, _parse_watch
-from aigauge.windows_toast import build_toast_xml
+from aiusageclock.app import _snapshot_signature
+from aiusageclock.providers import _resets_common, antigravity
+from aiusageclock.providers._resets_common import ResetWatch, ResetsProviderBase
+from aiusageclock.providers.antigravity import AntigravityProvider
+from aiusageclock.providers.claude_resets import ClaudeResetsProvider
+from aiusageclock.providers.codex_resets import CodexResetsProvider, _parse_watch
+from aiusageclock.windows_toast import build_toast_xml
 
 def _fixture(name):
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
@@ -580,7 +580,7 @@ def test_expired_watch_is_not_saved_on_event_dismiss(monkeypatch):
     assert config.codex_resets.dismissed_watch_key is None
 
 def test_legacy_config_without_watch_key_loads(tmp_path, monkeypatch):
-    from aigauge import config as config_module
+    from aiusageclock import config as config_module
 
     path = tmp_path / "config.json"
     path.write_text('{"codex_resets":{"dismissed_event_key":"landed:old"}}', encoding="utf-8")

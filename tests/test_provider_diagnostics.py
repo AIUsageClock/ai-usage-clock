@@ -1,6 +1,6 @@
 import logging
 
-from aigauge.providers.diagnostics import log_page_diagnosis, page_diagnosis
+from aiusageclock.providers.diagnostics import log_page_diagnosis, page_diagnosis
 
 
 def test_page_diagnosis_summarizes_expected_rows_without_body_text():

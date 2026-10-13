@@ -1,4 +1,4 @@
-"""Generate a PyInstaller Windows version resource for AI Gauge."""
+"""Generate a PyInstaller Windows version resource for AI Usage Clock."""
 from __future__ import annotations
 
 import re
@@ -25,22 +25,22 @@ def _string(value: str) -> str:
 
 
 TARGETS = {
-    "ai-gauge": "AloeDesk AI Gauge utility",
-    "ai-gauge-mcp": "AloeDesk AI Gauge MCP usage guard",
+    "ai-usage-clock": "AloeDesk AI Usage Clock utility",
+    "ai-usage-clock-mcp": "AloeDesk AI Usage Clock MCP usage guard",
 }
 
 
-def render(version: str, name: str = "ai-gauge") -> str:
+def render(version: str, name: str = "ai-usage-clock") -> str:
     version_tuple = _version_tuple(version)
     dotted = ".".join(str(part) for part in version_tuple)
     strings = {
         "CompanyName": "AloeDesk",
-        "FileDescription": TARGETS.get(name, TARGETS["ai-gauge"]),
+        "FileDescription": TARGETS.get(name, TARGETS["ai-usage-clock"]),
         "FileVersion": dotted,
         "InternalName": name,
         "LegalCopyright": "Copyright (c) AloeDesk",
         "OriginalFilename": f"{name}.exe",
-        "ProductName": "AI Gauge",
+        "ProductName": "AI Usage Clock",
         "ProductVersion": version,
     }
     string_rows = ",\n          ".join(
@@ -82,7 +82,7 @@ def main(argv: list[str]) -> int:
         )
         return 2
     output = Path(argv[1])
-    name = argv[2] if len(argv) == 3 else "ai-gauge"
+    name = argv[2] if len(argv) == 3 else "ai-usage-clock"
     if name not in TARGETS:
         print(f"unknown target {name!r}; expected one of {sorted(TARGETS)}", file=sys.stderr)
         return 2

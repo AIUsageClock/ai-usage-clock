@@ -1841,10 +1841,10 @@ class UsageWidget(QWidget):
         self.title_icon = QLabel()
         self.title_icon.setPixmap(app_icon().pixmap(24, 24))
         self.title_icon.setFixedSize(24, 24)
-        self.title_icon.setToolTip("AI Gauge")
+        self.title_icon.setToolTip("AI Usage Clock")
 
-        self.title_label = QLabel(f"AI Gauge {__version__}")
-        self.title_label.setToolTip(f"ai-gauge {__version__}")
+        self.title_label = QLabel(f"AI Usage Clock {__version__}")
+        self.title_label.setToolTip(f"ai-usage-clock {__version__}")
         self.title_label.setStyleSheet(
             "color:#9ca3af; font-size:10px; font-weight:600;"
         )
@@ -1865,7 +1865,7 @@ class UsageWidget(QWidget):
         self.hide_btn = self._mini_button("—", "Hide to system tray")
         self.hide_btn.clicked.connect(self.hide)
 
-        self.close_btn = self._mini_button("✕", "Quit AI Gauge")
+        self.close_btn = self._mini_button("✕", "Quit AI Usage Clock")
         self.close_btn.clicked.connect(self.quit_requested.emit)
 
         # Refresh status lives on the footer row, not here: the title bar
@@ -1911,7 +1911,7 @@ class UsageWidget(QWidget):
         self._collapsed_hide_btn = self._mini_button("—", "Hide to system tray")
         self._collapsed_hide_btn.clicked.connect(self.hide)
 
-        self._collapsed_close_btn = self._mini_button("✕", "Quit AI Gauge")
+        self._collapsed_close_btn = self._mini_button("✕", "Quit AI Usage Clock")
         self._collapsed_close_btn.clicked.connect(self.quit_requested.emit)
 
         self._collapsed_widget = QWidget(self)
@@ -1928,13 +1928,13 @@ class UsageWidget(QWidget):
         self._collapsed_header_layout = collapsed_header
         collapsed_header.setContentsMargins(0, 0, 0, 0)
         collapsed_header.setSpacing(4)
-        collapsed_title = QLabel(f"AI Gauge {__version__}")
+        collapsed_title = QLabel(f"AI Usage Clock {__version__}")
         self._collapsed_title = collapsed_title
         collapsed_title.setStyleSheet("color:#9ca3af; font-size:10px; font-weight:600;")
         self._collapsed_title_icon = QLabel()
         self._collapsed_title_icon.setPixmap(app_icon().pixmap(18, 18))
         self._collapsed_title_icon.setFixedSize(18, 18)
-        self._collapsed_title_icon.setToolTip("AI Gauge")
+        self._collapsed_title_icon.setToolTip("AI Usage Clock")
         collapsed_header.addWidget(self._collapsed_title_icon)
         collapsed_header.addWidget(collapsed_title)
         self._collapsed_cadence_label = QLabel("")
@@ -2213,7 +2213,7 @@ class UsageWidget(QWidget):
             self._collapsed_cadence_label.setVisible(False)
             self._collapsed_age_label.setVisible(False)
         else:
-            self._collapsed_title.setText(f"AI Gauge {__version__}")
+            self._collapsed_title.setText(f"AI Usage Clock {__version__}")
             self._collapsed_cadence_label.setVisible(
                 bool(self._collapsed_cadence_label.text())
             )
@@ -2273,13 +2273,13 @@ class UsageWidget(QWidget):
             layout.activate()
             return layout.minimumSize().width() > available
 
-        self._collapsed_title.setText(f"AI Gauge {__version__}")
+        self._collapsed_title.setText(f"AI Usage Clock {__version__}")
         self._collapsed_cadence_label.setVisible(
             bool(self._collapsed_cadence_label.text())
         )
         self._collapsed_age_label.setVisible(bool(self._collapsed_age_label.text()))
         if overflows():
-            self._collapsed_title.setText("AI Gauge")
+            self._collapsed_title.setText("AI Usage Clock")
         if overflows() and not self._collapsed_age_label.isHidden():
             self._collapsed_age_label.hide()
         if overflows() and not self._collapsed_cadence_label.isHidden():
@@ -2421,7 +2421,7 @@ class UsageWidget(QWidget):
         self._collapsed_age_label.setText("refreshing…" if self._refreshing else text)
 
     def _apply_responsive_header(self) -> None:
-        self.title_label.setText(f"AI Gauge {__version__}")
+        self.title_label.setText(f"AI Usage Clock {__version__}")
         header_layout = self._header_widget.layout()
         header_layout.setContentsMargins(8, 4, 4, 2)
         header_layout.setSpacing(4)
@@ -2431,7 +2431,7 @@ class UsageWidget(QWidget):
         # Progressively reduce the identity text only when the measured header
         # no longer fits. Core controls always remain visible.
         if header_layout.minimumSize().width() > self.width():
-            self.title_label.setText("AI Gauge")
+            self.title_label.setText("AI Usage Clock")
             header_layout.invalidate()
             header_layout.activate()
         if header_layout.minimumSize().width() > self.width():

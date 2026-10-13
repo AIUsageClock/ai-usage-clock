@@ -3,11 +3,11 @@ from typing import Any
 
 import pytest
 
-from aigauge.models import SnapshotStatus, UsageSnapshot
-from aigauge.providers import _scrape_runner as runner_module
-from aigauge.providers import codex as codex_module
-from aigauge.providers._scrape_runner import ScrapeRunner
-from aigauge.providers.codex import CodexProvider
+from aiusageclock.models import SnapshotStatus, UsageSnapshot
+from aiusageclock.providers import _scrape_runner as runner_module
+from aiusageclock.providers import codex as codex_module
+from aiusageclock.providers._scrape_runner import ScrapeRunner
+from aiusageclock.providers.codex import CodexProvider
 
 
 class _FakeDoneSignal:
@@ -125,7 +125,7 @@ def test_scrape_runner_stops_retrying_after_limit(fake_scraper):
 
 def test_codex_empty_analytics_payload_retries_then_returns_weekly_usage(fake_scraper):
     """An analytics shell without cards gets one bounded whole-page retry."""
-    from aigauge.providers.codex import _build_snapshot
+    from aiusageclock.providers.codex import _build_snapshot
 
     received: list[UsageSnapshot] = []
     rn = ScrapeRunner(
@@ -190,7 +190,7 @@ def test_codex_refresh_uses_cache_busted_overview_url(monkeypatch):
 
     url = captured["url"]
     assert url.startswith("https://chatgpt.com/settings/usage?")
-    assert "aigauge_ts=" in url
+    assert "aiusageclock_ts=" in url
     assert "/codex/cloud/settings/analytics" not in url
     assert "#personal-usage" not in url
     assert captured["account_id"] == "codex-work"

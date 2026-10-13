@@ -6,8 +6,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
 
-AUMID = "AloeDesk.AIGauge"
-DISPLAY_NAME = "AI Gauge"
+AUMID = "AIUsageClock.AIUsageClock"
+DISPLAY_NAME = "AI Usage Clock"
 
 log = logging.getLogger(__name__)
 _registered = False
@@ -20,7 +20,7 @@ def ensure_registered() -> bool:
 
         key_path = rf"Software\Classes\AppUserModelId\{AUMID}"
         values = {"DisplayName": DISPLAY_NAME}
-        icon_path = Path(__file__).resolve().parent / "assets" / "aigaugeicon.png"
+        icon_path = Path(__file__).resolve().parent / "assets" / "aiusageclockicon.png"
         if icon_path.is_file():
             values["IconUri"] = str(icon_path)
 

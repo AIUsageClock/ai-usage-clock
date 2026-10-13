@@ -10,16 +10,16 @@ import subprocess
 
 import pytest
 
-from aigauge.models import SnapshotStatus
-from aigauge.providers import codex
-from aigauge.providers._codex_page import EXTRACTOR_JS, VERIFY_JS
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers import codex
+from aiusageclock.providers._codex_page import EXTRACTOR_JS, VERIFY_JS
 
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="Node.js not available")
 
 HARNESS = r"""
 const fs = require('fs');
 const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-const document = { title: spec.title || 'Codex', __aigaugeCodexOverviewClicked: false };
+const document = { title: spec.title || 'Codex', __aiusageclockCodexOverviewClicked: false };
 const elements = (spec.elements || []).map(item => {
   const attrs = {...(item.attrs || {})};
   const el = {

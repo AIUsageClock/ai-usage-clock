@@ -4,11 +4,11 @@ from unittest.mock import Mock
 
 from PyQt6.QtWidgets import QSystemTrayIcon
 
-from aigauge import app as app_module
-from aigauge import windows_toast
-from aigauge.app import App
-from aigauge.config import Config
-from aigauge.providers._resets_common import ResetEvent
+from aiusageclock import app as app_module
+from aiusageclock import windows_toast
+from aiusageclock.app import App
+from aiusageclock.config import Config
+from aiusageclock.providers._resets_common import ResetEvent
 
 
 NOW = datetime(2026, 9, 27, 12, tzinfo=timezone.utc)
@@ -101,7 +101,7 @@ def test_two_windows_toasts_are_sent_immediately_without_tray_queue(
     monkeypatch.setattr(app_module.time, "monotonic", clock)
     single_shot = Mock()
     monkeypatch.setattr(app_module.QTimer, "singleShot", single_shot)
-    caplog.set_level("INFO", logger="aigauge.app")
+    caplog.set_level("INFO", logger="aiusageclock.app")
 
     providers["codex_resets"].latest_event = event("landed", "codex", "codex")
     providers["claude_resets"].latest_event = event("landed", "claude", "claude")
@@ -198,7 +198,7 @@ def test_failed_toast_is_not_retried_when_queued_tray_notice_is_shown(monkeypatc
 def test_notification_logging_records_shown_without_post_content(
     monkeypatch, caplog
 ):
-    caplog.set_level("INFO", logger="aigauge.app")
+    caplog.set_level("INFO", logger="aiusageclock.app")
     app, providers, _ = make_app(monkeypatch, tray=Mock())
     providers["codex_resets"].latest_event = event("landed", "new", "codex")
     app._on_reset_event("codex_resets")
@@ -207,7 +207,7 @@ def test_notification_logging_records_shown_without_post_content(
 
 
 def test_notification_logging_records_missing_tray(monkeypatch, caplog):
-    caplog.set_level("INFO", logger="aigauge.app")
+    caplog.set_level("INFO", logger="aiusageclock.app")
     app, providers, _ = make_app(monkeypatch)
     providers["codex_resets"].latest_event = event("landed", "new", "codex")
     app._on_reset_event("codex_resets")
@@ -215,7 +215,7 @@ def test_notification_logging_records_missing_tray(monkeypatch, caplog):
 
 
 def test_notification_logging_records_disabled_setting(monkeypatch, caplog):
-    caplog.set_level("INFO", logger="aigauge.app")
+    caplog.set_level("INFO", logger="aiusageclock.app")
     app, providers, _ = make_app(monkeypatch, tray=Mock())
     app._config.codex_resets.notify_landed = False
     providers["codex_resets"].latest_event = event("landed", "new", "codex")
@@ -224,7 +224,7 @@ def test_notification_logging_records_disabled_setting(monkeypatch, caplog):
 
 
 def test_notification_logging_records_first_run(monkeypatch, caplog):
-    caplog.set_level("INFO", logger="aigauge.app")
+    caplog.set_level("INFO", logger="aiusageclock.app")
     app, providers, saves = make_app(monkeypatch, tray=Mock())
     app._config.codex_resets.last_event_key = None
     providers["codex_resets"].latest_event = event("landed", "new", "codex")

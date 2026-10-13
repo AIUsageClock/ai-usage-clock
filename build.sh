@@ -36,9 +36,9 @@ PYINSTALLER_ARGS=(
     --clean
     --windowed
     --noupx
-    --name ai-gauge
+    --name ai-usage-clock
     --paths src
-    --collect-data aigauge
+    --collect-data aiusageclock
     --collect-all PyQt6.QtWebEngineWidgets
     --collect-all PyQt6.QtWebEngineCore
     pyinstaller_entry.py
@@ -46,10 +46,10 @@ PYINSTALLER_ARGS=(
 
 if [ "$(uname -s)" = "Darwin" ]; then
     # Reverse-DNS bundle id; keeps Info.plist + LaunchServices happy.
-    PYINSTALLER_ARGS+=(--osx-bundle-identifier org.aigauge.ai-gauge)
-    PYINSTALLER_ARGS+=(--icon src/aigauge/assets/aigaugeicon.icns)
+    PYINSTALLER_ARGS+=(--osx-bundle-identifier com.aiusageclock.ai-usage-clock)
+    PYINSTALLER_ARGS+=(--icon src/aiusageclock/assets/aiusageclockicon.icns)
 else
-    PYINSTALLER_ARGS+=(--icon src/aigauge/assets/aigaugeicon.png)
+    PYINSTALLER_ARGS+=(--icon src/aiusageclock/assets/aiusageclockicon.png)
 fi
 
 if [ "$ONEFILE" -eq 1 ]; then
@@ -71,7 +71,7 @@ fi
     --console \
     --onefile \
     --noupx \
-    --name ai-gauge-mcp \
+    --name ai-usage-clock-mcp \
     --exclude-module PIL \
     --exclude-module pygments \
     --paths src \
@@ -80,10 +80,10 @@ fi
 # macOS ships the helper beside the .app because there is no folder bundle to
 # put it in; every other layout nests it next to the GUI binary.
 if [ "$(uname -s)" != "Darwin" ] && [ "$ONEFILE" -eq 0 ]; then
-    mv dist/ai-gauge-mcp dist/ai-gauge/ai-gauge-mcp
-    EXPECTED_MCP="dist/ai-gauge/ai-gauge-mcp"
+    mv dist/ai-usage-clock-mcp dist/ai-usage-clock/ai-usage-clock-mcp
+    EXPECTED_MCP="dist/ai-usage-clock/ai-usage-clock-mcp"
 else
-    EXPECTED_MCP="dist/ai-gauge-mcp"
+    EXPECTED_MCP="dist/ai-usage-clock-mcp"
 fi
 
 # release.yml smoke-tests and packages the helper at a fixed path. Fail here,
@@ -103,7 +103,7 @@ fi
 # Versions/Current/...) dangle and Qt can't find QtWebEngineProcess or
 # icudtl.dat / *.pak.  Relocate them into the proper Versions/A layout.
 if [ "$(uname -s)" = "Darwin" ] && [ "$ONEFILE" -eq 0 ]; then
-    FWDIR="dist/ai-gauge.app/Contents/Frameworks/PyQt6/Qt6/lib/QtWebEngineCore.framework"
+    FWDIR="dist/ai-usage-clock.app/Contents/Frameworks/PyQt6/Qt6/lib/QtWebEngineCore.framework"
     STRAY="$FWDIR/Versions/Resources"
     if [ -d "$STRAY/Helpers" ] && [ ! -d "$FWDIR/Versions/A/Helpers" ]; then
         mv "$STRAY/Helpers" "$FWDIR/Versions/A/Helpers"
@@ -117,11 +117,11 @@ if [ "$(uname -s)" = "Darwin" ] && [ "$ONEFILE" -eq 0 ]; then
 fi
 
 if [ "$(uname -s)" = "Darwin" ] && [ "$ONEFILE" -eq 0 ] \
-        && [ -f "dist/ai-gauge.app/Contents/Info.plist" ]; then
+        && [ -f "dist/ai-usage-clock.app/Contents/Info.plist" ]; then
     /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" \
-        dist/ai-gauge.app/Contents/Info.plist 2>/dev/null \
+        dist/ai-usage-clock.app/Contents/Info.plist 2>/dev/null \
         || /usr/libexec/PlistBuddy -c "Set :LSUIElement true" \
-            dist/ai-gauge.app/Contents/Info.plist
+            dist/ai-usage-clock.app/Contents/Info.plist
 fi
 
 # --collect-all on the WebEngine modules also drags in Chromium's debug
@@ -130,9 +130,9 @@ fi
 # One-file builds are already packed by this point, so there is nothing to do.
 if [ "$ONEFILE" -eq 0 ]; then
     if [ "$(uname -s)" = "Darwin" ]; then
-        PRUNE_TARGET="dist/ai-gauge.app"
+        PRUNE_TARGET="dist/ai-usage-clock.app"
     else
-        PRUNE_TARGET="dist/ai-gauge"
+        PRUNE_TARGET="dist/ai-usage-clock"
     fi
     echo
     echo "Pruning unused Qt/Chromium payload..."
@@ -144,18 +144,18 @@ echo "Build complete."
 case "$(uname -s)" in
     Darwin)
         if [ "$ONEFILE" -eq 1 ]; then
-            echo "Binary: dist/ai-gauge"
+            echo "Binary: dist/ai-usage-clock"
         else
-            echo "Bundle: dist/ai-gauge.app"
+            echo "Bundle: dist/ai-usage-clock.app"
         fi
-        echo "MCP helper: dist/ai-gauge-mcp"
+        echo "MCP helper: dist/ai-usage-clock-mcp"
         ;;
     *)
         if [ "$ONEFILE" -eq 1 ]; then
-            echo "Binary: dist/ai-gauge"
+            echo "Binary: dist/ai-usage-clock"
         else
-            echo "Folder: dist/ai-gauge/  (run ./ai-gauge inside)"
-            echo "MCP helper: dist/ai-gauge/ai-gauge-mcp"
+            echo "Folder: dist/ai-usage-clock/  (run ./ai-usage-clock inside)"
+            echo "MCP helper: dist/ai-usage-clock/ai-usage-clock-mcp"
         fi
         ;;
 esac

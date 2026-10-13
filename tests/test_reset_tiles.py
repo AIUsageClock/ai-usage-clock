@@ -4,12 +4,12 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 import pytest
-from aigauge.app import App
-from aigauge.config import Config
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.providers._resets_common import ResetEvent, ResetWatch, ResetsFetchError, build_snapshot
-from aigauge.providers.codex_resets import CodexResetsProvider, _parse_watch
-from aigauge.widget import UsageWidget, _SummaryChip
+from aiusageclock.app import App
+from aiusageclock.config import Config
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.providers._resets_common import ResetEvent, ResetWatch, ResetsFetchError, build_snapshot
+from aiusageclock.providers.codex_resets import CodexResetsProvider, _parse_watch
+from aiusageclock.widget import UsageWidget, _SummaryChip
 
 
 NOW = datetime(2026, 9, 27, 12, tzinfo=timezone.utc)
@@ -119,7 +119,7 @@ def test_dismissed_tile_hides_on_ok_and_error_then_returns(qtbot, name):
     assert "no new announcements" in widget._tiles[name].status.text()
 
 def test_watch_display_expiry_elision_and_url(qtbot, monkeypatch):
-    from aigauge import widget as widget_module
+    from aiusageclock import widget as widget_module
 
     widget = UsageWidget(Config())
     qtbot.addWidget(widget)
@@ -164,7 +164,7 @@ def test_watch_null_chance_and_event_dismissal(qtbot):
     assert widget._tiles["codex_resets"]._rows[0].label.text() == "Watch"
 
 def test_event_row_precedes_watch_and_event_url_wins(qtbot, monkeypatch):
-    from aigauge import widget as widget_module
+    from aiusageclock import widget as widget_module
 
     watch = _parse_watch(watch_payload(
         {"type": "observed", "url": "https://example.test/watch"}

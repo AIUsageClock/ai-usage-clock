@@ -4,7 +4,7 @@ Summaries are saved during a window, not only at rollover, so history
 survives app shutdowns and Claude Code's log cleanup. Each one keeps its tokens
 by model, price variant and category; costs are applied when it is read.
 
-- Claude: live summaries come from AI Gauge's in-flight periods
+- Claude: live summaries come from AI Usage Clock's in-flight periods
   (``history.py``), are updated after each import and finalized when the
   period closes. Closed periods in ``history.jsonl`` whose whole window is
   covered by imported logs are backfilled. Old ``history.jsonl`` timestamps are

@@ -6,11 +6,11 @@ from xml.etree import ElementTree
 import pytest
 from PyQt6.QtWidgets import QSystemTrayIcon
 
-from aigauge import app as app_module
-from aigauge import windows_toast
-from aigauge.app import App
-from aigauge.config import Config
-from aigauge.providers._resets_common import ResetEvent
+from aiusageclock import app as app_module
+from aiusageclock import windows_toast
+from aiusageclock.app import App
+from aiusageclock.config import Config
+from aiusageclock.providers._resets_common import ResetEvent
 
 
 def fake_registry(monkeypatch, initial=None):
@@ -87,14 +87,14 @@ def test_xml_without_url_has_no_protocol():
 @pytest.mark.real_windows_toast
 def test_ensure_registered_writes_only_changed_values(monkeypatch):
     registry, values = fake_registry(monkeypatch)
-    icon = str(windows_toast.Path(windows_toast.__file__).resolve().parent / "assets" / "aigaugeicon.png")
+    icon = str(windows_toast.Path(windows_toast.__file__).resolve().parent / "assets" / "aiusageclockicon.png")
     assert windows_toast.ensure_registered()
     registry.CreateKey.assert_called_once_with(
         registry.HKEY_CURRENT_USER,
-        r"Software\Classes\AppUserModelId\AloeDesk.AIGauge",
+        r"Software\Classes\AppUserModelId\AIUsageClock.AIUsageClock",
     )
     assert values == {
-        "DisplayName": ("AI Gauge", registry.REG_SZ),
+        "DisplayName": ("AI Usage Clock", registry.REG_SZ),
         "IconUri": (icon, registry.REG_SZ),
     }
     assert registry.SetValueEx.call_count == 2
@@ -108,14 +108,14 @@ def test_ensure_registered_omits_missing_icon(monkeypatch):
     registry, values = fake_registry(monkeypatch)
     monkeypatch.setattr(windows_toast.Path, "is_file", lambda _: False)
     assert windows_toast.ensure_registered()
-    assert values == {"DisplayName": ("AI Gauge", registry.REG_SZ)}
+    assert values == {"DisplayName": ("AI Usage Clock", registry.REG_SZ)}
 
 
 @pytest.mark.real_windows_toast
 def test_ensure_registered_failure_warns(monkeypatch, caplog):
     registry, _ = fake_registry(monkeypatch)
     registry.CreateKey.side_effect = OSError("registry denied")
-    with caplog.at_level("WARNING", logger="aigauge.windows_toast"):
+    with caplog.at_level("WARNING", logger="aiusageclock.windows_toast"):
         assert not windows_toast.ensure_registered()
     assert "registry denied" in caplog.text
 
@@ -140,7 +140,7 @@ def test_show_toast_success_reuses_registration(monkeypatch):
 def test_show_toast_import_failure_warns(monkeypatch, caplog):
     monkeypatch.setattr(windows_toast, "ensure_registered", Mock(return_value=True))
     monkeypatch.setitem(sys.modules, "winrt.windows.data.xml.dom", None)
-    with caplog.at_level("WARNING", logger="aigauge.windows_toast"):
+    with caplog.at_level("WARNING", logger="aiusageclock.windows_toast"):
         assert not windows_toast.show_toast("Title", "Body", None)
     assert "Windows toast notification failed" in caplog.text
 
@@ -157,7 +157,7 @@ def test_show_toast_failure_warns(monkeypatch, caplog):
     monkeypatch.setattr(windows_toast, "ensure_registered", Mock(return_value=True))
     _, notifier, _ = fake_winrt(monkeypatch)
     notifier.show.side_effect = OSError("show failed")
-    with caplog.at_level("WARNING", logger="aigauge.windows_toast"):
+    with caplog.at_level("WARNING", logger="aiusageclock.windows_toast"):
         assert not windows_toast.show_toast("Title", "Body", None)
     assert "show failed" in caplog.text
 
@@ -193,7 +193,7 @@ def test_app_windows_toast_succeeds_without_tray(monkeypatch, caplog):
     monkeypatch.setattr(windows_toast, "show_toast", show)
     tray = Mock()
     app = make_app(monkeypatch, tray, "win32")
-    with caplog.at_level("INFO", logger="aigauge.app"):
+    with caplog.at_level("INFO", logger="aiusageclock.app"):
         app._on_reset_event("codex_resets")
     show.assert_called_once_with(
         "Codex reset landed", "Usage limits were refilled. Click to open the post.",
@@ -227,7 +227,7 @@ def test_app_windows_toast_failure_uses_tray(monkeypatch, caplog):
     monkeypatch.setattr(windows_toast, "show_toast", Mock(return_value=False))
     tray = Mock()
     app = make_app(monkeypatch, tray, "win32")
-    with caplog.at_level("INFO", logger="aigauge.app"):
+    with caplog.at_level("INFO", logger="aiusageclock.app"):
         app._on_reset_event("codex_resets")
     tray.showMessage.assert_called_once()
     assert app._last_reset_notification_url == "https://example.test/new"
@@ -237,7 +237,7 @@ def test_app_windows_toast_failure_uses_tray(monkeypatch, caplog):
 def test_app_windows_toast_failure_without_tray_skips(monkeypatch, caplog):
     monkeypatch.setattr(windows_toast, "show_toast", Mock(return_value=False))
     app = make_app(monkeypatch, None, "win32")
-    with caplog.at_level("INFO", logger="aigauge.app"):
+    with caplog.at_level("INFO", logger="aiusageclock.app"):
         app._on_reset_event("codex_resets")
     assert "reason=no tray" in caplog.text
 
@@ -247,7 +247,7 @@ def test_app_non_windows_uses_tray(monkeypatch, caplog):
     monkeypatch.setattr(windows_toast, "show_toast", show)
     tray = Mock()
     app = make_app(monkeypatch, tray, "linux")
-    with caplog.at_level("INFO", logger="aigauge.app"):
+    with caplog.at_level("INFO", logger="aiusageclock.app"):
         app._on_reset_event("codex_resets")
     show.assert_not_called()
     tray.showMessage.assert_called_once()

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 
 
 def test_snapshot_defaults():

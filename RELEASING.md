@@ -1,7 +1,7 @@
 # Releasing
 
 This document is for maintainers publishing a public GitHub release of
-AI Gauge.
+AI Usage Clock.
 
 ## What GitHub Releases Are
 
@@ -9,14 +9,14 @@ A GitHub Release is a named snapshot of the repository, usually tied to a Git
 tag such as `v0.4.2`. It gives users a stable page with release notes and
 downloadable files.
 
-For AI Gauge, the release page should include:
+For AI Usage Clock, the release page should include:
 
 - The source code snapshot that GitHub attaches automatically.
 - One build artifact per supported OS, each containing the GUI plus the
-  `ai-gauge-mcp` helper:
-  - Windows: zipped `dist/ai-gauge/` folder (helper inside it)
-  - macOS: tar.gz of the `.app` bundle **and** `dist/ai-gauge-mcp` beside it
-  - Linux: tar.gz of `dist/ai-gauge/` (helper inside it)
+  `ai-usage-clock-mcp` helper:
+  - Windows: zipped `dist/ai-usage-clock/` folder (helper inside it)
+  - macOS: tar.gz of the `.app` bundle **and** `dist/ai-usage-clock-mcp` beside it
+  - Linux: tar.gz of `dist/ai-usage-clock/` (helper inside it)
 - SHA256 checksums for each downloadable artifact.
 - A short note that the app is unsigned unless code signing has been added.
 - Windows artifact SHA256 and Authenticode status for Defender triage.
@@ -33,7 +33,7 @@ manually for diagnostics:
 gh workflow run test.yml --ref main
 ```
 
-Before tagging, confirm `pyproject.toml`, `src/aigauge/__init__.py`, README,
+Before tagging, confirm `pyproject.toml`, `src/aiusageclock/__init__.py`, README,
 and CHANGELOG agree on the release version. The local preflight is:
 
 ```text
@@ -45,7 +45,7 @@ For a packaging trial, use the release workflow's `workflow_dispatch` test-build
 path. It builds the three platform archives and SHA256 files as downloadable
 workflow artifacts only; it must not create or alter a GitHub Release. Review
 the artifacts and run the GUI and MCP helper from each extracted bundle in an
-isolated smoke setup. Do not install over a user's existing AI Gauge copy or
+isolated smoke setup. Do not install over a user's existing AI Usage Clock copy or
 use its live profile for this check. The CI and bundle smoke checks do not
 prove that live Claude, Codex, or other provider accounts work, and do not
 count as real-account testing on macOS or Linux.
@@ -53,11 +53,11 @@ count as real-account testing on macOS or Linux.
 After release preparation is committed to `main`, push the matching `v<version>`
 tag. The `v*` release workflow builds Windows, macOS, and Linux bundles, creates
 SHA256 files, and attaches each archive/checksum pair to a **draft** release on
-the [DraftingDreamer Releases page](https://github.com/DraftingDreamer/ai-gauge/releases):
+the [DraftingDreamer Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases):
 
-- `ai-gauge-<version>-windows.zip` (+ `.sha256`)
-- `ai-gauge-<version>-macos.tar.gz` (+ `.sha256`)
-- `ai-gauge-<version>-linux.tar.gz` (+ `.sha256`)
+- `ai-usage-clock-<version>-windows.zip` (+ `.sha256`)
+- `ai-usage-clock-<version>-macos.tar.gz` (+ `.sha256`)
+- `ai-usage-clock-<version>-linux.tar.gz` (+ `.sha256`)
 
 Before publishing, verify the tag and version, all six asset names, hashes,
 archive contents, unsigned-build notes, and isolated GUI/MCP smoke evidence.
@@ -76,27 +76,27 @@ PyInstaller cross-compilation isn't supported.
    then create a fresh bundle with `pwsh -File ./build.ps1` on Windows or
    `./build.sh` on macOS/Linux. Run `tools/smoke_test_gui.py` against that bundle
    and `tools/smoke_test_mcp.py` against its helper, using the build virtualenv.
-2. Package the verified build. `build.ps1` / `build.sh` place `ai-gauge-mcp` inside
-   `dist/ai-gauge/` on Windows and Linux, but leave it at `dist/ai-gauge-mcp`
+2. Package the verified build. `build.ps1` / `build.sh` place `ai-usage-clock-mcp` inside
+   `dist/ai-usage-clock/` on Windows and Linux, but leave it at `dist/ai-usage-clock-mcp`
    on macOS — so the macOS archive must name it explicitly or it ships
    without the MCP helper:
-   - Windows: zip the full `dist\ai-gauge\` folder.
-   - macOS: `tar -C dist -czf ai-gauge-<ver>-macos.tar.gz ai-gauge.app ai-gauge-mcp`
-   - Linux: `tar -C dist -czf ai-gauge-<ver>-linux.tar.gz ai-gauge`
+   - Windows: zip the full `dist\ai-usage-clock\` folder.
+   - macOS: `tar -C dist -czf ai-usage-clock-<ver>-macos.tar.gz ai-usage-clock.app ai-usage-clock-mcp`
+   - Linux: `tar -C dist -czf ai-usage-clock-<ver>-linux.tar.gz ai-usage-clock`
 
    Confirm the helper survived packaging before uploading:
 
    ```bash
-   tar -tzf ai-gauge-<ver>-macos.tar.gz | grep ai-gauge-mcp
+   tar -tzf ai-usage-clock-<ver>-macos.tar.gz | grep ai-usage-clock-mcp
    ```
 3. Create a checksum:
 
    ```powershell
-   Get-FileHash .\ai-gauge-<ver>-windows.zip -Algorithm SHA256
+   Get-FileHash .\ai-usage-clock-<ver>-windows.zip -Algorithm SHA256
    ```
 
    ```bash
-   shasum -a 256 ai-gauge-<ver>-macos.tar.gz
+   shasum -a 256 ai-usage-clock-<ver>-macos.tar.gz
    ```
 
 4. Push the version tag, then in GitHub go to the DraftingDreamer repository's
@@ -107,7 +107,7 @@ PyInstaller cross-compilation isn't supported.
 ## Suggested Release Notes Shape
 
 ```markdown
-## AI Gauge <version>
+## AI Usage Clock <version>
 
 Compact monitor for Claude.ai, ChatGPT Codex, OpenCode, GitHub Copilot, and OpenRouter usage.
 Native UI per OS: floating widget on Windows / Linux, menu-bar item on macOS.
@@ -118,15 +118,15 @@ Native UI per OS: floating widget on Windows / Linux, menu-bar item on macOS.
 
 ### Download
 
-- Windows: `ai-gauge-<ver>-windows.zip` → extract, run `ai-gauge.exe`.
-- macOS: `ai-gauge-<ver>-macos.tar.gz` → drag `ai-gauge.app` to Applications.
-  First launch needs `xattr -dr com.apple.quarantine ai-gauge.app` or right-click → Open.
-- Linux: `ai-gauge-<ver>-linux.tar.gz` → extract, run `./ai-gauge/ai-gauge`.
+- Windows: `ai-usage-clock-<ver>-windows.zip` → extract, run `ai-usage-clock.exe`.
+- macOS: `ai-usage-clock-<ver>-macos.tar.gz` → drag `ai-usage-clock.app` to Applications.
+  First launch needs `xattr -dr com.apple.quarantine ai-usage-clock.app` or right-click → Open.
+- Linux: `ai-usage-clock-<ver>-linux.tar.gz` → extract, run `./ai-usage-clock/ai-usage-clock`.
 
-Each archive also ships the optional `ai-gauge-mcp` usage-guard helper
-(alongside `ai-gauge.app` on macOS, inside the folder elsewhere). It is only
+Each archive also ships the optional `ai-usage-clock-mcp` usage-guard helper
+(alongside `ai-usage-clock.app` on macOS, inside the folder elsewhere). It is only
 needed by MCP clients — see the README. macOS users must clear quarantine on
-the helper separately: `xattr -dr com.apple.quarantine ai-gauge-mcp`.
+the helper separately: `xattr -dr com.apple.quarantine ai-usage-clock-mcp`.
 
 ### Verification
 
@@ -136,9 +136,9 @@ SHA256: see the `.sha256` next to each archive.
 ## Windows Defender / Reputation Notes
 
 Windows releases are built with PyInstaller metadata generated from
-`pyproject.toml` so `ai-gauge.exe` has a stable ProductName, CompanyName,
+`pyproject.toml` so `ai-usage-clock.exe` has a stable ProductName, CompanyName,
 FileDescription, FileVersion, ProductVersion, OriginalFilename, and copyright.
-The app's Start at login setting uses a named Task Scheduler entry (`AI Gauge`)
+The app's Start at login setting uses a named Task Scheduler entry (`AI Usage Clock`)
 instead of writing to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 
 ### Why builds get flagged
@@ -168,8 +168,8 @@ Before publishing a Windows release, record these from the built exe (needed for
 the release page and for any false-positive submission):
 
 ```powershell
-Get-FileHash ".\dist\ai-gauge\ai-gauge.exe" -Algorithm SHA256
-Get-AuthenticodeSignature ".\dist\ai-gauge\ai-gauge.exe"
+Get-FileHash ".\dist\ai-usage-clock\ai-usage-clock.exe" -Algorithm SHA256
+Get-AuthenticodeSignature ".\dist\ai-usage-clock\ai-usage-clock.exe"
 ```
 
 ### Local development exclusion (your machine only)
@@ -177,7 +177,7 @@ Get-AuthenticodeSignature ".\dist\ai-gauge\ai-gauge.exe"
 Defender re-quarantines each fresh local build, which fights iterative work. On
 your **own dev machine only**, add a Defender folder exclusion for the build
 output (Windows Security → Virus & threat protection → Manage settings →
-Exclusions → Add an exclusion → Folder → `C:\git\ai-gauge\dist`). Never put this
+Exclusions → Add an exclusion → Folder → `C:\git\ai-usage-clock\dist`). Never put this
 advice in user-facing docs or release notes — end users should not be told to
 exclude folders.
 
@@ -197,13 +197,13 @@ that was flagged (e.g. a Run-key build under `C:\Tools` and a dev build under
    sheet has no placeholders:
 
    ```powershell
-   # Default reads dist\ai-gauge\ai-gauge.exe:
+   # Default reads dist\ai-usage-clock\ai-usage-clock.exe:
    .venv\Scripts\python.exe tools\wdsi_submission.py `
        --detection "Behavior:Win32/Persistence.A!ml" --intel 1.0.0.0
 
    # Point --exe at any other flagged copy:
    .venv\Scripts\python.exe tools\wdsi_submission.py `
-       --exe "C:\Tools\ai-gauge\ai-gauge.exe" `
+       --exe "C:\Tools\ai-usage-clock\ai-usage-clock.exe" `
        --detection "Trojan:Win32/Bearfoos.A!ml" --intel 1.0.0.0
    ```
 
@@ -239,7 +239,7 @@ Per-OS situation:
   code-signing private keys must live on FIPS hardware (USB token or cloud HSM),
   so there are no cheap downloadable `.pfx` certs anymore. Options:
   - **SignPath Foundation** — free code signing for open-source projects. This is
-    the intended path for AI Gauge. Apply at <https://about.signpath.io/open-source>,
+    the intended path for AI Usage Clock. Apply at <https://about.signpath.io/open-source>,
     then the signing step can run in CI via SignPath's GitHub Action.
   - **Azure Trusted Signing** — Microsoft's own signing service (~$10/month).
     Best Defender/SmartScreen reputation for the cost; eligibility historically

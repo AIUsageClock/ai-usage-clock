@@ -20,10 +20,10 @@ def usage_cache_path() -> Path:
 
 
 def _empty_cache(message: str) -> dict:
-    """Stand-in for a cache AI Gauge never published or could not read.
+    """Stand-in for a cache AI Usage Clock never published or could not read.
 
     ``available`` distinguishes this from a real publication with no accounts.
-    Without it a reader cannot tell "AI Gauge is not running" from "the last
+    Without it a reader cannot tell "AI Usage Clock is not running" from "the last
     refresh failed", because both arrive as an empty account map carrying the
     current schema version.
     """
@@ -118,13 +118,13 @@ def invalidate_usage_cache() -> None:
 def read_usage_cache() -> dict:
     path = usage_cache_path()
     if not path.exists():
-        return _empty_cache("AI Gauge has not published MCP usage.")
+        return _empty_cache("AI Usage Clock has not published MCP usage.")
     try:
         if path.stat().st_size > _MAX_CACHE_BYTES:
-            return _empty_cache("AI Gauge MCP usage cache is too large.")
+            return _empty_cache("AI Usage Clock MCP usage cache is too large.")
         data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else _empty_cache(
-            "AI Gauge MCP usage cache is invalid."
+            "AI Usage Clock MCP usage cache is invalid."
         )
     except (OSError, UnicodeError, json.JSONDecodeError, RecursionError):
-        return _empty_cache("AI Gauge MCP usage cache is unavailable.")
+        return _empty_cache("AI Usage Clock MCP usage cache is unavailable.")

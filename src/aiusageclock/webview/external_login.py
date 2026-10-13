@@ -19,7 +19,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from ..config import COOKIE_DOMAINS, COOKIE_NAME_ALIASES, app_data_dir
 
-log = logging.getLogger("aigauge.webview.external_login")
+log = logging.getLogger("aiusageclock.webview.external_login")
 
 _LOOPBACK_NO_PROXY = ["127.0.0.1", "localhost"]
 BROWSER_LABELS = {
@@ -226,7 +226,7 @@ class ExternalLoginWorker(QThread):
         self.status_changed.emit(
             f"Finish signing in to {self._provider_name()} in "
             f"{BROWSER_LABELS.get(self._browser_id or '', browser.stem)}. "
-            "AI Gauge will connect automatically."
+            "AI Usage Clock will connect automatically."
         )
 
         try:

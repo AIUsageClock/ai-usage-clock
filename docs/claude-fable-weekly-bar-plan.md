@@ -16,7 +16,7 @@ All models        Resets in 22 hr 0 min   [bar]   2% used
 Fable             Resets in 22 hr 0 min   [bar]   4% used   <-- new
 ```
 
-AI Gauge currently scrapes only `Current session` and `All models`, so the
+AI Usage Clock currently scrapes only `Current session` and `All models`, so the
 Fable weekly limit is invisible. Pro/Free accounts don't have the row, so —
 exactly like the old Design bar — it must be an **off-by-default option**,
 not a required row.

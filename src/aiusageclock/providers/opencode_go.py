@@ -13,7 +13,7 @@ from .base import Provider
 
 OPENCODE_GO_USAGE_API = "https://opencode.ai/zen/go/v1/usage"
 
-log = logging.getLogger("aigauge.providers.opencode_go")
+log = logging.getLogger("aiusageclock.providers.opencode_go")
 
 _METRICS = (
     ("rolling", "Rolling", timedelta(hours=5)),
@@ -53,7 +53,7 @@ def _parse_reset_at(value: object) -> datetime:
         raise ValueError("missing reset time")
     parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
     if parsed.tzinfo is not None:
-        # The rest of AI Gauge uses local, timezone-naive datetimes for display,
+        # The rest of AI Usage Clock uses local, timezone-naive datetimes for display,
         # scheduling, and history. Preserve the instant while matching that model.
         parsed = parsed.astimezone().replace(tzinfo=None)
     return parsed

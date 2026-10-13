@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.local_usage import importer as importer_module
-from aigauge.local_usage.importer import ImportSource, LogImporter
-from aigauge.local_usage.store import UsageStore, local_date
-from aigauge.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage import importer as importer_module
+from aiusageclock.local_usage.importer import ImportSource, LogImporter
+from aiusageclock.local_usage.store import UsageStore, local_date
+from aiusageclock.local_usage.tokens import TokenCounts
 
 FIXTURES = Path(__file__).parent / "fixtures" / "local_usage"
 WIDE_START = datetime(2020, 1, 1, tzinfo=timezone.utc)

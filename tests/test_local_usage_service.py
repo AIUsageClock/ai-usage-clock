@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.config import BrowserAccount, Config
-from aigauge.local_usage import service as service_module
-from aigauge.local_usage.service import (
+from aiusageclock.config import BrowserAccount, Config
+from aiusageclock.local_usage import service as service_module
+from aiusageclock.local_usage.service import (
     LocalUsageService,
     assigned_account,
     comparison_period_id,

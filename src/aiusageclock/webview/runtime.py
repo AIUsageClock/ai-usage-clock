@@ -18,9 +18,9 @@ from __future__ import annotations
 import logging
 import os
 
-log = logging.getLogger("aigauge.webview.runtime")
+log = logging.getLogger("aiusageclock.webview.runtime")
 
-_ENV_FORCE = "AIGAUGE_FORCE_WEBENGINE"
+_ENV_FORCE = "AIUSAGECLOCK_FORCE_WEBENGINE"
 
 # Cached (available, reason) — the probe cost is small but the answer cannot
 # change within a process, and a failed import must not be retried per refresh.

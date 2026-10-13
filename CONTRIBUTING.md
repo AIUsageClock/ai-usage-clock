@@ -1,6 +1,6 @@
-# Contributing to AI Gauge
+# Contributing to AI Usage Clock
 
-Thanks for your interest. AI Gauge is a small cross-platform desktop utility,
+Thanks for your interest. AI Usage Clock is a small cross-platform desktop utility,
 so most contributions fall into one of three buckets:
 
 - **Provider layout fixes** — when Claude or Codex change their
@@ -19,8 +19,8 @@ testing is still useful on each OS because tray/menu-bar behavior and native
 credential storage are platform-specific.
 
 ```powershell
-git clone https://github.com/DraftingDreamer/ai-gauge.git
-cd ai-gauge
+git clone https://github.com/AIUsageClock/ai-usage-clock.git
+cd ai-usage-clock
 
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .[dev]
@@ -29,7 +29,7 @@ py -m venv .venv
 Run the app:
 
 ```powershell
-.\.venv\Scripts\python.exe -m aigauge
+.\.venv\Scripts\python.exe -m aiusageclock
 ```
 
 Run the tests:
@@ -58,7 +58,7 @@ On a logged-in Mac, refresh the native menu-bar image with:
 ./.venv/bin/python tools/capture_macos_menubar.py
 ```
 
-The command renders only AI Gauge's own menu-bar button with demo data, so it
+The command renders only AI Usage Clock's own menu-bar button with demo data, so it
 does not need Screen Recording permission or include other desktop content.
 
 ## Pull request expectations
@@ -67,7 +67,7 @@ does not need Screen Recording permission or include other desktop content.
 - Add or update tests when you change non-trivial logic.
 - Run `python -m pytest` and `tools/check_versions.py` locally before opening the PR;
   both run in CI on push and pull request.
-- If you bump the version, update `pyproject.toml`, `src/aigauge/__init__.py`,
+- If you bump the version, update `pyproject.toml`, `src/aiusageclock/__init__.py`,
   `README.md`, and add a `CHANGELOG.md` section. CI will fail otherwise.
 - Avoid logging cookies, PATs, or full provider response bodies. The logger
   is rotated under the per-OS app-data directory, and users may attach those

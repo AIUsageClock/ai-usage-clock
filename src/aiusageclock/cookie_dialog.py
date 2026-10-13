@@ -19,7 +19,7 @@ from .webview.cookies import _parse_cookie_pairs, inject_session_cookie
 from .webview import runtime as webengine
 from .webview.targets import VERIFY_TARGETS
 
-log = logging.getLogger("aigauge.cookie_dialog")
+log = logging.getLogger("aiusageclock.cookie_dialog")
 
 INSTRUCTIONS = {
     "claude": (
@@ -176,7 +176,7 @@ class CookieDialog(QDialog):
             QMessageBox.warning(
                 self,
                 "Cookie was not injected",
-                "The cookie was saved, but AI Gauge does not know how to inject "
+                "The cookie was saved, but AI Usage Clock does not know how to inject "
                 "cookies for this provider yet. Check the provider cookie domain "
                 "mapping in config.py.",
             )

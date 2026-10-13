@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QLabel
 
-from aigauge.ratio import WeeklyRatioRecord
-from aigauge.ratio_dialog import RatioHistoryDialog, _period_label
+from aiusageclock.ratio import WeeklyRatioRecord
+from aiusageclock.ratio_dialog import RatioHistoryDialog, _period_label
 
 
 def _record(

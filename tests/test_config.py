@@ -3,8 +3,8 @@ import json
 import pytest
 from pydantic import ValidationError
 
-import aigauge.config as config_module
-from aigauge.config import (
+import aiusageclock.config as config_module
+from aiusageclock.config import (
     BrowserAccount,
     ColorThresholds,
     Config,
@@ -138,7 +138,7 @@ def test_out_of_range_pause_policy_does_not_discard_other_settings(
     A hand-edited or future-written threshold outside 1-100 must not take the
     user's refresh interval, accounts, and window geometry down with it.
     """
-    monkeypatch.setattr("aigauge.config.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.config.app_data_dir", lambda: tmp_path)
     config_path().write_text(
         json.dumps(
             {
@@ -163,7 +163,7 @@ def test_out_of_range_pause_policy_does_not_discard_other_settings(
 
 
 def test_malformed_pause_policies_are_dropped(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.config.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.config.app_data_dir", lambda: tmp_path)
     config_path().write_text(
         json.dumps(
             {

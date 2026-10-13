@@ -3,16 +3,16 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.local_usage.rates import load_rate_table
-from aigauge.local_usage.store import ModelUsage
-from aigauge.local_usage.summaries import (
+from aiusageclock.local_usage.rates import load_rate_table
+from aiusageclock.local_usage.store import ModelUsage
+from aiusageclock.local_usage.summaries import (
     FLAG_INCOMPLETE,
     FLAG_LIMIT_REACHED,
     FLAG_TIME_UNCERTAIN,
     WindowSummary,
 )
-from aigauge.local_usage.tokens import TokenCounts
-from aigauge.local_usage.trend import (
+from aiusageclock.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage.trend import (
     COUNTED,
     NOTE_PARTIAL_PRICE,
     REASON_INCOMPLETE,

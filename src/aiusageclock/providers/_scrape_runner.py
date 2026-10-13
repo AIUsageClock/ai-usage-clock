@@ -82,7 +82,7 @@ class ScrapeRunner:
                         # Chromium sometimes finds one where Qt cannot, so
                         # point at the override rather than leaving a dead end.
                         "If this machine does have working OpenGL, set "
-                        "AIGAUGE_FORCE_WEBENGINE=1 to skip this check."
+                        "AIUSAGECLOCK_FORCE_WEBENGINE=1 to skip this check."
                     ),
                 )
             )

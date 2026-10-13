@@ -6,10 +6,10 @@ import pytest
 import requests
 import responses
 
-from aigauge import __version__
-from aigauge.models import SnapshotStatus
-from aigauge.providers._resets_common import ResetEvent
-from aigauge.providers.codex_resets import CODEX_RESETS_URL, CodexResetsProvider
+from aiusageclock import __version__
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers._resets_common import ResetEvent
+from aiusageclock.providers.codex_resets import CODEX_RESETS_URL, CodexResetsProvider
 
 FIXTURE = Path(__file__).parent / "fixtures" / "resets" / "codex_status.json"
 NOW = datetime(2026, 9, 27, 12, tzinfo=timezone.utc)
@@ -99,7 +99,7 @@ def test_etag_304_user_agent_and_cached_event(monkeypatch):
     provider._last_success_at = NOW - provider.MIN_INTERVAL
     provider.refresh(snapshots.append)
     assert responses.calls[0].request.headers["User-Agent"] == (
-        f"ai-gauge/{__version__} (+https://github.com/DraftingDreamer/ai-gauge)"
+        f"ai-usage-clock/{__version__} (+https://github.com/AIUsageClock/ai-usage-clock)"
     )
     assert responses.calls[1].request.headers["If-None-Match"] == '"reset-v1"'
     assert provider.latest_event == original
@@ -162,10 +162,10 @@ def test_http_failures_keep_cached_event(monkeypatch, failure):
 
 from types import SimpleNamespace
 from unittest.mock import Mock
-from aigauge.app import App
-from aigauge.config import Config
-from aigauge.providers.codex_resets import _parse_watch
-from aigauge.providers._resets_common import ResetsFetchError
+from aiusageclock.app import App
+from aiusageclock.config import Config
+from aiusageclock.providers.codex_resets import _parse_watch
+from aiusageclock.providers._resets_common import ResetsFetchError
 
 def watch_payload(source=None, **changes):
     payload = {

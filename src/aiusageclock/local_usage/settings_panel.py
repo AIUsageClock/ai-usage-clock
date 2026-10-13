@@ -40,7 +40,7 @@ SETTINGS_DISCLOSURE = (
     "is uploaded. Costs are estimates, not charges.",
     "Only this computer is counted: browser chats, cloud tasks and other computers use "
     "the same allowance but don't show up here. Claude Code deletes its logs after 30 "
-    "days; AI Gauge keeps what it has imported.",
+    "days; AI Usage Clock keeps what it has imported.",
 )
 
 ACCOUNT_DISCLOSURE = (
@@ -217,7 +217,7 @@ class LocalUsagePanel(QWidget):
         self.clear_btn = QPushButton("Clear imported data")
         self.clear_btn.setObjectName("local_usage_clear_btn")
         self.clear_btn.setToolTip(
-            "Deletes the usage AI Gauge has imported. Your Claude Code and Codex logs "
+            "Deletes the usage AI Usage Clock has imported. Your Claude Code and Codex logs "
             "are not touched."
         )
         self.clear_btn.clicked.connect(self._confirm_clear)
@@ -321,7 +321,7 @@ class LocalUsagePanel(QWidget):
             last = store.last_import(provider)
             parts.append("not imported yet" if last is None else f"imported {relative_time(last)}")
             if store.get_meta(f"recognized:{provider}") is False:
-                notes.append("These logs weren't recognized. An AI Gauge update may be needed.")
+                notes.append("These logs weren't recognized. An AI Usage Clock update may be needed.")
             untested = untested_versions(provider, store.get_meta(f"versions:{provider}", {}))
             if untested:
                 shown = ", ".join(untested[-3:])
@@ -343,7 +343,7 @@ class LocalUsagePanel(QWidget):
         answer = QMessageBox.question(
             self,
             "Clear imported data",
-            "Delete the usage AI Gauge has imported? Your Claude Code and Codex logs "
+            "Delete the usage AI Usage Clock has imported? Your Claude Code and Codex logs "
             "are not touched, and Import history can read them again.",
         )
         if answer == QMessageBox.StandardButton.Yes:

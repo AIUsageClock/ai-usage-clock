@@ -4,8 +4,8 @@ from types import SimpleNamespace
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
-from aigauge import app as app_module
-from aigauge.app import (
+from aiusageclock import app as app_module
+from aiusageclock.app import (
     App,
     _acquire_instance_lock,
     _adaptive_refresh_minutes,
@@ -14,9 +14,9 @@ from aigauge.app import (
     _refresh_provider_order,
     _raw_summary,
 )
-from aigauge.config import BrowserAccount, Config
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.widget import UsageWidget
+from aiusageclock.config import BrowserAccount, Config
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.widget import UsageWidget
 
 
 class _Timer:
@@ -507,7 +507,7 @@ def test_clear_sign_in_clears_session_and_updates_tile(monkeypatch):
     assert app._cleared_sessions == {"claude"}  # noqa: SLF001
     snapshot, display_name = rendered[0]
     assert snapshot.status == SnapshotStatus.AUTH_REQUIRED
-    assert snapshot.error == "Sign-in cleared from AI Gauge."
+    assert snapshot.error == "Sign-in cleared from AI Usage Clock."
     assert display_name == "Claude"
 
 
@@ -747,7 +747,7 @@ def test_lifecycle_context_includes_refresh_state():
 
 
 def test_instance_lock_prevents_second_running_copy(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.app.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.app.app_data_dir", lambda: tmp_path)
 
     first = _acquire_instance_lock()
     assert first is not None

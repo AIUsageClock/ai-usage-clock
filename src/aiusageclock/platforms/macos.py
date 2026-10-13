@@ -1,6 +1,6 @@
 """macOS implementation of the platform seam.
 
-- App data lives under ``~/Library/Application Support/ai-gauge``.
+- App data lives under ``~/Library/Application Support/ai-usage-clock``.
 - Secrets (cookies + PAT) go through ``keyring`` (login Keychain). Keychain
   has no meaningful per-item size limit, so the DPAPI-style encrypted-file
   workaround used on Windows isn't needed.
@@ -20,10 +20,10 @@ import keyring
 
 from .base import APP_NAME, Platform, UIMode, autostart_command
 
-log = logging.getLogger("aigauge.platforms.macos")
+log = logging.getLogger("aiusageclock.platforms.macos")
 
-_LAUNCH_AGENT_LABEL = "org.aigauge.ai-gauge"
-_KEYRING_SERVICE = "ai-gauge"
+_LAUNCH_AGENT_LABEL = "com.aiusageclock.ai-usage-clock"
+_KEYRING_SERVICE = "ai-usage-clock"
 
 
 def _launch_agent_path() -> Path:

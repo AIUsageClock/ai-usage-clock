@@ -1,6 +1,6 @@
 """Windows implementation of the platform seam.
 
-- App data lives under ``%APPDATA%/ai-gauge``.
+- App data lives under ``%APPDATA%/ai-usage-clock``.
 - Cookies are stored DPAPI-encrypted via the existing ``secret_storage`` module
   (Windows Credential Manager caps blobs at ~2.5KB, which Codex JWTs blow past).
 - Auto-start uses a named Task Scheduler entry instead of a Run-key value.
@@ -17,11 +17,11 @@ from pathlib import Path
 
 from .base import APP_NAME, Platform, autostart_command
 
-log = logging.getLogger("aigauge.platforms.windows")
+log = logging.getLogger("aiusageclock.platforms.windows")
 
-TASK_NAME = "AI Gauge"
+TASK_NAME = "AI Usage Clock"
 TASK_AUTHOR = "AloeDesk"
-TASK_DESCRIPTION = "Starts AI Gauge when the user signs in."
+TASK_DESCRIPTION = "Starts AI Usage Clock when the user signs in."
 _TASK_NS = "http://schemas.microsoft.com/windows/2004/02/mit/task"
 
 

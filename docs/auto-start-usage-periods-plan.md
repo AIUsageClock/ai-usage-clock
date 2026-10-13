@@ -20,35 +20,35 @@ The feature must:
 - verify that the old period has actually reset before sending;
 - do nothing if the user has already started the new period;
 - never fall back silently to API billing or paid overflow credits;
-- work asynchronously without freezing AI Gauge; and
+- work asynchronously without freezing AI Usage Clock; and
 - fail closed when authentication, account identity, or upstream state is
   uncertain.
 
 The first implementation should target the default `claude` and `codex`
 accounts only. Robust multi-account support is a separate phase because the
-browser profiles AI Gauge scrapes and the authentication profiles used by the
+browser profiles AI Usage Clock scrapes and the authentication profiles used by the
 vendor CLIs are not currently linked.
 
 ## Important terminology
 
 This is not really an "API request" feature. The public Anthropic and OpenAI
 APIs use separately billed API credentials and do not reliably affect the
-subscription usage periods displayed by AI Gauge.
+subscription usage periods displayed by AI Usage Clock.
 
 The supported route is to invoke each vendor's official non-interactive CLI:
 
 - `claude -p ...`, authenticated with a Claude subscription; and
 - `codex exec ...`, authenticated with ChatGPT.
 
-The CLI will make the model request, but AI Gauge should treat it as a managed
+The CLI will make the model request, but AI Usage Clock should treat it as a managed
 child process rather than reproduce a private HTTP endpoint.
 
 ## Current behavior and where this fits
 
-AI Gauge already has most of the observation side:
+AI Usage Clock already has most of the observation side:
 
 - `UsageMetric` carries `percent_used`, `resets_at`, `reset_label`, and
-  `window` in `src/aigauge/models.py`.
+  `window` in `src/aiusageclock/models.py`.
 - Claude and Codex convert an unused period without a meaningful countdown to
   `reset_label == "idle"` through `providers/idle.py`.
 - `App._earliest_reset_refresh_time()` finds future resets for used metrics and
@@ -82,7 +82,7 @@ and perform the spike described below before relying on any of these details.
 ### Period semantics
 
 - A five-hour/session period may be reported as idle until it receives its
-  first use. AI Gauge already represents that state with `reset_label ==
+  first use. AI Usage Clock already represents that state with `reset_label ==
   "idle"`.
 - Codex may also omit the Session metric entirely while OpenAI exposes only
   the shared Weekly limit. Absence means unavailable, not idle: it must not
@@ -91,7 +91,7 @@ and perform the spike described below before relying on any of these details.
 - Anthropic's current Pro documentation says the weekly reset is a fixed
   account-assigned day/time and does not move based on when the user starts
   using Claude. If the post-reset page already shows the next weekly reset,
-  there is nothing to start and AI Gauge must not send a request merely because
+  there is nothing to start and AI Usage Clock must not send a request merely because
   the old weekly boundary passed.
 - The implementation should not assume that every provider, plan, or metric is
   on-demand. A request is justified only by live post-reset evidence that the
@@ -107,7 +107,7 @@ use, it is eligible for activation.
 Add an opt-in setting for each supported default account:
 
 > **Start new idle usage periods automatically**  
-> After a used Claude/Codex period resets, AI Gauge can send one minimal
+> After a used Claude/Codex period resets, AI Usage Clock can send one minimal
 > subscription request to begin the next on-demand countdown. This consumes a
 > small amount of usage. It requires the provider's command-line tool to be
 > installed and signed in to the same subscription account.
@@ -169,7 +169,7 @@ events and deduplication cannot live only in memory.
 Create a focused store, for example:
 
 ```text
-src/aigauge/period_starter.py
+src/aiusageclock/period_starter.py
 <app-data>/period-starter-state.json
 ```
 
@@ -362,7 +362,7 @@ Execution requirements:
 - never persist the model response;
 - allow only one model-request attempt per event; and
 - refresh the provider about 30-60 seconds after success so the new reset can
-  appear in AI Gauge.
+  appear in AI Usage Clock.
 
 ### Environment
 
@@ -408,11 +408,11 @@ ones.
 
 Preflight should run when the user enables the feature and again shortly before
 the real request. Cached status is not sufficient indefinitely because users
-can log out or switch accounts outside AI Gauge.
+can log out or switch accounts outside AI Usage Clock.
 
-Authentication mode alone cannot prove that the CLI account matches AI Gauge's
+Authentication mode alone cannot prove that the CLI account matches AI Usage Clock's
 browser profile. For the default-account first version, require the user to
-confirm the mapping in Settings. Do not enable additional AI Gauge accounts
+confirm the mapping in Settings. Do not enable additional AI Usage Clock accounts
 until there is a real per-account CLI credential/profile design.
 
 ## Minimal command candidates
@@ -532,7 +532,7 @@ inside the provider.
 
 ## Multi-account limitation and future design
 
-AI Gauge currently maintains one persistent Qt WebEngine profile per browser
+AI Usage Clock currently maintains one persistent Qt WebEngine profile per browser
 account ID. The Claude and Codex CLIs normally maintain one active login in
 their own global credential homes. Those identities are independent.
 
@@ -546,11 +546,11 @@ Potential future approaches:
 - investigate whether Claude officially supports separate credential/config
   homes suitable for this use case;
 - store a per-account absolute CLI path plus credential-home mapping; and
-- present the CLI-reported account identity next to the AI Gauge account name
+- present the CLI-reported account identity next to the AI Usage Clock account name
   for explicit confirmation.
 
 Do not copy browser cookies into CLI credential files, and do not share one
-CLI login across several enabled AI Gauge accounts. Until official per-account
+CLI login across several enabled AI Usage Clock accounts. Until official per-account
 profiles are established, keep v1 limited to one default account per provider.
 
 ## Alternatives considered
@@ -558,7 +558,7 @@ profiles are established, keep v1 limited to one default account per provider.
 ### Public model APIs
 
 Rejected. Anthropic Console/API and OpenAI Platform API billing are separate
-from the subscriptions whose limits AI Gauge displays. They could incur charges
+from the subscriptions whose limits AI Usage Clock displays. They could incur charges
 without starting the desired period.
 
 ### Undocumented Claude/ChatGPT web endpoints
@@ -575,7 +575,7 @@ submission success difficult to distinguish from UI/reporting lag.
 
 ### External OS scheduled tasks
 
-Not preferred. They would duplicate AI Gauge's reset knowledge and account
+Not preferred. They would duplicate AI Usage Clock's reset knowledge and account
 configuration and would have poorer deduplication and visibility. Keeping the
 feature in the app lets it verify live usage state before acting.
 
@@ -601,7 +601,7 @@ Before changing app behavior:
   tests/fixtures with personal data removed.
 
 Do not automate until this spike proves that non-interactive subscription usage
-affects the exact metrics AI Gauge scrapes.
+affects the exact metrics AI Usage Clock scrapes.
 
 ### Phase 1: pure policy and persistence
 
@@ -738,7 +738,7 @@ The first release is complete when:
 - the UI remains responsive and shows a safe outcome;
 - no project data is sent and no model output/auth data is retained;
 - automated tests never contact a model; and
-- manual tests confirm that the desired AI Gauge metric receives a new reset
+- manual tests confirm that the desired AI Usage Clock metric receives a new reset
   time on both supported providers where that metric is genuinely on-demand.
 
 ## Rough effort

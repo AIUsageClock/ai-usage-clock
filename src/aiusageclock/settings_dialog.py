@@ -69,7 +69,7 @@ from .providers.antigravity import normalize_cli_path, resolve_cli
 from .startup import set_start_at_login
 from .webview.cookies import clear_browser_session  # lazy inside; no WebEngine at import
 
-log = logging.getLogger("aigauge.settings_dialog")
+log = logging.getLogger("aiusageclock.settings_dialog")
 
 _COPILOT_PLAN_QUOTAS = (
     ("Pro", 1500),
@@ -564,7 +564,7 @@ class _BrowserAccountRow(QWidget):
             clear = QPushButton("Clear sign-in")
             clear.setObjectName(f"{account.id}_clear_signin_btn")
             clear.setFixedWidth(92)
-            clear.setToolTip("Remove this account's saved sign-in from AI Gauge.")
+            clear.setToolTip("Remove this account's saved sign-in from AI Usage Clock.")
             clear.clicked.connect(
                 lambda: self.clear_sign_in_clicked.emit(self.account_id)
             )
@@ -649,7 +649,7 @@ class SettingsDialog(QDialog):
         # Intentionally NOT stays-on-top or app-modal: users may need to switch
         # to their normal browser, and clicking the status panel should bring
         # this existing Settings window back to the foreground.
-        self.setWindowTitle("AI Gauge — Settings")
+        self.setWindowTitle("AI Usage Clock — Settings")
         self.setModal(False)
         self.resize(620, 520)
         self.setMinimumSize(560, 420)
@@ -741,7 +741,7 @@ class SettingsDialog(QDialog):
         self.ui_scale_combo.setMinimumWidth(110)
         self.ui_scale_combo.setToolTip(
             "Enlarge the whole widget, e.g. on a high-resolution (4K) display. "
-            "Takes effect after restarting AI Gauge."
+            "Takes effect after restarting AI Usage Clock."
         )
         scale_values = [0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0]
         if self._initial_ui_scale not in scale_values:
@@ -764,7 +764,7 @@ class SettingsDialog(QDialog):
         self.sign_in_browser_combo = QComboBox()
         self.sign_in_browser_combo.setMinimumWidth(180)
         self.sign_in_browser_combo.setToolTip(
-            "Choose the isolated browser AI Gauge uses for Claude and Codex "
+            "Choose the isolated browser AI Usage Clock uses for Claude and Codex "
             "sign-in. Automatic import supports Chrome-family browsers; "
             "embedded sign-in may not support Google or passkeys."
         )
@@ -1205,7 +1205,7 @@ class SettingsDialog(QDialog):
         ))
         resets_layout.addWidget(claude_resets_group)
         resets_layout.addWidget(_hint_label(
-            "When enabled, AI Gauge contacts each tracker at most every 15 minutes."
+            "When enabled, AI Usage Clock contacts each tracker at most every 15 minutes."
         ))
         resets_layout.addStretch(1)
 
@@ -1221,7 +1221,7 @@ class SettingsDialog(QDialog):
         mcp_layout.setContentsMargins(10, 10, 10, 10)
         mcp_layout.setSpacing(10)
         mcp_intro = QLabel(
-            "AI Gauge can share sanitized usage with MCP clients. A pause policy "
+            "AI Usage Clock can share sanitized usage with MCP clients. A pause policy "
             "returns a blocked guard result when an account reaches its threshold. "
             "The connected client must be configured to obey that result."
         )
@@ -1267,7 +1267,7 @@ class SettingsDialog(QDialog):
         mcp_layout.addWidget(policies_box)
         command = QLabel(
             "Bind each client profile to the account it actually uses:<br>"
-            "<code>ai-gauge-mcp --account-id &lt;account-id&gt;</code><br>"
+            "<code>ai-usage-clock-mcp --account-id &lt;account-id&gt;</code><br>"
             "Guard instruction: Call <code>check_current_account_usage</code> "
             "before costly work and stop whenever <code>allowed</code> is false."
         )
@@ -1305,9 +1305,9 @@ class SettingsDialog(QDialog):
         self.brand_icon.setObjectName("brand_icon")
         self.brand_icon.setPixmap(app_icon().pixmap(56, 56))
         self.brand_icon.setFixedSize(56, 56)
-        self.brand_icon.setToolTip("AI Gauge")
+        self.brand_icon.setToolTip("AI Usage Clock")
 
-        self.brand_title = QLabel("AI Gauge")
+        self.brand_title = QLabel("AI Usage Clock")
         self.brand_title.setObjectName("brand_title")
         self.brand_title.setStyleSheet(
             "color:#f9fafb; font-size:22px; font-weight:700;"
@@ -1342,7 +1342,7 @@ class SettingsDialog(QDialog):
 
         log_btn = QPushButton("Open log folder")
         log_btn.setToolTip(
-            "Reveal ai-gauge.log in Explorer — useful when reporting a problem."
+            "Reveal ai-usage-clock.log in Explorer — useful when reporting a problem."
         )
         log_btn.clicked.connect(lambda: reveal_path(log_path()))
 
@@ -1541,7 +1541,7 @@ class SettingsDialog(QDialog):
                 write_error="The saved token could not be cleared",
                 verify_error=(
                     "The token still appears to be available after clearing. "
-                    "Remove the 'ai-gauge' / 'github-pat' credential from "
+                    "Remove the 'ai-usage-clock' / 'github-pat' credential from "
                     "your system keychain."
                 ),
             ):
@@ -1572,7 +1572,7 @@ class SettingsDialog(QDialog):
                 write_error="The saved key could not be cleared",
                 verify_error=(
                     "The key still appears to be available after clearing. "
-                    "Remove the 'ai-gauge' / 'openrouter-key' credential from "
+                    "Remove the 'ai-usage-clock' / 'openrouter-key' credential from "
                     "your system keychain."
                 ),
             ):
@@ -1603,7 +1603,7 @@ class SettingsDialog(QDialog):
                 write_error="The saved key could not be cleared",
                 verify_error=(
                     "The key still appears to be available after clearing. "
-                    "Remove the 'ai-gauge' / 'openrouter-mgmt-key' credential "
+                    "Remove the 'ai-usage-clock' / 'openrouter-mgmt-key' credential "
                     "from your system keychain."
                 ),
             ):

@@ -13,10 +13,10 @@ from unittest.mock import patch
 
 import pytest
 
-from aigauge.platforms import autostart_command, get_platform
-from aigauge.platforms.linux import LinuxPlatform
-from aigauge.platforms.macos import MacOSPlatform
-from aigauge.platforms.windows import TASK_DESCRIPTION, TASK_NAME, WindowsPlatform
+from aiusageclock.platforms import autostart_command, get_platform
+from aiusageclock.platforms.linux import LinuxPlatform
+from aiusageclock.platforms.macos import MacOSPlatform
+from aiusageclock.platforms.windows import TASK_DESCRIPTION, TASK_NAME, WindowsPlatform
 
 
 class _FakeKeyring:
@@ -59,14 +59,14 @@ def test_autostart_command_includes_module_or_executable():
     assert argv  # non-empty
     if argv[0].endswith(("python", "python.exe", "pythonw.exe")):
         assert "-m" in argv
-        assert "aigauge" in argv
+        assert "aiusageclock" in argv
 
 
 @pytest.mark.parametrize("PlatformCls", [MacOSPlatform, LinuxPlatform])
 def test_keyring_backed_platform_round_trips_secret(PlatformCls, monkeypatch):
     fake = _FakeKeyring()
     # Patch the keyring module that the platform impl imports at top level.
-    module_name = f"aigauge.platforms.{PlatformCls.__module__.rsplit('.', 1)[-1]}"
+    module_name = f"aiusageclock.platforms.{PlatformCls.__module__.rsplit('.', 1)[-1]}"
     monkeypatch.setattr(f"{module_name}.keyring.get_password", fake.get_password)
     monkeypatch.setattr(f"{module_name}.keyring.set_password", fake.set_password)
     monkeypatch.setattr(f"{module_name}.keyring.delete_password", fake.delete_password)
@@ -102,13 +102,13 @@ def test_windows_autostart_creates_named_scheduled_task(monkeypatch):
 
     monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr(
-        "aigauge.platforms.windows._schtasks_path",
+        "aiusageclock.platforms.windows._schtasks_path",
         lambda: r"C:\Windows\System32\schtasks.exe",
     )
-    monkeypatch.setattr("aigauge.platforms.windows.subprocess.run", fake_run)
+    monkeypatch.setattr("aiusageclock.platforms.windows.subprocess.run", fake_run)
     monkeypatch.setattr(
-        "aigauge.platforms.windows.autostart_command",
-        lambda: [r"C:\Tools\ai-gauge\ai-gauge.exe"],
+        "aiusageclock.platforms.windows.autostart_command",
+        lambda: [r"C:\Tools\ai-usage-clock\ai-usage-clock.exe"],
     )
 
     WindowsPlatform().set_autostart(True)
@@ -140,7 +140,7 @@ def test_windows_autostart_creates_named_scheduled_task(monkeypatch):
     assert root.find("task:Triggers/task:LogonTrigger", namespaces=ns) is not None
     assert (
         root.findtext("task:Actions/task:Exec/task:Command", namespaces=ns)
-        == r"C:\Tools\ai-gauge\ai-gauge.exe"
+        == r"C:\Tools\ai-usage-clock\ai-usage-clock.exe"
     )
     # Scoped to the current user (UserId on both the trigger and the principal)
     # so registering the task needs no admin — otherwise schtasks denies it.
@@ -158,8 +158,8 @@ def test_windows_autostart_delete_checks_task_first(monkeypatch):
         return _completed()
 
     monkeypatch.setattr(sys, "platform", "win32")
-    monkeypatch.setattr("aigauge.platforms.windows._schtasks_path", lambda: "schtasks.exe")
-    monkeypatch.setattr("aigauge.platforms.windows.subprocess.run", fake_run)
+    monkeypatch.setattr("aiusageclock.platforms.windows._schtasks_path", lambda: "schtasks.exe")
+    monkeypatch.setattr("aiusageclock.platforms.windows.subprocess.run", fake_run)
 
     WindowsPlatform().set_autostart(False)
 
@@ -171,7 +171,7 @@ def test_linux_autostart_writes_desktop_file(tmp_path, monkeypatch):
     p = LinuxPlatform()
     assert p.get_autostart() is False
     p.set_autostart(True)
-    desktop = tmp_path / "autostart" / "ai-gauge.desktop"
+    desktop = tmp_path / "autostart" / "ai-usage-clock.desktop"
     assert desktop.exists()
     text = desktop.read_text(encoding="utf-8")
     assert "[Desktop Entry]" in text
@@ -188,11 +188,11 @@ def test_macos_autostart_writes_plist(tmp_path, monkeypatch):
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     # Stub launchctl so the test doesn't call the real binary on a CI runner
     # without macOS.
-    with patch("aigauge.platforms.macos.subprocess.run") as run:
+    with patch("aiusageclock.platforms.macos.subprocess.run") as run:
         p = MacOSPlatform()
         assert p.get_autostart() is False
         p.set_autostart(True)
-        plist = tmp_path / "Library" / "LaunchAgents" / "org.aigauge.ai-gauge.plist"
+        plist = tmp_path / "Library" / "LaunchAgents" / "com.aiusageclock.ai-usage-clock.plist"
         assert plist.exists()
         assert p.get_autostart() is True
         p.set_autostart(False)

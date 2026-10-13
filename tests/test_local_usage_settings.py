@@ -6,14 +6,14 @@ from types import SimpleNamespace
 import pytest
 from PyQt6.QtWidgets import QTabWidget
 
-from aigauge import app as app_module
-from aigauge.config import BrowserAccount, Config, app_data_dir
-from aigauge.local_usage import enable_dialog
-from aigauge.local_usage.enable_dialog import backfill_prompt_text
-from aigauge.local_usage.formats import untested_versions
-from aigauge.local_usage.importer import scan_provider
-from aigauge.local_usage.settings_panel import LocalUsagePanel
-from aigauge.settings_dialog import SettingsDialog
+from aiusageclock import app as app_module
+from aiusageclock.config import BrowserAccount, Config, app_data_dir
+from aiusageclock.local_usage import enable_dialog
+from aiusageclock.local_usage.enable_dialog import backfill_prompt_text
+from aiusageclock.local_usage.formats import untested_versions
+from aiusageclock.local_usage.importer import scan_provider
+from aiusageclock.local_usage.settings_panel import LocalUsagePanel
+from aiusageclock.settings_dialog import SettingsDialog
 
 FIXTURES = Path(__file__).parent / "fixtures" / "local_usage"
 
@@ -28,7 +28,7 @@ def test_tracking_is_off_by_default_and_reads_nothing(qtbot, monkeypatch):
     def fail_scan(*_args, **_kwargs):
         raise AssertionError("log folders must not be listed while tracking is off")
 
-    monkeypatch.setattr("aigauge.local_usage.settings_panel.scan_provider", fail_scan)
+    monkeypatch.setattr("aiusageclock.local_usage.settings_panel.scan_provider", fail_scan)
     panel = _panel(qtbot, Config())
 
     assert not panel.enabled_cb.isChecked()
@@ -129,7 +129,7 @@ def test_turning_tracking_on_asks_about_history(tmp_path, monkeypatch):
         lambda parent, scans: asked.append([s.provider for s in scans]) or enable_dialog.START_FROM_NOW,
     )
     monkeypatch.setattr(
-        "aigauge.local_usage.service.LocalUsageService.request_import",
+        "aiusageclock.local_usage.service.LocalUsageService.request_import",
         lambda self, kind="incremental": requested.append(kind),
     )
     stub = _app_stub(config)
@@ -191,7 +191,7 @@ def test_import_from_settings_starts_tracking_without_waiting_for_ok(qtbot, tmp_
     panel.controls["codex"].enabled_cb.setChecked(False)
     imported = []
     monkeypatch.setattr(
-        "aigauge.local_usage.service.LocalUsageService.import_history",
+        "aiusageclock.local_usage.service.LocalUsageService.import_history",
         lambda self, providers=("claude", "codex"): imported.append(True),
     )
     monkeypatch.setattr(

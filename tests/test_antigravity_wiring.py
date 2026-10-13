@@ -1,15 +1,15 @@
 import pytest
 from types import SimpleNamespace
 
-from aigauge import app as app_module
-from aigauge import config as config_module
-from aigauge.app import App, _enabled_providers
-from aigauge.config import ColorThresholds, Config
-from aigauge.gauge import thresholds_for_provider
-from aigauge.mcp_server import _configured_account_ids
-from aigauge.menubar import PROVIDER_LABELS
-from aigauge.settings_dialog import SettingsDialog
-from aigauge.widget import PROVIDER_ORDER
+from aiusageclock import app as app_module
+from aiusageclock import config as config_module
+from aiusageclock.app import App, _enabled_providers
+from aiusageclock.config import ColorThresholds, Config
+from aiusageclock.gauge import thresholds_for_provider
+from aiusageclock.mcp_server import _configured_account_ids
+from aiusageclock.menubar import PROVIDER_LABELS
+from aiusageclock.settings_dialog import SettingsDialog
+from aiusageclock.widget import PROVIDER_ORDER
 
 
 def test_antigravity_config_defaults_and_legacy_json(tmp_path, monkeypatch):
@@ -84,8 +84,8 @@ def test_app_builds_antigravity_provider_with_config_and_tile(monkeypatch):
 
 
 def test_settings_dialog_shows_and_saves_antigravity_options(qtbot, monkeypatch):
-    monkeypatch.setattr("aigauge.settings_dialog.resolve_cli", lambda _: "agy-test")
-    monkeypatch.setattr("aigauge.settings_dialog.set_start_at_login", lambda _: None)
+    monkeypatch.setattr("aiusageclock.settings_dialog.resolve_cli", lambda _: "agy-test")
+    monkeypatch.setattr("aiusageclock.settings_dialog.set_start_at_login", lambda _: None)
     config = Config()
     monkeypatch.setattr(Config, "save", lambda self: None)
     dialog = SettingsDialog(config)
@@ -107,13 +107,13 @@ def test_settings_dialog_shows_and_saves_antigravity_options(qtbot, monkeypatch)
 
 
 from PyQt6.QtWidgets import QFileDialog
-from aigauge.config import Config
+from aiusageclock.config import Config
 
 def _dialog(qtbot, monkeypatch, config=None, autodetected=None):
     monkeypatch.setattr(
-        "aigauge.settings_dialog.resolve_cli", lambda _: autodetected
+        "aiusageclock.settings_dialog.resolve_cli", lambda _: autodetected
     )
-    monkeypatch.setattr("aigauge.settings_dialog.set_start_at_login", lambda _: None)
+    monkeypatch.setattr("aiusageclock.settings_dialog.set_start_at_login", lambda _: None)
     monkeypatch.setattr(Config, "save", lambda self: None)
     dialog = SettingsDialog(config or Config())
     qtbot.addWidget(dialog)
@@ -175,8 +175,8 @@ def test_settings_path_status_text(qtbot, monkeypatch, tmp_path, configured,
 def test_settings_identifies_wrong_cli_name(qtbot, monkeypatch, tmp_path):
     executable = tmp_path / "notepad.exe"
     executable.touch()
-    monkeypatch.setattr("aigauge.settings_dialog.resolve_cli", lambda _: None)
-    monkeypatch.setattr("aigauge.settings_dialog.set_start_at_login", lambda _: None)
+    monkeypatch.setattr("aiusageclock.settings_dialog.resolve_cli", lambda _: None)
+    monkeypatch.setattr("aiusageclock.settings_dialog.set_start_at_login", lambda _: None)
     config = Config()
     config.antigravity.cli_path = str(executable)
     dialog = SettingsDialog(config)

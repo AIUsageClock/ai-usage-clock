@@ -1,6 +1,6 @@
 # Security
 
-AI Gauge is an independent open-source local desktop utility for Windows,
+AI Usage Clock is an independent open-source local desktop utility for Windows,
 macOS, and Linux. It is not affiliated with Anthropic, OpenAI, GitHub,
 Microsoft, OpenCode, OpenRouter, or any other provider.
 
@@ -10,7 +10,7 @@ Please do not open a public issue for a vulnerability that exposes session
 cookies, GitHub tokens, OpenCode/OpenRouter keys, or other secrets.
 
 Preferred channel: open a private security advisory at
-<https://github.com/DraftingDreamer/ai-gauge/security/advisories/new>.
+<https://github.com/AIUsageClock/ai-usage-clock/security/advisories/new>.
 
 If that is not available, contact the maintainer directly through their
 GitHub profile and include:
@@ -32,7 +32,7 @@ cannot.
 
 | OS      | Claude / Codex cookies                                        | API keys and GitHub PAT      |
 | ------- | ------------------------------------------------------------- | ---------------------------- |
-| Windows | DPAPI-encrypted `%APPDATA%/ai-gauge/secrets.dat`              | Windows Credential Manager   |
+| Windows | DPAPI-encrypted `%APPDATA%/ai-usage-clock/secrets.dat`              | Windows Credential Manager   |
 | macOS   | Login Keychain                                                | Login Keychain               |
 | Linux   | Secret Service (GNOME Keyring / KWallet) via `keyring`        | same                         |
 
@@ -47,7 +47,7 @@ browser profile.
 The optional MCP integration (off by default) is the only feature that writes
 usage data outside the credential store, to `<app-data>/mcp-usage.json`.
 Nothing is written until a user enables it in **Settings → MCP**, and the file
-is deleted when the integration is disabled or AI Gauge exits.
+is deleted when the integration is disabled or AI Usage Clock exits.
 
 It holds only what the pause guard needs: account IDs, snapshot status and
 timestamp, and per-metric label, percentage, reset time, and guard eligibility.
@@ -57,7 +57,7 @@ planted in those fields never reaches the file. The file is written via
 `tempfile.NamedTemporaryFile` and `os.replace`, so it inherits mode `0600`
 rather than the process umask.
 
-The `ai-gauge-mcp` helper only reads this file and the config; it never touches
+The `ai-usage-clock-mcp` helper only reads this file and the config; it never touches
 the credential store, and it exposes no network transport (stdio only).
 
 ### Why the split on Windows?
@@ -74,7 +74,7 @@ comparable size limit, so on those platforms everything goes through
 ### What the OS credential stores do and do not protect against
 
 All three credential stores bind ciphertext to the **logged-in user
-account**, not to AI Gauge specifically:
+account**, not to AI Usage Clock specifically:
 
 - **Same-user processes can decrypt the secrets.** Any process running under
   the same OS user — a malicious script, a browser extension host, a
@@ -82,7 +82,7 @@ account**, not to AI Gauge specifically:
   plaintext. This is the same threat model browsers use for cookie storage.
 - **Other local users cannot decrypt them.** A different local account, a
   service account, or another macOS user's session will not be able to read
-  AI Gauge's secrets without first impersonating the user.
+  AI Usage Clock's secrets without first impersonating the user.
 
 The secrets stored here are session tokens and API keys, not just passwords.
 Recovery of a Claude or ChatGPT session cookie is functionally equivalent to
@@ -93,16 +93,16 @@ Treat your OS user profile accordingly.
 
 On non-Windows hosts the legacy `secret_storage` write path is **disabled
 by default** (cookies go through `keyring` instead). Setting
-`AIGAUGE_ALLOW_PLAINTEXT_SECRETS=1` opts into a plaintext fallback for
+`AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS=1` opts into a plaintext fallback for
 test fixtures only; production code paths should never reach this branch.
 
 ## Browser Sign-In
 
 The default sign-in flow launches the user's selected installed Chrome-family browser with a
 new temporary profile because Google intentionally blocks OAuth in embedded
-user-agents. AI Gauge binds Chrome's DevTools endpoint to a random loopback-only
+user-agents. AI Usage Clock binds Chrome's DevTools endpoint to a random loopback-only
 port, reads only cookies scoped to the selected provider domain, imports them
-into the matching AI Gauge account profile, and closes the temporary browser.
+into the matching AI Usage Clock account profile, and closes the temporary browser.
 The temporary browser profile is then deleted. Google cookies and cookies for
 unrelated sites are not imported. The resulting provider session is stored by
 the same OS-protected secret backend described above.
@@ -128,11 +128,11 @@ provider sending the embedded browser to an arbitrary URL.
 
 ## Privacy
 
-AI Gauge does not include telemetry or a backend service. Provider requests
+AI Usage Clock does not include telemetry or a backend service. Provider requests
 are made from the local app to Claude.ai, ChatGPT, OpenCode, GitHub, and OpenRouter
 endpoints needed to read usage information.
 
-Diagnostic logs are written locally to `<app-data>/ai-gauge.log`. Logs
+Diagnostic logs are written locally to `<app-data>/ai-usage-clock.log`. Logs
 are intended to avoid recording
 raw cookies, personal access tokens, OpenCode/OpenRouter keys, and sensitive response
 bodies. Review logs before sharing them in an issue.

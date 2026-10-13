@@ -6,8 +6,8 @@ from pathlib import Path
 
 from .config import app_data_dir
 
-LOGGER_NAME = "aigauge"
-_LOG_FILENAME = "ai-gauge.log"
+LOGGER_NAME = "aiusageclock"
+_LOG_FILENAME = "ai-usage-clock.log"
 
 
 def log_path() -> Path:
@@ -15,7 +15,7 @@ def log_path() -> Path:
 
 
 def setup_logging() -> logging.Logger:
-    """Initialize a rotating file logger at %APPDATA%/ai-gauge/ai-gauge.log.
+    """Initialize a rotating file logger at %APPDATA%/ai-usage-clock/ai-usage-clock.log.
 
     Idempotent — safe to call multiple times. Returns the package logger so
     callers can write to it directly without going through getLogger().

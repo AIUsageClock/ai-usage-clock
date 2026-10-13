@@ -148,28 +148,28 @@ jobs:
       - name: Smoke test MCP helper (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        run: .\.venv\Scripts\python.exe tools\smoke_test_mcp.py dist\ai-gauge\ai-gauge-mcp.exe
+        run: .\.venv\Scripts\python.exe tools\smoke_test_mcp.py dist\ai-usage-clock\ai-usage-clock-mcp.exe
 
       - name: Smoke test MCP helper (macOS)
         if: matrix.os == 'macos-latest'
-        run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-gauge-mcp
+        run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-usage-clock-mcp
 
       - name: Smoke test MCP helper (Linux)
         if: matrix.os == 'ubuntu-22.04'
-        run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-gauge/ai-gauge-mcp
+        run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-usage-clock/ai-usage-clock-mcp
 
       - name: Smoke test packaged GUI (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        run: .\.venv\Scripts\python.exe tools\smoke_test_gui.py dist\ai-gauge
+        run: .\.venv\Scripts\python.exe tools\smoke_test_gui.py dist\ai-usage-clock
 
       - name: Smoke test packaged GUI (macOS)
         if: matrix.os == 'macos-latest'
-        run: .venv/bin/python tools/smoke_test_gui.py dist/ai-gauge.app
+        run: .venv/bin/python tools/smoke_test_gui.py dist/ai-usage-clock.app
 
       - name: Smoke test packaged GUI (Linux)
         if: matrix.os == 'ubuntu-22.04'
-        run: .venv/bin/python tools/smoke_test_gui.py dist/ai-gauge
+        run: .venv/bin/python tools/smoke_test_gui.py dist/ai-usage-clock
 
       - name: Package (Windows zip + sha256)
         id: pack_win
@@ -177,9 +177,9 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ needs.resolve-version.outputs.version }}"
-          $zipName = "ai-gauge-$version-windows.zip"
+          $zipName = "ai-usage-clock-$version-windows.zip"
           $shaName = "$zipName.sha256"
-          Compress-Archive -Path dist\ai-gauge -DestinationPath $zipName -Force
+          Compress-Archive -Path dist\ai-usage-clock -DestinationPath $zipName -Force
           $sha = (Get-FileHash $zipName -Algorithm SHA256).Hash.ToLower()
           "$sha *$zipName" | Out-File -Encoding ascii -FilePath $shaName
           "archive=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -191,13 +191,13 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.resolve-version.outputs.version }}"
-          archive="ai-gauge-${version}-${{ matrix.label }}.tar.gz"
+          archive="ai-usage-clock-${version}-${{ matrix.label }}.tar.gz"
           sha="${archive}.sha256"
           # On mac, archive the .app bundle. On Linux, archive the dist folder.
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-              tar -C dist -czf "$archive" ai-gauge.app ai-gauge-mcp
+              tar -C dist -czf "$archive" ai-usage-clock.app ai-usage-clock-mcp
           else
-              tar -C dist -czf "$archive" ai-gauge
+              tar -C dist -czf "$archive" ai-usage-clock
           fi
           shasum -a 256 "$archive" | awk '{print $1 " *" $2}' > "$sha"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
@@ -206,10 +206,10 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ai-gauge-${{ matrix.label }}
+          name: ai-usage-clock-${{ matrix.label }}
           path: |
-            ai-gauge-*.${{ matrix.archive_ext }}
-            ai-gauge-*.${{ matrix.archive_ext }}.sha256
+            ai-usage-clock-*.${{ matrix.archive_ext }}
+            ai-usage-clock-*.${{ matrix.archive_ext }}.sha256
           if-no-files-found: error
 
   release:
@@ -237,7 +237,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          name: AI Gauge ${{ needs.resolve-version.outputs.version }}
+          name: AI Usage Clock ${{ needs.resolve-version.outputs.version }}
           tag_name: ${{ needs.resolve-version.outputs.tag }}
           generate_release_notes: true
           body: |
@@ -248,9 +248,9 @@ jobs:
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ needs.resolve-version.outputs.tag }}/CHANGELOG.md) for full notes.
 
             **Downloads** (pick the artifact for your OS, extract, and run):
-            - Windows: `ai-gauge-${{ needs.resolve-version.outputs.version }}-windows.zip`, run `ai-gauge.exe`
-            - macOS:   `ai-gauge-${{ needs.resolve-version.outputs.version }}-macos.tar.gz`, drag `ai-gauge.app` to Applications
-            - Linux:   `ai-gauge-${{ needs.resolve-version.outputs.version }}-linux.tar.gz`, run `./ai-gauge/ai-gauge`
+            - Windows: `ai-usage-clock-${{ needs.resolve-version.outputs.version }}-windows.zip`, run `ai-usage-clock.exe`
+            - macOS:   `ai-usage-clock-${{ needs.resolve-version.outputs.version }}-macos.tar.gz`, drag `ai-usage-clock.app` to Applications
+            - Linux:   `ai-usage-clock-${{ needs.resolve-version.outputs.version }}-linux.tar.gz`, run `./ai-usage-clock/ai-usage-clock`
 
             **Verify:** SHA256 sums live next to each archive.
 

@@ -1,11 +1,11 @@
 [project]
-name = "ai-gauge"
+name = "ai-usage-clock"
 version = "0.9.0"
 description = "Compact cross-platform monitor for Claude, Codex, OpenCode Go, GitHub Copilot, and OpenRouter usage."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "AI Gauge maintainers" }]
+authors = [{ name = "AI Usage Clock maintainers" }]
 keywords = ["ai", "desktop", "usage-monitor", "claude", "codex", "copilot"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -36,10 +36,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/DraftingDreamer/ai-gauge"
-Repository = "https://github.com/DraftingDreamer/ai-gauge"
-Issues = "https://github.com/DraftingDreamer/ai-gauge/issues"
-Security = "https://github.com/DraftingDreamer/ai-gauge/security"
+Homepage = "https://github.com/AIUsageClock/ai-usage-clock"
+Repository = "https://github.com/AIUsageClock/ai-usage-clock"
+Issues = "https://github.com/AIUsageClock/ai-usage-clock/issues"
+Security = "https://github.com/AIUsageClock/ai-usage-clock/security"
 
 [project.optional-dependencies]
 mcp = [
@@ -54,15 +54,15 @@ dev = [
 ]
 
 [project.scripts]
-ai-gauge = "aigauge.__main__:main"
-ai-gauge-mcp = "aigauge.mcp_server:main"
+ai-usage-clock = "aiusageclock.__main__:main"
+ai-usage-clock-mcp = "aiusageclock.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/aigauge"]
+packages = ["src/aiusageclock"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

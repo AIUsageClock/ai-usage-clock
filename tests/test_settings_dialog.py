@@ -1,9 +1,9 @@
 from PyQt6.QtWidgets import QPushButton
 
-from aigauge import settings_dialog
-from aigauge.config import BrowserAccount, ColorThresholds, Config
-from aigauge.providers._codex_page import CODEX_USAGE_URL
-from aigauge.settings_dialog import SettingsDialog
+from aiusageclock import settings_dialog
+from aiusageclock.config import BrowserAccount, ColorThresholds, Config
+from aiusageclock.providers._codex_page import CODEX_USAGE_URL
+from aiusageclock.settings_dialog import SettingsDialog
 
 
 def _button(dialog: SettingsDialog, name: str) -> QPushButton:
@@ -19,7 +19,7 @@ def test_brand_header_showcases_app_identity(qtbot):
     assert not dialog.brand_icon.pixmap().isNull()
     assert dialog.brand_icon.width() == 56
     assert dialog.brand_icon.height() == 56
-    assert dialog.brand_title.text() == "AI Gauge"
+    assert dialog.brand_title.text() == "AI Usage Clock"
     assert "usage at a glance" in dialog.brand_subtitle.text()
     assert settings_dialog.__version__ in dialog.brand_subtitle.text()
 

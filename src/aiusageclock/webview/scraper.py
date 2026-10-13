@@ -12,7 +12,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from .page import QuietWebEnginePage
 from .profile import get_profile
 
-log = logging.getLogger("aigauge.scraper")
+log = logging.getLogger("aiusageclock.scraper")
 
 
 def _enum_name(value: Any) -> str:

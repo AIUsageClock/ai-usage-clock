@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from aigauge.local_usage import claude_logs, codex_logs
-from aigauge.local_usage.codex_logs import CodexParser, CodexParserState, CodexParseStats
-from aigauge.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage import claude_logs, codex_logs
+from aiusageclock.local_usage.codex_logs import CodexParser, CodexParserState, CodexParseStats
+from aiusageclock.local_usage.tokens import TokenCounts
 
 FIXTURES = Path(__file__).parent / "fixtures" / "local_usage"
 CLAUDE_PROJECT = FIXTURES / "claude" / "projects" / "c--proj"

@@ -8,8 +8,8 @@ import pytest
 SRC = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC))
 
-from aigauge import windows_toast
-from aigauge.providers import _resets_common, antigravity
+from aiusageclock import windows_toast
+from aiusageclock.providers import _resets_common, antigravity
 
 
 def pytest_configure(config):

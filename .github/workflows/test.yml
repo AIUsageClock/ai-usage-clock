@@ -83,7 +83,7 @@ jobs:
           pip install -e .[dev]
 
       - name: Build packaged MCP helper
-        run: python -m PyInstaller --noconfirm --clean --console --onefile --noupx --name ai-gauge-mcp --paths src pyinstaller_mcp_entry.py
+        run: python -m PyInstaller --noconfirm --clean --console --onefile --noupx --name ai-usage-clock-mcp --paths src pyinstaller_mcp_entry.py
 
       - name: Exercise packaged MCP handshake
-        run: python tools/smoke_test_mcp.py dist/ai-gauge-mcp
+        run: python tools/smoke_test_mcp.py dist/ai-usage-clock-mcp

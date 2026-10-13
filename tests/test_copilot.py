@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import responses
 
-from aigauge.config import Config
-from aigauge.models import SnapshotStatus
-from aigauge.providers.copilot import (
+from aiusageclock.config import Config
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.copilot import (
     COPILOT_PRODUCT,
     GITHUB_API,
     GITHUB_API_VERSION,
@@ -34,7 +34,7 @@ def test_this_month_start_utc():
 
 
 def test_build_snapshot_uses_utc_month_boundary(monkeypatch):
-    import aigauge.providers.copilot as copilot
+    import aiusageclock.providers.copilot as copilot
 
     real_datetime = datetime
     now = real_datetime(2026, 4, 30, 23, 30, tzinfo=timezone.utc)
@@ -136,7 +136,7 @@ def test_build_snapshot_ignores_non_credit_items():
 
 @responses.activate
 def test_fetch_credit_usage_calls_current_endpoint():
-    from aigauge.providers.copilot import _fetch_credit_usage
+    from aiusageclock.providers.copilot import _fetch_credit_usage
 
     responses.add(
         responses.GET,
@@ -156,7 +156,7 @@ def test_fetch_credit_usage_calls_current_endpoint():
 
 @responses.activate
 def test_fetch_premium_usage_calls_correct_endpoint():
-    from aigauge.providers.copilot import _fetch_premium_usage
+    from aiusageclock.providers.copilot import _fetch_premium_usage
 
     responses.add(
         responses.GET,
@@ -175,7 +175,7 @@ def test_fetch_premium_usage_calls_correct_endpoint():
 
 @responses.activate
 def test_fetch_org_premium_usage_calls_correct_endpoint():
-    from aigauge.providers.copilot import _fetch_org_premium_usage
+    from aiusageclock.providers.copilot import _fetch_org_premium_usage
 
     responses.add(
         responses.GET,
@@ -195,7 +195,7 @@ def test_fetch_org_premium_usage_calls_correct_endpoint():
 
 @responses.activate
 def test_resolve_username_from_pat():
-    from aigauge.providers.copilot import _resolve_username
+    from aiusageclock.providers.copilot import _resolve_username
 
     responses.add(
         responses.GET,
@@ -207,7 +207,7 @@ def test_resolve_username_from_pat():
 
 
 def test_resolve_username_uses_configured_if_set():
-    from aigauge.providers.copilot import _resolve_username
+    from aiusageclock.providers.copilot import _resolve_username
 
     # No HTTP call should happen — configured value short-circuits.
     assert _resolve_username("anything", configured="myname") == "myname"
@@ -215,7 +215,7 @@ def test_resolve_username_uses_configured_if_set():
 
 def test_config_smoke():
     # Ensures provider class can be constructed
-    from aigauge.providers.copilot import CopilotProvider
+    from aiusageclock.providers.copilot import CopilotProvider
 
     cfg = Config()
     # Don't actually call refresh — needs Qt event loop.

@@ -6,8 +6,8 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
-from aigauge import __version__
-from aigauge.config import (
+from aiusageclock import __version__
+from aiusageclock.config import (
     WINDOW_COLLAPSED_MIN_HEIGHT,
     WINDOW_COLLAPSED_MIN_WIDTH,
     WINDOW_MAX_WIDTH,
@@ -16,9 +16,9 @@ from aigauge.config import (
     ColorThresholds,
     Config,
 )
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.ratio import RatioEstimate
-from aigauge.widget import (
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.ratio import RatioEstimate
+from aiusageclock.widget import (
     CORNER_SNAP_DISTANCE,
     MIN_GAUGE_WIDTH,
     CORNER_SNAP_INSET,
@@ -255,13 +255,13 @@ def test_title_bars_offer_distinct_view_and_hide_controls(qtbot):
     assert widget.hide_btn.text() == "—"
     assert widget.hide_btn.toolTip() == "Hide to system tray"
     assert widget.close_btn.text() == "✕"
-    assert widget.close_btn.toolTip() == "Quit AI Gauge"
+    assert widget.close_btn.toolTip() == "Quit AI Usage Clock"
 
     widget.set_collapsed(True)
     assert widget._expand_btn.text() == "▴"  # noqa: SLF001
     assert widget._collapsed_hide_btn.toolTip() == "Hide to system tray"  # noqa: SLF001
     assert widget._collapsed_close_btn.text() == "✕"  # noqa: SLF001
-    assert widget._collapsed_close_btn.toolTip() == "Quit AI Gauge"  # noqa: SLF001
+    assert widget._collapsed_close_btn.toolTip() == "Quit AI Usage Clock"  # noqa: SLF001
 
     with qtbot.waitSignal(widget.quit_requested):
         widget._collapsed_close_btn.click()  # noqa: SLF001
@@ -852,7 +852,7 @@ def test_refresh_status_sits_on_the_footer_not_the_title_bar(qtbot):
 
     assert widget.status_label.parent() is widget._resize_footer  # noqa: SLF001
     assert widget.status_label.text() == "Updated 1m ago · next 4m"
-    assert widget.title_label.text() == f"AI Gauge {__version__}"
+    assert widget.title_label.text() == f"AI Usage Clock {__version__}"
 
     header_texts = [
         widget._header_widget.layout().itemAt(i).widget()  # noqa: SLF001
@@ -1086,7 +1086,7 @@ def test_resize_grip_stops_before_standard_gauge_rows_would_wrap(qtbot):
     QApplication.processEvents()
     assert compact_tile._compact_below_header is False  # noqa: SLF001
     assert openrouter_row._reset_stacked is False  # noqa: SLF001
-    assert widget.title_label.text() == f"AI Gauge {__version__}"
+    assert widget.title_label.text() == f"AI Usage Clock {__version__}"
 
 def test_resize_grip_stops_before_the_openrouter_row_would_stack(qtbot):
     """The tile layout only re-flows once the drag ends.
@@ -1216,7 +1216,7 @@ def test_expanded_header_survives_the_width_floor_intact(qtbot):
 
     widget.resize(620, widget.height())
     widget._apply_responsive_header()  # noqa: SLF001
-    assert widget.title_label.text() == f"AI Gauge {__version__}"
+    assert widget.title_label.text() == f"AI Usage Clock {__version__}"
     # The status text moved to the footer, so it no longer competes with the
     # controls for title-bar width.
     assert widget.status_label.text() == "Updated 1m ago · next 4m"
@@ -1248,7 +1248,7 @@ def test_expanded_header_compacts_progressively_when_it_cannot_fit(
     """
     widget = UsageWidget(Config())
     qtbot.addWidget(widget)
-    full_title = f"AI Gauge {__version__}"
+    full_title = f"AI Usage Clock {__version__}"
 
     def title_at(width: int) -> str:
         monkeypatch.setattr(widget, "width", lambda: width)
@@ -1260,7 +1260,7 @@ def test_expanded_header_compacts_progressively_when_it_cannot_fit(
 
     assert title_at(fits_full) == full_title
     # One pixel short of the full title, the version goes first.
-    assert title_at(fits_full - 1) == "AI Gauge"
+    assert title_at(fits_full - 1) == "AI Usage Clock"
     # Far past every step, the name itself is abbreviated but the controls
     # are all still there.
     assert title_at(10) == "AI"

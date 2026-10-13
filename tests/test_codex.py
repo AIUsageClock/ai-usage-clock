@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
-from aigauge.models import SnapshotStatus
-from aigauge.providers.codex import (
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.codex import (
     CODEX_USAGE_URL,
     EXTRACTOR_JS,
     _build_snapshot,

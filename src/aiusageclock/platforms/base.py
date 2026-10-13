@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Literal
 
-APP_NAME = "ai-gauge"
+APP_NAME = "ai-usage-clock"
 
 # Tests (and portable installs) can redirect every platform's app_data_dir by
 # setting this env var. We honour APPDATA on every platform — not just Windows
@@ -33,7 +33,7 @@ def autostart_command() -> list[str]:
 
     Frozen builds (PyInstaller) reuse ``sys.executable`` directly. Source
     installs prefer ``pythonw`` on Windows so no console window flashes; on
-    macOS/Linux there is no separate ``pythonw`` — ``python -m aigauge`` is
+    macOS/Linux there is no separate ``pythonw`` — ``python -m aiusageclock`` is
     used directly.
     """
     if getattr(sys, "frozen", False):
@@ -44,7 +44,7 @@ def autostart_command() -> list[str]:
         launcher = pythonw if pythonw.exists() else python
     else:
         launcher = python
-    return [str(launcher), "-m", "aigauge"]
+    return [str(launcher), "-m", "aiusageclock"]
 
 
 class Platform(ABC):

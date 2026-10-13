@@ -28,7 +28,7 @@ from .claude_logs import ClaudeMessage
 from .codex_logs import CodexQuotaReading, CodexUsage
 from .tokens import CATEGORIES, TokenCounts, price_variant
 
-log = logging.getLogger("aigauge.local_usage.store")
+log = logging.getLogger("aiusageclock.local_usage.store")
 
 SCHEMA_VERSION = 1
 DB_FILENAME = "local_usage.sqlite"

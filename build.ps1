@@ -24,15 +24,15 @@ if ($LASTEXITCODE -ne 0) { Write-Error "Could not install/verify PyInstaller." }
 $versionInfo = Join-Path $PSScriptRoot "build\pyinstaller-version-info.txt"
 & $venvPython (Join-Path $PSScriptRoot "tools\write_pyinstaller_version_info.py") $versionInfo
 if ($LASTEXITCODE -ne 0) { Write-Error "Could not generate executable version metadata." }
-$appIcon = Join-Path $PSScriptRoot "src\aigauge\assets\aigaugeicon.ico"
+$appIcon = Join-Path $PSScriptRoot "src\aiusageclock\assets\aiusageclockicon.ico"
 
 if ($OneFile) {
-    $targetExe = Join-Path $PSScriptRoot "dist\ai-gauge.exe"
+    $targetExe = Join-Path $PSScriptRoot "dist\ai-usage-clock.exe"
     if (Test-Path $targetExe) {
         try {
             Remove-Item -LiteralPath $targetExe -Force -ErrorAction Stop
         } catch {
-            Write-Error "Cannot replace dist\ai-gauge.exe. Close any running ai-gauge.exe process, then build again."
+            Write-Error "Cannot replace dist\ai-usage-clock.exe. Close any running ai-usage-clock.exe process, then build again."
         }
     }
 }
@@ -43,11 +43,11 @@ $args = @(
     "--clean",
     "--windowed",
     "--noupx",
-    "--name", "ai-gauge",
+    "--name", "ai-usage-clock",
     "--version-file", $versionInfo,
     "--icon", $appIcon,
     "--paths", "src",
-    "--collect-data", "aigauge",
+    "--collect-data", "aiusageclock",
     "--collect-all", "PyQt6.QtWebEngineWidgets",
     "--collect-all", "PyQt6.QtWebEngineCore",
     "pyinstaller_entry.py"
@@ -120,7 +120,7 @@ function Invoke-PyInstaller([string[]]$Arguments) {
         if ($childStdout) { [Console]::Out.Write($childStdout) }
         if ($childStderr) { [Console]::Error.Write($childStderr) }
         if ($process.ExitCode -ne 0) {
-            Write-Error "PyInstaller build failed with exit code $($process.ExitCode). If dist\ai-gauge\ai-gauge.exe is locked, close the running app and try again."
+            Write-Error "PyInstaller build failed with exit code $($process.ExitCode). If dist\ai-usage-clock\ai-usage-clock.exe is locked, close the running app and try again."
         }
     } finally {
         if ($process) { $process.Dispose() }
@@ -137,7 +137,7 @@ Invoke-PyInstaller $args
 # so a Defender/SmartScreen block is silent. Give it the same product/version
 # resource the GUI carries rather than shipping metadata-less bytes.
 $mcpVersionInfo = Join-Path $PSScriptRoot "build\pyinstaller-version-info-mcp.txt"
-& $venvPython (Join-Path $PSScriptRoot "tools\write_pyinstaller_version_info.py") $mcpVersionInfo "ai-gauge-mcp"
+& $venvPython (Join-Path $PSScriptRoot "tools\write_pyinstaller_version_info.py") $mcpVersionInfo "ai-usage-clock-mcp"
 if ($LASTEXITCODE -ne 0) { Write-Error "Could not generate MCP helper version metadata." }
 
 # mcp pulls in httpx, whose optional CLI path reaches pygments, whose img
@@ -154,7 +154,7 @@ $mcpArgs = @(
     "--console",
     "--onefile",
     "--noupx",
-    "--name", "ai-gauge-mcp",
+    "--name", "ai-usage-clock-mcp",
     "--version-file", $mcpVersionInfo,
     "--exclude-module", "PIL",
     "--exclude-module", "pygments",
@@ -167,21 +167,21 @@ try {
     Write-Error "MCP helper build failed. $($_.Exception.Message)"
 }
 if (-not $OneFile) {
-    $mcpSource = Join-Path $PSScriptRoot "dist\ai-gauge-mcp.exe"
-    $mcpTarget = Join-Path $PSScriptRoot "dist\ai-gauge\ai-gauge-mcp.exe"
+    $mcpSource = Join-Path $PSScriptRoot "dist\ai-usage-clock-mcp.exe"
+    $mcpTarget = Join-Path $PSScriptRoot "dist\ai-usage-clock\ai-usage-clock-mcp.exe"
     try {
         Move-Item -LiteralPath $mcpSource -Destination $mcpTarget -Force -ErrorAction Stop
     } catch {
-        Write-Error "Cannot place dist\ai-gauge\ai-gauge-mcp.exe. Close any MCP client using the helper, then build again. ($_)"
+        Write-Error "Cannot place dist\ai-usage-clock\ai-usage-clock-mcp.exe. Close any MCP client using the helper, then build again. ($_)"
     }
 }
 
 # release.yml smoke-tests and packages the helper at a fixed path. Fail here,
 # with the path named, rather than partway through a tag release.
 $expectedMcp = if ($OneFile) {
-    Join-Path $PSScriptRoot "dist\ai-gauge-mcp.exe"
+    Join-Path $PSScriptRoot "dist\ai-usage-clock-mcp.exe"
 } else {
-    Join-Path $PSScriptRoot "dist\ai-gauge\ai-gauge-mcp.exe"
+    Join-Path $PSScriptRoot "dist\ai-usage-clock\ai-usage-clock-mcp.exe"
 }
 if (-not (Test-Path -LiteralPath $expectedMcp)) {
     Write-Error "MCP helper missing at expected release path: $expectedMcp"
@@ -194,16 +194,16 @@ if (-not (Test-Path -LiteralPath $expectedMcp)) {
 if (-not $OneFile) {
     Write-Host ""
     Write-Host "Pruning unused Qt/Chromium payload..."
-    & $venvPython (Join-Path $PSScriptRoot "tools\prune_bundle.py") (Join-Path $PSScriptRoot "dist\ai-gauge")
+    & $venvPython (Join-Path $PSScriptRoot "tools\prune_bundle.py") (Join-Path $PSScriptRoot "dist\ai-usage-clock")
     if ($LASTEXITCODE -ne 0) { Write-Error "Bundle prune failed." }
 }
 
 Write-Host ""
 Write-Host "Build complete." -ForegroundColor Green
 if ($OneFile) {
-    Write-Host "Binary: dist\ai-gauge.exe"
-    Write-Host "MCP helper: dist\ai-gauge-mcp.exe"
+    Write-Host "Binary: dist\ai-usage-clock.exe"
+    Write-Host "MCP helper: dist\ai-usage-clock-mcp.exe"
 } else {
-    Write-Host "Folder: dist\ai-gauge\  (run ai-gauge.exe inside)"
-    Write-Host "MCP helper: dist\ai-gauge\ai-gauge-mcp.exe"
+    Write-Host "Folder: dist\ai-usage-clock\  (run ai-usage-clock.exe inside)"
+    Write-Host "MCP helper: dist\ai-usage-clock\ai-usage-clock-mcp.exe"
 }

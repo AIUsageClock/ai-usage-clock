@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 import requests
 import responses
 
-from aigauge.config import Config
-from aigauge.models import SnapshotStatus
-from aigauge.providers.opencode_go import (
+from aiusageclock.config import Config
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.opencode_go import (
     OPENCODE_GO_USAGE_API,
     OpenCodeGoProvider,
     _build_snapshot,
@@ -103,7 +103,7 @@ def test_build_snapshot_rejects_incomplete_api_response():
 
 def test_refresh_without_key_requests_setup(monkeypatch):
     monkeypatch.setattr(
-        "aigauge.providers.opencode_go.get_opencode_go_key",
+        "aiusageclock.providers.opencode_go.get_opencode_go_key",
         lambda account_id: None,
     )
     provider = OpenCodeGoProvider(Config(), account_id="opencode_go-work")
@@ -120,7 +120,7 @@ def test_refresh_without_key_requests_setup(monkeypatch):
 @responses.activate
 def test_refresh_uses_bearer_key_and_returns_usage(monkeypatch):
     monkeypatch.setattr(
-        "aigauge.providers.opencode_go.get_opencode_go_key",
+        "aiusageclock.providers.opencode_go.get_opencode_go_key",
         lambda account_id: "test-key",
     )
     responses.add(
@@ -142,7 +142,7 @@ def test_refresh_uses_bearer_key_and_returns_usage(monkeypatch):
 @responses.activate
 def test_refresh_maps_invalid_key_to_auth_required(monkeypatch):
     monkeypatch.setattr(
-        "aigauge.providers.opencode_go.get_opencode_go_key",
+        "aiusageclock.providers.opencode_go.get_opencode_go_key",
         lambda account_id: "bad-key",
     )
     responses.add(responses.GET, OPENCODE_GO_USAGE_API, status=401)
@@ -159,7 +159,7 @@ def test_refresh_maps_invalid_key_to_auth_required(monkeypatch):
 @responses.activate
 def test_refresh_maps_missing_subscription_to_error(monkeypatch):
     monkeypatch.setattr(
-        "aigauge.providers.opencode_go.get_opencode_go_key",
+        "aiusageclock.providers.opencode_go.get_opencode_go_key",
         lambda account_id: "key-without-go",
     )
     responses.add(responses.GET, OPENCODE_GO_USAGE_API, status=403)
@@ -176,7 +176,7 @@ def test_refresh_maps_missing_subscription_to_error(monkeypatch):
 @responses.activate
 def test_refresh_surfaces_network_failure(monkeypatch):
     monkeypatch.setattr(
-        "aigauge.providers.opencode_go.get_opencode_go_key",
+        "aiusageclock.providers.opencode_go.get_opencode_go_key",
         lambda account_id: "test-key",
     )
     responses.add(

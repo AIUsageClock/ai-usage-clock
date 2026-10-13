@@ -1,7 +1,7 @@
-from aigauge.config import BrowserAccount, Config
-from aigauge.cookie_dialog import INSTRUCTIONS
-from aigauge.webview.cookies import _parse_cookie_pairs
-from aigauge.webview import cookies
+from aiusageclock.config import BrowserAccount, Config
+from aiusageclock.cookie_dialog import INSTRUCTIONS
+from aiusageclock.webview.cookies import _parse_cookie_pairs
+from aiusageclock.webview import cookies
 
 
 def test_codex_cookie_instructions_link_to_usage_overview():
@@ -235,7 +235,7 @@ def test_cookie_hydration_logs_names_without_values(monkeypatch, caplog):
         "inject_session_cookie",
         lambda provider, value: injected.append((provider, value)) or True,
     )
-    caplog.set_level("INFO", logger="aigauge.webview.cookies")
+    caplog.set_level("INFO", logger="aiusageclock.webview.cookies")
 
     assert cookies.hydrate_all_from_keyring() == ["claude"]
 
@@ -294,7 +294,7 @@ def test_cookie_hydration_skips_injection_when_profile_has_persistent_cookies(
         )
     )
 
-    from aigauge.config import webview_profile_dir
+    from aiusageclock.config import webview_profile_dir
 
     profile_dir = webview_profile_dir("codex-home")
     profile_dir.mkdir(parents=True, exist_ok=True)
@@ -313,7 +313,7 @@ def test_cookie_hydration_skips_injection_when_profile_has_persistent_cookies(
         "inject_session_cookie",
         lambda *a, **kw: injected.append((a, kw)) or True,
     )
-    caplog.set_level("INFO", logger="aigauge.webview.cookies")
+    caplog.set_level("INFO", logger="aiusageclock.webview.cookies")
 
     assert cookies.hydrate_all_from_keyring(config) == []
     assert injected == []

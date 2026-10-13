@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.ratio import (
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.ratio import (
     MAX_HISTORY,
     RatioStore,
     WeeklyRatioRecord,

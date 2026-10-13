@@ -20,7 +20,7 @@ from .config import Config, browser_accounts, display_name_for_account
 from .usage_cache import CACHE_SCHEMA_VERSION, read_usage_cache
 
 INSTRUCTIONS = """
-AI Gauge provides local subscription usage and user-configured pause policies.
+AI Usage Clock provides local subscription usage and user-configured pause policies.
 Before starting costly AI work, call check_current_account_usage. If allowed is
 false, stop and tell the user why. This is a cooperative guard: the MCP protocol
 cannot suspend a client that ignores the result.
@@ -40,7 +40,7 @@ class _UnavailableMCP:
 
 
 mcp = (
-    FastMCP("AI Gauge", instructions=INSTRUCTIONS, json_response=True)
+    FastMCP("AI Usage Clock", instructions=INSTRUCTIONS, json_response=True)
     if FastMCP is not None
     else _UnavailableMCP()
 )
@@ -159,7 +159,7 @@ def _cache_unavailable_reason(cache: dict[str, Any]) -> str | None:
     message = cache.get("message")
     if isinstance(message, str) and message.strip():
         return message
-    return "AI Gauge has not published usage data."
+    return "AI Usage Clock has not published usage data."
 
 
 def _blocked(
@@ -191,13 +191,13 @@ def _check_usage_guard(
     if not config.mcp_enabled:
         return _blocked(
             "integration_disabled",
-            "MCP integration is disabled in AI Gauge Settings.",
+            "MCP integration is disabled in AI Usage Clock Settings.",
             account_id=account_id,
         )
     if account_id not in _configured_account_ids(config):
         return _blocked(
             "account_unavailable",
-            "This account is not currently configured and enabled in AI Gauge.",
+            "This account is not currently configured and enabled in AI Usage Clock.",
             account_id=account_id,
         )
 
@@ -222,7 +222,7 @@ def _check_usage_guard(
     if cache.get("schema_version") != CACHE_SCHEMA_VERSION:
         return _blocked(
             "unsupported_cache_schema",
-            "AI Gauge usage cache is incompatible with this helper.",
+            "AI Usage Clock usage cache is incompatible with this helper.",
             account_id=account_id,
             guard_configured=True,
         )
@@ -275,7 +275,7 @@ def _check_usage_guard(
 
 @mcp.tool()
 def get_ai_usage(account_id: str | None = None) -> dict[str, Any]:
-    """Return sanitized AI Gauge usage for configured accounts."""
+    """Return sanitized AI Usage Clock usage for configured accounts."""
     config = Config.load()
     if not config.mcp_enabled:
         return {
@@ -296,7 +296,7 @@ def get_ai_usage(account_id: str | None = None) -> dict[str, Any]:
         return {
             "integration_enabled": True,
             "reason_code": "unsupported_cache_schema",
-            "reason": "AI Gauge usage cache is incompatible with this helper.",
+            "reason": "AI Usage Clock usage cache is incompatible with this helper.",
             "accounts": [],
         }
     rows = _account_rows(config, cache)
@@ -320,7 +320,7 @@ def check_current_account_usage() -> dict[str, Any]:
         return _blocked(
             "no_binding",
             (
-                "This MCP connection is not bound to an AI Gauge account. "
+                "This MCP connection is not bound to an AI Usage Clock account. "
                 "Launch it with --account-id <account-id>."
             ),
         )
@@ -335,7 +335,7 @@ def recommend_ai_account() -> dict[str, Any]:
         return {
             "account": None,
             "reason_code": "integration_disabled",
-            "reason": "MCP integration is disabled in AI Gauge Settings.",
+            "reason": "MCP integration is disabled in AI Usage Clock Settings.",
         }
     cache = read_usage_cache()
     candidates = []
@@ -361,13 +361,13 @@ def recommend_ai_account() -> dict[str, Any]:
     }
 
 
-@mcp.resource("aigauge://usage")
+@mcp.resource("aiusageclock://usage")
 def usage_resource() -> str:
     """Current sanitized usage snapshot as JSON."""
     return json.dumps(get_ai_usage(), indent=2)
 
 
-@mcp.resource("aigauge://guard-instructions")
+@mcp.resource("aiusageclock://guard-instructions")
 def guard_instructions_resource() -> str:
     """Instructions clients should follow to honor pause policies."""
     return INSTRUCTIONS
@@ -412,16 +412,16 @@ def _run_stdio_with_owned_streams() -> None:
 
 def main() -> None:
     global _bound_account_id
-    parser = argparse.ArgumentParser(description="AI Gauge MCP usage server")
+    parser = argparse.ArgumentParser(description="AI Usage Clock MCP usage server")
     parser.add_argument(
         "--account-id",
-        help="AI Gauge account used by this MCP client/profile.",
+        help="AI Usage Clock account used by this MCP client/profile.",
     )
     args = parser.parse_args()
     if FastMCP is None:
         print(
-            "The MCP SDK is not installed. Install AI Gauge with: "
-            "pip install 'ai-gauge[mcp]'",
+            "The MCP SDK is not installed. Install AI Usage Clock with: "
+            "pip install 'ai-usage-clock[mcp]'",
             file=sys.stderr,
         )
         raise SystemExit(2)

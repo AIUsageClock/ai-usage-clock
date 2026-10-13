@@ -14,7 +14,7 @@ import subprocess
 
 import pytest
 
-from aigauge.providers.claude import EXTRACTOR_JS
+from aiusageclock.providers.claude import EXTRACTOR_JS
 
 pytestmark = pytest.mark.skipif(
     shutil.which("node") is None, reason="Node.js not available"

@@ -1,4 +1,4 @@
-"""Capture AI Gauge's native macOS menu-bar item using safe demo data."""
+"""Capture AI Usage Clock's native macOS menu-bar item using safe demo data."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Capture the native AI Gauge menu-bar item with demo usage."
+        description="Capture the native AI Usage Clock menu-bar item with demo usage."
     )
     parser.add_argument(
         "--output",
@@ -34,9 +34,9 @@ def main() -> int:
     from PyQt6.QtCore import QEventLoop, QTimer
     from PyQt6.QtWidgets import QApplication
 
-    from aigauge.config import Config
-    from aigauge.macos_status_item import NativeMacStatusItem
-    from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
+    from aiusageclock.config import Config
+    from aiusageclock.macos_status_item import NativeMacStatusItem
+    from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 
     app = QApplication.instance() or QApplication([])
     config = Config()

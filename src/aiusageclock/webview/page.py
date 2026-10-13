@@ -5,11 +5,11 @@ import logging
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWebEngineCore import QWebEnginePage
 
-log = logging.getLogger("aigauge.webview.page")
+log = logging.getLogger("aiusageclock.webview.page")
 
 
 # JS console fragments that are pure third-party telemetry/analytics chatter
-# and never useful when diagnosing AI Gauge issues. Matched as substrings.
+# and never useful when diagnosing AI Usage Clock issues. Matched as substrings.
 _NOISY_CONSOLE_FRAGMENTS = (
     "Error with Permissions-Policy header: Unrecognized feature:",
     "[GSI_LOGGER]:",

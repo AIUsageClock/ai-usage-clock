@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.webview import runtime
+from aiusageclock.webview import runtime
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,7 +36,7 @@ def test_importing_the_app_does_not_load_webengine():
     """
     code = (
         "import sys; sys.path.insert(0, r'%s');"
-        "import aigauge.app;"
+        "import aiusageclock.app;"
         "print(sorted(m for m in sys.modules if 'WebEngine' in m))"
         % str(REPO_ROOT / "src")
     )
@@ -49,13 +49,13 @@ def test_importing_the_app_does_not_load_webengine():
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "[]", (
-        "importing aigauge.app pulled in QtWebEngine, which aborts on a "
+        "importing aiusageclock.app pulled in QtWebEngine, which aborts on a "
         f"session with no GL context: {result.stdout}"
     )
 
 
 def test_probe_reports_unavailable_without_a_gl_context(qapp, monkeypatch):
-    monkeypatch.delenv("AIGAUGE_FORCE_WEBENGINE", raising=False)
+    monkeypatch.delenv("AIUSAGECLOCK_FORCE_WEBENGINE", raising=False)
     monkeypatch.setattr(
         runtime, "_gl_context_available", lambda: (False, "no GLX/EGL here")
     )
@@ -67,7 +67,7 @@ def test_probe_reports_unavailable_without_a_gl_context(qapp, monkeypatch):
 
 
 def test_probe_is_cached(qapp, monkeypatch):
-    monkeypatch.delenv("AIGAUGE_FORCE_WEBENGINE", raising=False)
+    monkeypatch.delenv("AIUSAGECLOCK_FORCE_WEBENGINE", raising=False)
     calls = []
 
     def _probe():
@@ -90,7 +90,7 @@ def test_probe_refuses_to_run_before_a_qguiapplication_exists(monkeypatch):
     early took the whole process down, which is exactly the crash the probe is
     supposed to prevent.
     """
-    monkeypatch.delenv("AIGAUGE_FORCE_WEBENGINE", raising=False)
+    monkeypatch.delenv("AIUSAGECLOCK_FORCE_WEBENGINE", raising=False)
     monkeypatch.setattr(runtime, "_gui_application_ready", lambda: False)
     monkeypatch.setattr(
         runtime,
@@ -104,7 +104,7 @@ def test_probe_refuses_to_run_before_a_qguiapplication_exists(monkeypatch):
 
 def test_missing_qguiapplication_answer_is_not_cached(qapp, monkeypatch):
     """A pre-startup 'no' must not poison the answer for the whole process."""
-    monkeypatch.delenv("AIGAUGE_FORCE_WEBENGINE", raising=False)
+    monkeypatch.delenv("AIUSAGECLOCK_FORCE_WEBENGINE", raising=False)
     ready = [False]
     monkeypatch.setattr(runtime, "_gui_application_ready", lambda: ready[0])
     monkeypatch.setattr(runtime, "_gl_context_available", lambda: (True, ""))
@@ -116,7 +116,7 @@ def test_missing_qguiapplication_answer_is_not_cached(qapp, monkeypatch):
 
 
 def test_force_env_var_bypasses_the_probe(monkeypatch):
-    monkeypatch.setenv("AIGAUGE_FORCE_WEBENGINE", "1")
+    monkeypatch.setenv("AIUSAGECLOCK_FORCE_WEBENGINE", "1")
     monkeypatch.setattr(
         runtime,
         "_gl_context_available",

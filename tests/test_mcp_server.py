@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 
-from aigauge import mcp_server, usage_cache
-from aigauge.config import Config
-from aigauge.mcp_server import check_usage_guard, recommend_ai_account
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.usage_cache import (
+from aiusageclock import mcp_server, usage_cache
+from aiusageclock.config import Config
+from aiusageclock.mcp_server import check_usage_guard, recommend_ai_account
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.usage_cache import (
     CACHE_SCHEMA_VERSION,
     invalidate_usage_cache,
     read_usage_cache,
@@ -46,14 +46,14 @@ def _cache(
 
 
 def _patch_context(monkeypatch, config: Config, cache: dict) -> None:
-    monkeypatch.setattr("aigauge.mcp_server.Config.load", lambda: config)
-    monkeypatch.setattr("aigauge.mcp_server.read_usage_cache", lambda: cache)
+    monkeypatch.setattr("aiusageclock.mcp_server.Config.load", lambda: config)
+    monkeypatch.setattr("aiusageclock.mcp_server.read_usage_cache", lambda: cache)
 
 
 def test_guard_is_disabled_by_default(monkeypatch):
-    monkeypatch.setattr("aigauge.mcp_server.Config.load", lambda: Config())
+    monkeypatch.setattr("aiusageclock.mcp_server.Config.load", lambda: Config())
     monkeypatch.setattr(
-        "aigauge.mcp_server.read_usage_cache",
+        "aiusageclock.mcp_server.read_usage_cache",
         lambda: (_ for _ in ()).throw(AssertionError("disabled guard read cache")),
     )
 
@@ -217,7 +217,7 @@ def test_dst_shifted_local_timestamp_stays_fresh(monkeypatch):
 
 
 def test_published_cache_timestamps_carry_utc_offset(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     write_usage_cache(
         {
             "codex": UsageSnapshot(
@@ -270,7 +270,7 @@ def test_recommendation_returns_none_when_all_accounts_blocked(monkeypatch):
 
 
 def test_usage_cache_is_minimal_and_omits_sensitive_fields(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     snapshot = UsageSnapshot(
         provider="codex",
         status=SnapshotStatus.ERROR,
@@ -288,7 +288,7 @@ def test_usage_cache_is_minimal_and_omits_sensitive_fields(tmp_path, monkeypatch
 
 
 def test_usage_cache_marks_tagged_metrics_ineligible(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     snapshot = UsageSnapshot(
         provider="openrouter",
         status=SnapshotStatus.OK,
@@ -305,7 +305,7 @@ def test_usage_cache_marks_tagged_metrics_ineligible(tmp_path, monkeypatch):
 
 
 def test_usage_cache_can_be_invalidated(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     write_usage_cache({})
 
     invalidate_usage_cache()
@@ -314,10 +314,10 @@ def test_usage_cache_can_be_invalidated(tmp_path, monkeypatch):
 
 
 def test_usage_cache_invalid_utf8_fails_closed(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     usage_cache.usage_cache_path().write_bytes(b"\xff")
     config = _config(codex=90)
-    monkeypatch.setattr("aigauge.mcp_server.Config.load", lambda: config)
+    monkeypatch.setattr("aiusageclock.mcp_server.Config.load", lambda: config)
     monkeypatch.setattr(mcp_server, "read_usage_cache", read_usage_cache)
 
     result = check_usage_guard("codex")
@@ -329,15 +329,15 @@ def test_usage_cache_invalid_utf8_fails_closed(tmp_path, monkeypatch):
 def test_missing_cache_is_reported_as_unavailable_not_failed_refresh(
     tmp_path, monkeypatch
 ):
-    """A guard blocked because AI Gauge is not running must say so.
+    """A guard blocked because AI Usage Clock is not running must say so.
 
     An unreadable cache still carries the current schema version, so without a
     distinct code it surfaces as ``snapshot_not_ok`` — "the latest refresh is
     not OK" — when in fact no refresh was ever published.
     """
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     config = _config(codex=90)
-    monkeypatch.setattr("aigauge.mcp_server.Config.load", lambda: config)
+    monkeypatch.setattr("aiusageclock.mcp_server.Config.load", lambda: config)
     monkeypatch.setattr(mcp_server, "read_usage_cache", read_usage_cache)
 
     result = check_usage_guard("codex")
@@ -353,7 +353,7 @@ def test_missing_cache_is_reported_as_unavailable_not_failed_refresh(
 
 
 def test_published_cache_is_never_treated_as_unavailable(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     write_usage_cache(
         {
             "codex": UsageSnapshot(
@@ -364,7 +364,7 @@ def test_published_cache_is_never_treated_as_unavailable(tmp_path, monkeypatch):
         }
     )
     config = _config(codex=90)
-    monkeypatch.setattr("aigauge.mcp_server.Config.load", lambda: config)
+    monkeypatch.setattr("aiusageclock.mcp_server.Config.load", lambda: config)
     monkeypatch.setattr(mcp_server, "read_usage_cache", read_usage_cache)
 
     assert check_usage_guard("codex")["reason_code"] == "allowed_below_threshold"
@@ -372,14 +372,14 @@ def test_published_cache_is_never_treated_as_unavailable(tmp_path, monkeypatch):
 
 def test_empty_but_published_cache_is_distinct_from_missing(tmp_path, monkeypatch):
     """Publishing zero accounts is a real refresh, not an unavailable cache."""
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     write_usage_cache({})
 
     assert read_usage_cache().get("available") is True
 
 
 def test_usage_cache_retries_windows_sharing_violation(tmp_path, monkeypatch):
-    monkeypatch.setattr("aigauge.usage_cache.app_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("aiusageclock.usage_cache.app_data_dir", lambda: tmp_path)
     snapshot = UsageSnapshot(
         provider="codex",
         status=SnapshotStatus.OK,
@@ -395,8 +395,8 @@ def test_usage_cache_retries_windows_sharing_violation(tmp_path, monkeypatch):
             raise PermissionError(32, "file is being used by another process")
         real_replace(source, destination)
 
-    monkeypatch.setattr("aigauge.usage_cache.os.replace", briefly_locked)
-    monkeypatch.setattr("aigauge.usage_cache.time.sleep", lambda _delay: None)
+    monkeypatch.setattr("aiusageclock.usage_cache.os.replace", briefly_locked)
+    monkeypatch.setattr("aiusageclock.usage_cache.time.sleep", lambda _delay: None)
 
     write_usage_cache({"codex": snapshot})
 

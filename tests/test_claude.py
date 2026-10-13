@@ -1,7 +1,7 @@
 from datetime import timedelta
 
-from aigauge.models import SnapshotStatus
-from aigauge.providers.claude import CLAUDE_USAGE_URL, _build_snapshot
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers.claude import CLAUDE_USAGE_URL, _build_snapshot
 
 
 def test_claude_cloudflare_payload_is_auth_required():

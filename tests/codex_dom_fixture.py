@@ -22,7 +22,7 @@ parser.add_argument('--serve', action='store_true')
 parser.add_argument('--port', type=int, default=18763)
 args = parser.parse_args()
 repo = Path(__file__).resolve().parents[1]
-scripts = runpy.run_path(str(repo / 'src/aigauge/providers/_codex_page.py'))
+scripts = runpy.run_path(str(repo / 'src/aiusageclock/providers/_codex_page.py'))
 out = args.output.resolve()
 out.mkdir(parents=True, exist_ok=True)
 label = lambda name, rest='': f'<div class="settings-row"><div><div><div>{name}</div></div></div>{rest}</div>'
@@ -67,7 +67,7 @@ parent.postMessage(result, window.location.origin);
 for name, body in cases:
     variables = 'const name=' + json.dumps(name) + ',extractor=' + json.dumps(scripts['EXTRACTOR_JS']) + ',verifier=' + json.dumps(scripts['VERIFY_JS']) + ';'
     (out / f'{name}.html').write_text('<!doctype html><meta charset="utf-8"><title>' + name + '</title>' + body + '<script>' + variables + runner + '</script>', encoding='utf-8')
-index = '''<!doctype html><meta charset="utf-8"><title>AI Gauge offline DOM checks</title><h1>AI Gauge offline DOM checks</h1><p>Production extraction/verification scripts; local fixture route injected through a function parameter. No external requests.</p><pre id="results">Waiting...</pre><script>const results=[];window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data.name)return;results.push(e.data);document.getElementById('results').textContent=JSON.stringify(results,null,2);document.title=results.length+'/8 complete; '+results.filter(x=>x.passed).length+' passed';});</script>'''
+index = '''<!doctype html><meta charset="utf-8"><title>AI Usage Clock offline DOM checks</title><h1>AI Usage Clock offline DOM checks</h1><p>Production extraction/verification scripts; local fixture route injected through a function parameter. No external requests.</p><pre id="results">Waiting...</pre><script>const results=[];window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data.name)return;results.push(e.data);document.getElementById('results').textContent=JSON.stringify(results,null,2);document.title=results.length+'/8 complete; '+results.filter(x=>x.passed).length+' passed';});</script>'''
 index += ''.join(f'<iframe title="{name}" src="{name}.html" style="width:100%;height:190px"></iframe>' for name, _ in cases)
 (out / 'index.html').write_text(index, encoding='utf-8')
 print(out)

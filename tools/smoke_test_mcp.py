@@ -1,4 +1,4 @@
-"""Exercise a packaged AI Gauge MCP helper over its real stdio transport."""
+"""Exercise a packaged AI Usage Clock MCP helper over its real stdio transport."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _helper_path(value: str) -> Path:
 
 
 async def _smoke_test(helper: Path) -> str:
-    with tempfile.TemporaryDirectory(prefix="ai-gauge-mcp-smoke-") as appdata:
+    with tempfile.TemporaryDirectory(prefix="ai-usage-clock-mcp-smoke-") as appdata:
         with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as errlog:
             params = StdioServerParameters(
                 command=str(helper),
@@ -38,7 +38,7 @@ async def _smoke_test(helper: Path) -> str:
                 # app_data_dir() reads a different variable per OS, and the MCP
                 # client inherits the real HOME by default. Redirect all three
                 # so this never reads (or fails against) a maintainer's own
-                # AI Gauge configuration when run outside CI.
+                # AI Usage Clock configuration when run outside CI.
                 env={
                     "APPDATA": appdata,
                     "HOME": appdata,
@@ -48,7 +48,7 @@ async def _smoke_test(helper: Path) -> str:
             async with stdio_client(params, errlog=errlog) as (read, write):
                 async with ClientSession(read, write) as session:
                     initialized = await session.initialize()
-                    if initialized.serverInfo.name != "AI Gauge":
+                    if initialized.serverInfo.name != "AI Usage Clock":
                         raise RuntimeError(
                             f"unexpected server name: {initialized.serverInfo.name!r}"
                         )

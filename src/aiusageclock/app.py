@@ -35,7 +35,7 @@ from .cookie_dialog import CookieDialog
 from .error_dialog import ErrorDetailsDialog
 from .history import HistoryStore
 from .icons import app_icon
-from .logging_setup import setup_logging
+from .logging_setup import LOGGER_NAME, setup_logging
 from .menubar import render_menubar_pixmap
 from .models import SnapshotStatus, UsageSnapshot
 from .platforms import autostart_command, get_platform
@@ -72,7 +72,7 @@ def _login_window_class():
         LoginWindow = _resolved
     return LoginWindow
 
-log = logging.getLogger("aigauge.app")
+log = logging.getLogger("aiusageclock.app")
 
 LOGIN_URLS = {
     "claude": ("https://claude.ai/login", "Sign in to Claude"),
@@ -230,7 +230,7 @@ def _preserve_error_metrics(
 
 
 def _acquire_instance_lock() -> QLockFile | None:
-    lock_path = app_data_dir() / "ai-gauge.lock"
+    lock_path = app_data_dir() / "ai-usage-clock.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock = QLockFile(str(lock_path))
     if not lock.tryLock(100):
@@ -239,7 +239,7 @@ def _acquire_instance_lock() -> QLockFile | None:
 
 
 def _flush_log_handlers() -> None:
-    for handler in logging.getLogger("aigauge").handlers:
+    for handler in logging.getLogger(LOGGER_NAME).handlers:
         try:
             handler.flush()
         except Exception:  # noqa: BLE001
@@ -256,7 +256,7 @@ class App(QObject):
         super().__init__()
         setup_logging()
         log.info(
-            "ai-gauge %s starting platform=%s frozen=%s executable=%s cwd=%s app_data=%s",
+            "ai-usage-clock %s starting platform=%s frozen=%s executable=%s cwd=%s app_data=%s",
             __version__,
             get_platform().name,
             bool(getattr(sys, "frozen", False)),
@@ -336,7 +336,7 @@ class App(QObject):
                     _enabled_providers(self._config),
                     self._config,
                 )
-                self._native_status.set_tooltip(f"AI Gauge {__version__}")
+                self._native_status.set_tooltip(f"AI Usage Clock {__version__}")
                 self._tray = None
                 log.info("using native macOS status item")
             except Exception as exc:  # noqa: BLE001
@@ -350,7 +350,7 @@ class App(QObject):
             pass
         elif tray_available:
             self._tray = QSystemTrayIcon(self._render_tray_icon())
-            self._tray.setToolTip(f"AI Gauge {__version__}")
+            self._tray.setToolTip(f"AI Usage Clock {__version__}")
             if self._ui_mode != "menubar":
                 self._tray.setContextMenu(self._app_menu)
             self._tray.activated.connect(self._on_tray_activated)
@@ -706,7 +706,7 @@ class App(QObject):
             snapshot = UsageSnapshot(
                 provider=snapshot.provider,
                 status=SnapshotStatus.AUTH_REQUIRED,
-                error="Sign-in cleared from AI Gauge.",
+                error="Sign-in cleared from AI Usage Clock.",
             )
         snapshot = _preserve_error_metrics(
             snapshot,
@@ -960,9 +960,9 @@ class App(QObject):
                     continue
                 lines.append(f"{display_name} {m.label}: {m.percent_used:.0f}%")
         tooltip = (
-            f"AI Gauge {__version__}\n" + "\n".join(lines)
+            f"AI Usage Clock {__version__}\n" + "\n".join(lines)
             if lines
-            else f"AI Gauge {__version__}"
+            else f"AI Usage Clock {__version__}"
         )
         if self._native_status is not None:
             self._native_status.update(
@@ -1066,7 +1066,7 @@ class App(QObject):
             f"{webengine.unavailable_reason()}\n\n"
             "Providers that use an API key or token (GitHub Copilot, "
             "OpenRouter) work without it. If you believe this is wrong, set "
-            "AIGAUGE_FORCE_WEBENGINE=1 to skip this check.",
+            "AIUSAGECLOCK_FORCE_WEBENGINE=1 to skip this check.",
         )
 
     def _remember_sign_in_browser(self, browser_id: str) -> None:
@@ -1175,8 +1175,8 @@ class App(QObject):
         answer = QMessageBox.question(
             parent,
             "Clear sign-in",
-            f"Remove {display_name}'s saved sign-in from AI Gauge?\n\n"
-            "This signs the account out of AI Gauge only. It does not revoke "
+            f"Remove {display_name}'s saved sign-in from AI Usage Clock?\n\n"
+            "This signs the account out of AI Usage Clock only. It does not revoke "
             "sessions in other browsers or devices.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
@@ -1191,7 +1191,7 @@ class App(QObject):
             QMessageBox.warning(
                 parent,
                 "Sign-in was not fully cleared",
-                f"AI Gauge could not remove every copy of the saved session:\n\n{exc}",
+                f"AI Usage Clock could not remove every copy of the saved session:\n\n{exc}",
             )
             return
 
@@ -1199,7 +1199,7 @@ class App(QObject):
         snapshot = UsageSnapshot(
             provider=provider,
             status=SnapshotStatus.AUTH_REQUIRED,
-            error="Sign-in cleared from AI Gauge.",
+            error="Sign-in cleared from AI Usage Clock.",
         )
         self._snapshots[provider] = snapshot
         if getattr(self._config, "mcp_enabled", False):
@@ -1524,21 +1524,21 @@ class App(QObject):
                 QMessageBox.warning(
                     self._widget,
                     "Some sign-ins were not fully cleared",
-                    "AI Gauge removed the account settings, but could not clear "
+                    "AI Usage Clock removed the account settings, but could not clear "
                     "every saved session for: " + ", ".join(account_ids) + ".",
                 )
             if getattr(dlg, "start_at_login_error", False):
                 QMessageBox.warning(
                     self._widget,
                     "Start at login",
-                    "AI Gauge couldn't update the Windows start-at-login task. "
+                    "AI Usage Clock couldn't update the Windows start-at-login task. "
                     "Your other settings were saved.",
                 )
             if getattr(dlg, "ui_scale_changed", False):
                 answer = QMessageBox.question(
                     self._widget,
                     "Restart to apply scale",
-                    "AI Gauge needs to restart to apply the new UI scale.\n\n"
+                    "AI Usage Clock needs to restart to apply the new UI scale.\n\n"
                     "Restart now?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.Yes,
@@ -1728,8 +1728,8 @@ def main() -> int:
     # no visible windows, and closing a transient dialog/message box must not
     # quit it. (Called pre-construction this silently no-ops.)
     qt_app.setQuitOnLastWindowClosed(False)
-    qt_app.setApplicationName("ai-gauge")
-    qt_app.setOrganizationName("ai-gauge")
+    qt_app.setApplicationName("ai-usage-clock")
+    qt_app.setOrganizationName("ai-usage-clock")
     qt_app.setApplicationVersion(__version__)
     qt_app.setWindowIcon(app_icon())
     _app = App()  # noqa: F841 - keeps refs alive

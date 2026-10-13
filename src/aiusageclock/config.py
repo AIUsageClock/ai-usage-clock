@@ -12,9 +12,9 @@ from pydantic import BaseModel, Field
 
 from .platforms import APP_NAME, get_platform
 
-log = logging.getLogger("aigauge.config")
+log = logging.getLogger("aiusageclock.config")
 
-KEYRING_SERVICE = "ai-gauge"
+KEYRING_SERVICE = "ai-usage-clock"
 KEYRING_GITHUB_PAT = "github-pat"
 KEYRING_OPENROUTER_KEY = "openrouter-key"
 KEYRING_OPENROUTER_MGMT_KEY = "openrouter-mgmt-key"
@@ -63,9 +63,9 @@ COOKIE_DOMAINS = {
 def app_data_dir() -> Path:
     """Per-OS config / log / secrets directory.
 
-    - Windows: ``%APPDATA%/ai-gauge``
-    - macOS:   ``~/Library/Application Support/ai-gauge``
-    - Linux:   ``$XDG_CONFIG_HOME/ai-gauge`` (or ``~/.config/ai-gauge``)
+    - Windows: ``%APPDATA%/ai-usage-clock``
+    - macOS:   ``~/Library/Application Support/ai-usage-clock``
+    - Linux:   ``$XDG_CONFIG_HOME/ai-usage-clock`` (or ``~/.config/ai-usage-clock``)
     """
     return get_platform().app_data_dir()
 
@@ -122,7 +122,7 @@ class ProviderToggles(BaseModel):
 
 
 class ColorThresholds(BaseModel):
-    # Inclusive integer bands matching AI Gauge's original severity behavior:
+    # Inclusive integer bands matching AI Usage Clock's original severity behavior:
     # green below 60%, yellow at 60-79%, orange at 80-94%, red at 95%+.
     green_max: int = Field(default=59, ge=0, le=100)
     yellow_max: int = Field(default=79, ge=0, le=100)

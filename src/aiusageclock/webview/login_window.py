@@ -33,7 +33,7 @@ from .verify import (
     verify_session,
 )  # noqa: F401 - VERIFY_TARGETS re-exported for callers
 
-log = logging.getLogger("aigauge.webview.login")
+log = logging.getLogger("aiusageclock.webview.login")
 
 _MAX_WIDGET_SIZE = 16777215
 
@@ -230,7 +230,7 @@ class _PopupPage(_AllowlistedPage):
 
 
 class LoginWindow(QDialog):
-    """Sign in with a real browser, then verify in AI Gauge's profile.
+    """Sign in with a real browser, then verify in AI Usage Clock's profile.
 
     Google rejects embedded OAuth user-agents, so the primary flow launches an
     installed Chrome-family browser in an isolated temporary profile and copies
@@ -367,7 +367,7 @@ class LoginWindow(QDialog):
         )
         layout.addWidget(
             self._label(
-                "AI Gauge opens a temporary browser profile and connects the "
+                "AI Usage Clock opens a temporary browser profile and connects the "
                 "session after you finish signing in.",
                 object_name="secondary",
             )
@@ -545,7 +545,7 @@ class LoginWindow(QDialog):
         self._waiting_heading.setText(f"Continue in {browser_label}")
         self._waiting_instructions.setText(
             f"Finish signing in to {self._provider_name()} in the {browser_label} "
-            "window. AI Gauge will connect the session and close this dialog "
+            "window. AI Usage Clock will connect the session and close this dialog "
             "automatically."
         )
         self._set_label_status(
@@ -769,7 +769,7 @@ class LoginWindow(QDialog):
         self._verify_btn.setEnabled(False)
         if self._embedded_active:
             # The manual button is a useful fallback when a provider changes
-            # its auth cookie name before AI Gauge learns about it.
+            # its auth cookie name before AI Usage Clock learns about it.
             self._session_may_have_changed = True
         if self._provider not in VERIFY_TARGETS:
             self.accept()

@@ -2,11 +2,11 @@ import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from aigauge.config import Config
-from aigauge.history import HistoryStore, PeriodRecord
-from aigauge.local_usage.service import LocalUsageService
-from aigauge.local_usage.summaries import ORIGIN_BACKFILL, ORIGIN_LIVE, load_summaries
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.config import Config
+from aiusageclock.history import HistoryStore, PeriodRecord
+from aiusageclock.local_usage.service import LocalUsageService
+from aiusageclock.local_usage.summaries import ORIGIN_BACKFILL, ORIGIN_LIVE, load_summaries
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 
 FIXTURES = Path(__file__).parent / "fixtures" / "local_usage"
 UTC = timezone.utc

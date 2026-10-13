@@ -1,7 +1,7 @@
 import logging
 from types import SimpleNamespace
 
-from aigauge.webview.page import (
+from aiusageclock.webview.page import (
     _NOISY_CONSOLE_FRAGMENTS,
     _python_level_for,
     _safe_source_id,

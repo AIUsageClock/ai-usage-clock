@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from aigauge.app import App
-from aigauge.icons import app_icon, app_icon_path
+from aiusageclock.app import App
+from aiusageclock.icons import app_icon, app_icon_path
 
 
 def test_application_icon_assets_are_packaged(qtbot):

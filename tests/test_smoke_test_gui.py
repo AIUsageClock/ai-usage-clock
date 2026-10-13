@@ -10,8 +10,8 @@ from tools import smoke_test_gui
 
 
 def test_resolve_gui_executable_uses_macos_bundle_binary_directly(tmp_path):
-    bundle = tmp_path / "ai-gauge.app"
-    executable = bundle / "Contents" / "MacOS" / "ai-gauge"
+    bundle = tmp_path / "ai-usage-clock.app"
+    executable = bundle / "Contents" / "MacOS" / "ai-usage-clock"
     executable.parent.mkdir(parents=True)
     executable.write_bytes(b"binary")
 
@@ -19,8 +19,8 @@ def test_resolve_gui_executable_uses_macos_bundle_binary_directly(tmp_path):
 
 
 def test_resolve_gui_executable_uses_windows_bundle_entry(tmp_path):
-    bundle = tmp_path / "ai-gauge"
-    executable = bundle / "ai-gauge.exe"
+    bundle = tmp_path / "ai-usage-clock"
+    executable = bundle / "ai-usage-clock.exe"
     bundle.mkdir()
     executable.write_bytes(b"binary")
 
@@ -79,10 +79,10 @@ def test_isolated_config_disables_providers_storage_notifications_and_autostart(
 
 
 def test_startup_log_requires_expected_frozen_version_and_heartbeat(tmp_path):
-    log_path = tmp_path / "ai-gauge.log"
+    log_path = tmp_path / "ai-usage-clock.log"
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
-        "2026 [INFO] aigauge.app: ai-gauge 0.9.0 starting platform=linux "
+        "2026 [INFO] aiusageclock.app: ai-usage-clock 0.9.0 starting platform=linux "
         "frozen=True executable=/bundle cwd=/bundle app_data=/isolated\n"
         "hydrated cookies for: none\n"
         "heartbeat enabled interval_s=300\n",
@@ -99,10 +99,10 @@ def test_startup_log_requires_expected_frozen_version_and_heartbeat(tmp_path):
 
 
 def test_startup_log_rejects_wrong_version(tmp_path):
-    log_path = tmp_path / "ai-gauge.log"
+    log_path = tmp_path / "ai-usage-clock.log"
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
-        "ai-gauge 0.8.4 starting platform=linux frozen=False\n"
+        "ai-usage-clock 0.8.4 starting platform=linux frozen=False\n"
         "hydrated cookies for: none\nheartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )
@@ -114,10 +114,10 @@ def test_startup_log_rejects_wrong_version(tmp_path):
 
 
 def test_startup_log_rejects_version_prefix_collision(tmp_path):
-    log_path = tmp_path / "ai-gauge.log"
+    log_path = tmp_path / "ai-usage-clock.log"
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
-        "ai-gauge 0.9.01 starting platform=linux frozen=True\n"
+        "ai-usage-clock 0.9.01 starting platform=linux frozen=True\n"
         "hydrated cookies for: none\nheartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )
@@ -129,10 +129,10 @@ def test_startup_log_rejects_version_prefix_collision(tmp_path):
 
 
 def test_startup_log_rejects_matching_version_when_not_frozen(tmp_path):
-    log_path = tmp_path / "ai-gauge.log"
+    log_path = tmp_path / "ai-usage-clock.log"
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
-        "ai-gauge 0.9.0 starting platform=linux frozen=False\n"
+        "ai-usage-clock 0.9.0 starting platform=linux frozen=False\n"
         "hydrated cookies for: none\nheartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )

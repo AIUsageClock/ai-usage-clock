@@ -1,8 +1,8 @@
 
-from aigauge.app import _preserve_error_metrics
-from aigauge.config import Config
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aigauge.widget import UsageWidget
+from aiusageclock.app import _preserve_error_metrics
+from aiusageclock.config import Config
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.widget import UsageWidget
 
 def test_config_errors_do_not_preserve_metrics_but_other_errors_do():
     previous = UsageSnapshot(

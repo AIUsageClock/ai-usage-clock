@@ -25,7 +25,7 @@ from .claude_logs import ClaudeParseStats
 from .codex_logs import CodexParser, CodexParserState, CodexParseStats
 from .store import CLAUDE, CODEX, UsageStore, local_date
 
-log = logging.getLogger("aigauge.local_usage.importer")
+log = logging.getLogger("aiusageclock.local_usage.importer")
 
 _TAIL_BYTES = 256
 # Commit progress (and check for cancel) after roughly this many bytes, so an

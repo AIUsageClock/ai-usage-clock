@@ -1268,7 +1268,7 @@ class UsageCostTab(QWidget):
         if recognized is False:
             notes.append(
                 "These logs weren't recognized, so usage can't be shown. "
-                "An AI Gauge update may be needed."
+                "An AI Usage Clock update may be needed."
             )
         if running:
             notes.append("Import in progress; numbers are partial until it finishes.")

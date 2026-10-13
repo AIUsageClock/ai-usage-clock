@@ -6,9 +6,9 @@ import pytest
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWidgets import QPushButton
 
-from aigauge.webview import login_window
-from aigauge.providers._codex_page import CODEX_USAGE_URL, VERIFY_JS
-from aigauge.webview.login_window import (
+from aiusageclock.webview import login_window
+from aiusageclock.providers._codex_page import CODEX_USAGE_URL, VERIFY_JS
+from aiusageclock.webview.login_window import (
     LoginWindow,
     VERIFY_TARGETS,
     _host_allowed,
@@ -69,7 +69,7 @@ def test_codex_verification_accepts_weekly_only_usage_page():
 
 
 def test_cookie_login_and_settings_share_codex_overview_target():
-    from aigauge import settings_dialog
+    from aiusageclock import settings_dialog
 
     assert settings_dialog.CODEX_USAGE_URL == CODEX_USAGE_URL
     assert VERIFY_TARGETS["codex"][0] == settings_dialog.CODEX_USAGE_URL

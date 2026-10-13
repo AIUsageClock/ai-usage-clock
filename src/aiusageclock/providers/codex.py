@@ -21,7 +21,7 @@ from .idle import idle_reset_state
 
 CODEX_ANALYTICS_URL = "https://chatgpt.com/codex/cloud/settings/analytics"
 _EXPECTED_ROWS = ("session", "weekly")
-log = logging.getLogger("aigauge.providers.codex")
+log = logging.getLogger("aiusageclock.providers.codex")
 
 
 _WEEKDAYS = {
@@ -469,7 +469,7 @@ class CodexProvider(Provider):
         cache_buster = int(datetime.now().timestamp())
         self._runner = ScrapeRunner(
             account_id=self._account_id,
-            url=f"{CODEX_USAGE_URL}?aigauge_ts={cache_buster}",
+            url=f"{CODEX_USAGE_URL}?aiusageclock_ts={cache_buster}",
             extractor_js=EXTRACTOR_JS,
             build=_build,
             log=log,

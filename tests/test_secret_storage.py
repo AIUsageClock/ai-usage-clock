@@ -2,14 +2,14 @@ import sys
 
 import pytest
 
-from aigauge.secret_storage import load_secret, save_secret
+from aiusageclock.secret_storage import load_secret, save_secret
 
 
 @pytest.fixture(autouse=True)
 def _allow_plaintext_on_non_windows(monkeypatch):
     """Production refuses to write secrets on non-Windows; tests opt in explicitly."""
     if sys.platform != "win32":
-        monkeypatch.setenv("AIGAUGE_ALLOW_PLAINTEXT_SECRETS", "1")
+        monkeypatch.setenv("AIUSAGECLOCK_ALLOW_PLAINTEXT_SECRETS", "1")
 
 
 def test_round_trip_short():

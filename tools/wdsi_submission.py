@@ -9,7 +9,7 @@ Run after building, from the repo root:
 
     .venv\\Scripts\\python.exe tools/wdsi_submission.py
 
-It reads dist/ai-gauge/ai-gauge.exe by default, computes the SHA256, reads the
+It reads dist/ai-usage-clock/ai-usage-clock.exe by default, computes the SHA256, reads the
 git tag/commit and Authenticode status, and prints a submission sheet. Paste the
 sheet into the portal's "Additional information" box and upload the same exe.
 
@@ -31,9 +31,9 @@ import tomllib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_EXE = REPO_ROOT / "dist" / "ai-gauge" / "ai-gauge.exe"
+DEFAULT_EXE = REPO_ROOT / "dist" / "ai-usage-clock" / "ai-usage-clock.exe"
 PORTAL_URL = "https://www.microsoft.com/en-us/wdsi/filesubmission"
-REPO_URL = "https://github.com/jpajak/ai-gauge"
+REPO_URL = "https://github.com/AIUsageClock/ai-usage-clock"
 PLACEHOLDER = "<read off the Defender alert>"
 
 
@@ -115,11 +115,11 @@ Detection name:  {detection}
 Intelligence ver:{intel}
 
 --- Paste into "Additional information" ---
-This file is a false positive. It is AI Gauge {version}, a desktop usage
+This file is a false positive. It is AI Usage Clock {version}, a desktop usage
 monitor for AI coding tools (Claude, Codex, GitHub Copilot, OpenRouter),
 published by AloeDesk as open source.
 
-Product name:    AI Gauge
+Product name:    AI Usage Clock
 Company:         AloeDesk
 Version:         {version}
 Git tag:         {tag}
@@ -132,9 +132,9 @@ The binary is built in CI from the tagged commit above using PyInstaller
 positives on low-prevalence, unsigned builds.
 
 If this is a behavioral/persistence verdict (e.g. Behavior:Win32/Persistence):
-the only persistence AI Gauge creates is an optional "Start at login" setting
+the only persistence AI Usage Clock creates is an optional "Start at login" setting
 the user must explicitly enable in Settings. It registers a per-user Task
-Scheduler entry named "AI Gauge" that launches the app's own executable at
+Scheduler entry named "AI Usage Clock" that launches the app's own executable at
 logon, runs at LeastPrivilege with no elevation, and is removed when the user
 turns the setting off. It is not silent and runs no remote or downloaded code.
 The reproducible build and SHA256 can be verified from the public repository.

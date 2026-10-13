@@ -1,4 +1,4 @@
-from aigauge.app import main
+from aiusageclock.app import main
 
 
 if __name__ == "__main__":

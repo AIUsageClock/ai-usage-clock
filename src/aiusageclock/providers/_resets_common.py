@@ -285,8 +285,8 @@ class ResetsProviderBase(Provider):
     def _get_json(self, url: str, use_etag: bool) -> dict | None:
         headers = {
             "User-Agent": (
-                f"ai-gauge/{__version__} "
-                "(+https://github.com/DraftingDreamer/ai-gauge)"
+                f"ai-usage-clock/{__version__} "
+                "(+https://github.com/AIUsageClock/ai-usage-clock)"
             )
         }
         if use_etag and self._etag:

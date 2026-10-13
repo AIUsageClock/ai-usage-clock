@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.models import SnapshotStatus
-from aigauge.providers import antigravity
-from aigauge.providers.antigravity import (
+from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers import antigravity
+from aiusageclock.providers.antigravity import (
     AntigravityProvider,
     _build_snapshot,
     _decode_output,
@@ -20,7 +20,7 @@ from aigauge.providers.antigravity import (
 FIXTURE = Path(__file__).parent / "fixtures" / "antigravity" / "quota_ok.json"
 LATCH_ERROR = (
     "agy did not treat /quota as a built-in command; polling paused to avoid "
-    "spending model quota. Update agy and restart AI Gauge."
+    "spending model quota. Update agy and restart AI Usage Clock."
 )
 
 
@@ -300,7 +300,7 @@ def test_resolve_cli_uses_local_app_data_fallback_on_windows(monkeypatch, tmp_pa
 def test_invoke_cli_arguments_and_isolated_working_directory(monkeypatch):
     captured = {}
     monkeypatch.delenv("AGY_CLI_DISABLE_AUTO_UPDATE", raising=False)
-    monkeypatch.setenv("AI_GAUGE_TEST_ENV", "preserved")
+    monkeypatch.setenv("AI_USAGE_CLOCK_TEST_ENV", "preserved")
 
     def fake_run(args, **kwargs):
         captured["args"] = args
@@ -335,16 +335,16 @@ def test_invoke_cli_arguments_and_isolated_working_directory(monkeypatch):
     assert captured["errors"] == "replace"
     assert captured["creationflags"] == getattr(subprocess, "CREATE_NO_WINDOW", 0)
     assert captured["env"]["AGY_CLI_DISABLE_AUTO_UPDATE"] == "true"
-    assert captured["env"]["AI_GAUGE_TEST_ENV"] == "preserved"
+    assert captured["env"]["AI_USAGE_CLOCK_TEST_ENV"] == "preserved"
     assert "AGY_CLI_DISABLE_AUTO_UPDATE" not in antigravity.os.environ
 
 
 import json
 import subprocess
 from types import SimpleNamespace
-from aigauge.app import App
-from aigauge.config import Config
-from aigauge.providers.antigravity import normalize_cli_path
+from aiusageclock.app import App
+from aiusageclock.config import Config
+from aiusageclock.providers.antigravity import normalize_cli_path
 
 @pytest.mark.parametrize(
     ("value", "expected"),

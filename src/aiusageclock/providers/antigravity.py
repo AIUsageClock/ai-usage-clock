@@ -17,12 +17,12 @@ from .idle import idle_reset_state
 
 _LATCH_ERROR = (
     "agy did not treat /quota as a built-in command; polling paused to avoid "
-    "spending model quota. Update agy and restart AI Gauge."
+    "spending model quota. Update agy and restart AI Usage Clock."
 )
 _AGY_ENV_OVERRIDES = {"AGY_CLI_DISABLE_AUTO_UPDATE": "true"}
 _PROCESS_LATCHED_ERROR: str | None = None
 # agy's background updater can open an unhidden console on Windows; the value
-# must be "true" ("1" is ignored). This only affects AI Gauge quota calls,
+# must be "true" ("1" is ignored). This only affects AI Usage Clock quota calls,
 # leaving auto-updates enabled when users run agy themselves.
 
 

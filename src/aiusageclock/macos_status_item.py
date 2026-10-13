@@ -10,7 +10,7 @@ from .config import Config
 from .menubar import status_items
 from .models import UsageSnapshot
 
-log = logging.getLogger("aigauge.macos_status_item")
+log = logging.getLogger("aiusageclock.macos_status_item")
 
 try:  # pragma: no cover - exercised only on macOS with PyObjC installed.
     import objc

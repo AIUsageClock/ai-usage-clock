@@ -4,19 +4,19 @@ from pathlib import Path
 
 import pytest
 
-from aigauge.config import Config
-from aigauge.local_usage.rates import load_rate_table
-from aigauge.local_usage.service import LocalUsageService
-from aigauge.local_usage.store import ModelUsage
-from aigauge.local_usage.summaries import (
+from aiusageclock.config import Config
+from aiusageclock.local_usage.rates import load_rate_table
+from aiusageclock.local_usage.service import LocalUsageService
+from aiusageclock.local_usage.store import ModelUsage
+from aiusageclock.local_usage.summaries import (
     FLAG_LIMIT_REACHED,
     WindowSummary,
     load_summaries,
     save_summary,
 )
-from aigauge.local_usage.tokens import TokenCounts
-from aigauge.local_usage.trend import build_trend
-from aigauge.local_usage.usage_tab import (
+from aiusageclock.local_usage.tokens import TokenCounts
+from aiusageclock.local_usage.trend import build_trend
+from aiusageclock.local_usage.usage_tab import (
     UsageCostTab,
     rolling_average_points,
     trend_summary_text,

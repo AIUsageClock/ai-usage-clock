@@ -2,7 +2,7 @@
 
 **Status:** implemented on branch `feature/local-usage-cost` (phases 1 to 5); not yet released.
 **Date:** 2026-09-14 (revised after a review against real logs on the author's machine)
-**Scope:** Claude Code and Codex usage read from local CLI logs, combined with AI Gauge's existing quota observations.
+**Scope:** Claude Code and Codex usage read from local CLI logs, combined with AI Usage Clock's existing quota observations.
 
 ## 1. Goal and decisions
 
@@ -14,10 +14,10 @@ Help a user answer three questions:
 
 Decisions:
 
-- **Opt in.** The feature is off until the user turns it on. While it is off, AI Gauge reads no log files, starts no timers, and writes no new data. The gauge and the existing details dialog behave exactly as they do today.
+- **Opt in.** The feature is off until the user turns it on. While it is off, AI Usage Clock reads no log files, starts no timers, and writes no new data. The gauge and the existing details dialog behave exactly as they do today.
 - **Backfill on enable.** Turning it on offers to import everything the logs still hold, even if that takes a while. The import runs in the background, shows progress, can be cancelled, and resumes where it stopped.
 - **Per-model breakdown.** Show how much each model was used (tokens by category, message count) and what each model's usage would have cost, for the current window, a day, and longer ranges.
-- **No ccusage.** AI Gauge reads the Claude and Codex logs itself. ccusage is not a runtime dependency, and Settings has no install link. See section 10 for why.
+- **No ccusage.** AI Usage Clock reads the Claude and Codex logs itself. ccusage is not a runtime dependency, and Settings has no install link. See section 10 for why.
 - **Compare whole windows.** Trends compare completed allowance windows. Capped and currently open windows remain visible for context, but do not enter rolling averages or comparisons. There is no engine that matches short intervals.
 - **Save as you go.** Usage is saved during a window, not only at rollover, so history survives app shutdowns and Claude Code's log cleanup.
 - **Headline numbers.** Dollars per quota point, shown next to output tokens per quota point. The second is a check that isn't skewed by cache reads, and it still works when a model has no known price.
@@ -31,7 +31,7 @@ Measured with a throwaway script and ccusage 20.0.17 on the author's machine. Th
 **Claude Code** (`~/.claude/projects/**/*.jsonl`, 384 files, 3.9 GB):
 
 - Each `type: "assistant"` line has an ISO `timestamp`, `requestId`, `message.id`, `message.model`, the CLI `version`, `isSidechain`, and `message.usage`. Usage includes `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation.ephemeral_5m_input_tokens`, `cache_creation.ephemeral_1h_input_tokens`, `speed`, and `service_tier`.
-- **The oldest file was exactly 30 days old**, which matches Claude Code's default `cleanupPeriodDays`. Anything older is gone unless AI Gauge has already saved it.
+- **The oldest file was exactly 30 days old**, which matches Claude Code's default `cleanupPeriodDays`. Anything older is gone unless AI Usage Clock has already saved it.
 - **Messages repeat across lines.** 36% of `(message.id, requestId)` keys appear on more than one line. In CLI versions 2.1.260 to 2.1.267, the earlier lines hold placeholder `output_tokens` (for example 2, 2, 2, then 871). In all 1,982 cases that disagreed, the last line had the largest value. Keeping the first line lost 26% of output tokens on 2026-09-10.
 - **Subagent logs matter.** Files under `subagents/` directories (`isSidechain: true`) held 29% of output tokens on 2026-09-10. They count against quota and must be included.
 - Some lines have the model `<synthetic>`. These are not real model calls.
@@ -52,21 +52,21 @@ Measured with a throwaway script and ccusage 20.0.17 on the author's machine. Th
 
 | Code | Role |
 | --- | --- |
-| [app.py:231-232](../src/aigauge/app.py#L231-L232) | Creates `HistoryStore` and `RatioStore`. The new `LocalUsageService` is created here, but only when the feature is enabled. |
-| [app.py:620](../src/aigauge/app.py#L620) `_on_snapshot` | Already feeds history and ratio ([app.py:659-665](../src/aigauge/app.py#L659-L665)). After a successful snapshot for an assigned account, trigger an incremental import and update the window summary. |
-| [app.py:1002](../src/aigauge/app.py#L1002) `open_ratio_history` | Opens the details dialog; also passes local usage data when enabled. |
-| [ratio_dialog.py:139](../src/aigauge/ratio_dialog.py#L139) `RatioHistoryDialog` | Gains tabs when the feature is enabled. |
-| [widget.py:925](../src/aigauge/widget.py#L925) `ratio_history_requested` | Today the dialog only opens from the ratio label. Add a Details menu action so it can be reached before the ratio has calibrated. |
-| [history.py:36](../src/aigauge/history.py#L36) `PeriodRecord`, [history.py:81](../src/aigauge/history.py#L81) `record_snapshot` | Supplies Claude window identity (`resets_at`), the last reading (`last_seen_at`, `peak_pct`) and closed periods for backfill. `snapshot.provider` is the account ID. |
-| [ratio.py:37-38](../src/aigauge/ratio.py#L37-L38) | Existing thresholds for readings too low or too close to 100% to count. Reuse them for the trend's exclusion rules. |
-| [config.py:70](../src/aigauge/config.py#L70) `app_data_dir`, [config.py:140](../src/aigauge/config.py#L140) `BrowserAccount.id`, [config.py:179](../src/aigauge/config.py#L179) `Config` | Location of the new database; stable account IDs for assigning usage; new settings fields. |
-| [settings_dialog.py:1130-1135](../src/aigauge/settings_dialog.py#L1130-L1135) | Tab list; add a "Local usage" tab. |
+| [app.py:231-232](../src/aiusageclock/app.py#L231-L232) | Creates `HistoryStore` and `RatioStore`. The new `LocalUsageService` is created here, but only when the feature is enabled. |
+| [app.py:620](../src/aiusageclock/app.py#L620) `_on_snapshot` | Already feeds history and ratio ([app.py:659-665](../src/aiusageclock/app.py#L659-L665)). After a successful snapshot for an assigned account, trigger an incremental import and update the window summary. |
+| [app.py:1002](../src/aiusageclock/app.py#L1002) `open_ratio_history` | Opens the details dialog; also passes local usage data when enabled. |
+| [ratio_dialog.py:139](../src/aiusageclock/ratio_dialog.py#L139) `RatioHistoryDialog` | Gains tabs when the feature is enabled. |
+| [widget.py:925](../src/aiusageclock/widget.py#L925) `ratio_history_requested` | Today the dialog only opens from the ratio label. Add a Details menu action so it can be reached before the ratio has calibrated. |
+| [history.py:36](../src/aiusageclock/history.py#L36) `PeriodRecord`, [history.py:81](../src/aiusageclock/history.py#L81) `record_snapshot` | Supplies Claude window identity (`resets_at`), the last reading (`last_seen_at`, `peak_pct`) and closed periods for backfill. `snapshot.provider` is the account ID. |
+| [ratio.py:37-38](../src/aiusageclock/ratio.py#L37-L38) | Existing thresholds for readings too low or too close to 100% to count. Reuse them for the trend's exclusion rules. |
+| [config.py:70](../src/aiusageclock/config.py#L70) `app_data_dir`, [config.py:140](../src/aiusageclock/config.py#L140) `BrowserAccount.id`, [config.py:179](../src/aiusageclock/config.py#L179) `Config` | Location of the new database; stable account IDs for assigning usage; new settings fields. |
+| [settings_dialog.py:1130-1135](../src/aiusageclock/settings_dialog.py#L1130-L1135) | Tab list; add a "Local usage" tab. |
 
 The existing ratio feature, its history files and its "Coverage" label stay unchanged. New labels never reuse "Coverage".
 
 ## 4. Reading the logs
 
-New package `src/aigauge/local_usage/`.
+New package `src/aiusageclock/local_usage/`.
 
 ### Claude parser (`claude_logs.py`)
 
@@ -114,7 +114,7 @@ Turning the feature off stops the import and all file reading, and keeps the sav
 
 ### Keeping up to date
 
-While tracking is on, run an incremental import in the worker after each successful quota refresh of an assigned account ([app.py:620](../src/aigauge/app.py#L620)), and when the details dialog opens (at most once a minute). The dialog shows saved data immediately and updates when the import finishes. No separate fast timer.
+While tracking is on, run an incremental import in the worker after each successful quota refresh of an assigned account ([app.py:620](../src/aiusageclock/app.py#L620)), and when the details dialog opens (at most once a minute). The dialog shows saved data immediately and updates when the import finishes. No separate fast timer.
 
 ## 6. Storage
 
@@ -137,7 +137,7 @@ One SQLite database, `app_data_dir()/local_usage.sqlite`, using the standard lib
 
 ### Window summaries
 
-A window's usage is the total of activity from **window start** to the **last quota reading**, and its quota figure is **the percent at that reading**. The logs cover the whole window no matter when AI Gauge started, so no starting reading is needed.
+A window's usage is the total of activity from **window start** to the **last quota reading**, and its quota figure is **the percent at that reading**. The logs cover the whole window no matter when AI Usage Clock started, so no starting reading is needed.
 
 - **Claude:** window start is `resets_at - window` (5 hours for Session, 7 days for Weekly). The reading comes from `history.py` (`last_seen_at`, `peak_pct`). `resets_at` comes from rendered text and can drift by a few minutes, which is negligible over a whole window. Phase 1 confirms that the start of a 5-hour window really is `resets_at - 5h`.
 - **Codex:** the window comes from the log's `resets_at` and `window_minutes`. The reading is the last `rate_limits` reading at or before the time being measured.
@@ -217,7 +217,7 @@ Settings:
 
 > Reads the Claude Code and Codex log files on this computer to estimate usage and API-equivalent cost. Only token counts, models and times are kept, never prompts or responses. Nothing is uploaded.
 
-> Includes only activity recorded on this computer. Browser chats, cloud tasks and other computers use the same allowance but are not counted. Claude Code deletes its logs after 30 days by default; AI Gauge keeps its own summary once imported.
+> Includes only activity recorded on this computer. Browser chats, cloud tasks and other computers use the same allowance but are not counted. Claude Code deletes its logs after 30 days by default; AI Usage Clock keeps its own summary once imported.
 
 > Costs are estimates at current API prices, not charges. Trends compare this computer's recorded activity with the account's usage percentage; they cannot confirm a provider changed its limits.
 
@@ -241,7 +241,7 @@ Account selection:
 ## 11. Risks
 
 - **Log formats change.** Both formats are undocumented. Mitigations: the "not recognized" state, notes for untested versions, and sample logs for each version seen. The placeholder output bug shows that one CLI release can change the de-duplication rule.
-- **Claude cleanup outpaces the app.** If AI Gauge doesn't run for more than 30 days, that stretch is lost. Summaries are marked incomplete, and the disclosure says so.
+- **Claude cleanup outpaces the app.** If AI Usage Clock doesn't run for more than 30 days, that stretch is lost. Summaries are marked incomplete, and the disclosure says so.
 - **Mixed cache and model use** can move dollars per point with no change to the allowance. That's why cache share and top model sit next to every trend row, and why output tokens per point is shown too.
 - **Usage the logs don't see** (web, cloud tasks, other machines) raises the percentage without adding cost, which lowers dollars per point. This can't be detected; it's covered in the disclosure.
 - **The rate table goes out of date.** New models show as unpriced until the table is updated or overridden. Costs for old models may drift from actual API prices, but consistently across all history.

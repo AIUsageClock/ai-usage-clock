@@ -1,8 +1,8 @@
-# Product Data Sheet: AI Gauge
+# Product Data Sheet: AI Usage Clock
 
 ## Product Summary
 
-AI Gauge is a local desktop utility for monitoring AI service usage across Claude.ai, ChatGPT Codex, Antigravity, OpenCode, GitHub Copilot, and OpenRouter. The implemented app runs as a PyQt6 desktop application with a floating widget on Windows/Linux and a menu-bar item on macOS. It shows provider usage percentages, reset timing, account balance/spend details where available, and refresh status without using a hosted backend or telemetry service.
+AI Usage Clock is a local desktop utility for monitoring AI service usage across Claude.ai, ChatGPT Codex, Antigravity, OpenCode, GitHub Copilot, and OpenRouter. The implemented app runs as a PyQt6 desktop application with a floating widget on Windows/Linux and a menu-bar item on macOS. It shows provider usage percentages, reset timing, account balance/spend details where available, and refresh status without using a hosted backend or telemetry service.
 
 ## Primary Users
 
@@ -22,7 +22,7 @@ AI Gauge is a local desktop utility for monitoring AI service usage across Claud
 
 ## Implemented Capabilities
 
-- Cross-platform desktop app for Windows, macOS, and Linux, packaged with PyInstaller and runnable from source via `ai-gauge`.
+- Cross-platform desktop app for Windows, macOS, and Linux, packaged with PyInstaller and runnable from source via `ai-usage-clock`.
 - Floating widget on Windows/Linux, compact pill mode, tray/menu actions, no-tray Linux fallback, and native macOS menu-bar popover.
 - Provider tiles for Claude, Codex, Antigravity, OpenCode, GitHub Copilot, and OpenRouter; optional Codex Resets and Claude Resets announcement tiles.
 - Antigravity usage from the local `agy` CLI `/quota` command, with Gemini and Claude+GPT 5-hour and weekly limits; it is disabled by default and configurable under General and Antigravity Settings.
@@ -42,7 +42,7 @@ AI Gauge is a local desktop utility for monitoring AI service usage across Claud
 - Claude, Codex, and OpenCode sessions from embedded Chromium profiles or pasted `Cookie:` headers, with separate storage per named Claude/Codex account.
 - GitHub Copilot fine-grained PAT stored in the OS credential store; optional username, billing organization, and AI credit allowance values.
 - OpenRouter inference key and optional management key stored in the OS credential store; optional daily budget entered by the user.
-- External integrations are direct local requests from the app to Claude.ai, ChatGPT, OpenCode, GitHub API, OpenRouter API, `https://codex-resets.com/api/v1/status`, and `https://claude-resets.com/api/resets`. The reset trackers receive the user's IP address and an `ai-gauge/<version> (+https://github.com/DraftingDreamer/ai-gauge)` User-Agent. Antigravity quota data is obtained by invoking the local `agy` executable; the app code does not show or control any network requests made internally by that CLI. No server-side app backend, public API routes, or web app routes were found in the codebase.
+- External integrations are direct local requests from the app to Claude.ai, ChatGPT, OpenCode, GitHub API, OpenRouter API, `https://codex-resets.com/api/v1/status`, and `https://claude-resets.com/api/resets`. The reset trackers receive the user's IP address and an `ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)` User-Agent. Antigravity quota data is obtained by invoking the local `agy` executable; the app code does not show or control any network requests made internally by that CLI. No server-side app backend, public API routes, or web app routes were found in the codebase.
 - Secrets use Windows Credential Manager/DPAPI, macOS Keychain, or Linux Secret Service depending on platform.
 
 ## Outputs and Artifacts
@@ -65,13 +65,13 @@ AI Gauge is a local desktop utility for monitoring AI service usage across Claud
 
 - The app is unofficial and not affiliated with Anthropic, OpenAI, OpenCode, GitHub, Microsoft, OpenRouter, or other providers.
 - Claude, Codex, and OpenCode scraping depends on provider web page structure; layout, authentication, Cloudflare/security checks, or upstream UI changes can break reads.
-- Codex may temporarily omit its five-hour Session card; AI Gauge continues showing Weekly usage and pauses session-to-weekly calibration until the card returns.
+- Codex may temporarily omit its five-hour Session card; AI Usage Clock continues showing Weekly usage and pauses session-to-weekly calibration until the card returns.
 - Copilot usage can lag GitHub's upstream reporting by hours and is described as a trailing indicator, not real time.
 - Copilot's current usage-based model is tracked as AI credits rather than premium request counts; annual/request-based accounts may still rely on GitHub's legacy premium-request API fallback.
 - OpenRouter activity uses the last 30 completed UTC days and excludes the current UTC day; balance and model activity require a management key.
 - Reset trackers are third-party and unaffiliated with OpenAI or Anthropic. Their AI classifications can be wrong; users should open the linked original post to verify. Reset tiles have no percentage and are omitted from the macOS menu-bar summary.
 - Antigravity usage, reset tiles, and native notifications have been tested on Windows 11 only; macOS and Linux are untested.
-- Antigravity calls use `AGY_CLI_DISABLE_AUTO_UPDATE=true` and stop polling for the rest of the app process if token use is detected or cannot be ruled out; restart AI Gauge to resume.
+- Antigravity calls use `AGY_CLI_DISABLE_AUTO_UPDATE=true` and stop polling for the rest of the app process if token use is detected or cannot be ruled out; restart AI Usage Clock to resume.
 - Same-user local processes can generally decrypt/access stored session tokens or keys through the OS credential model; do not imply process-level isolation.
 - The only notifications are optional reset-announcement alerts; usage-threshold alerts, collaboration, cloud sync, mobile apps, browser extensions, team dashboards, and export workflows are not implemented.
 

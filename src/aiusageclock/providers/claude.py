@@ -24,7 +24,7 @@ from .idle import idle_reset_state
 
 CLAUDE_USAGE_URL = "https://claude.ai/new#settings/usage"
 _EXPECTED_ROWS = ("session", "weekly_all")
-log = logging.getLogger("aigauge.providers.claude")
+log = logging.getLogger("aiusageclock.providers.claude")
 
 # Claude's usage dialog renders rows like:
 #   "Current session  Resets in 2 hr 59 min  [bar]  64% used"

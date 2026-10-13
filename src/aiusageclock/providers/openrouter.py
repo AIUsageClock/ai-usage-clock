@@ -12,7 +12,7 @@ from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
 
 OPENROUTER_API = "https://openrouter.ai/api/v1"
-log = logging.getLogger("aigauge.providers.openrouter")
+log = logging.getLogger("aiusageclock.providers.openrouter")
 
 MODEL_BREAKDOWN_TAG = "model_breakdown"
 ACTIVITY_LABEL = "Models"

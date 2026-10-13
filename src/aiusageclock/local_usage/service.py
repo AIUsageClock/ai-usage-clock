@@ -29,7 +29,7 @@ from .assignment import (
 from .importer import ImportSource, LogImporter, ProviderImportResult, provider_roots
 from .store import CLAUDE, CODEX, DB_FILENAME, PROVIDERS, UsageStore, from_db_time
 
-log = logging.getLogger("aigauge.local_usage.service")
+log = logging.getLogger("aiusageclock.local_usage.service")
 
 INCREMENTAL = "incremental"
 BACKFILL = "backfill"
@@ -61,7 +61,7 @@ class LocalUsageService(QObject):
         self._last_progress_emit = 0.0
         self._last_import_started: float | None = None
         self._last_results: list[ProviderImportResult] = []
-        # Claude periods from AI Gauge's own readings, copied from the UI
+        # Claude periods from AI Usage Clock's own readings, copied from the UI
         # thread and consumed by the worker when it updates window summaries.
         self._claude_current: dict[str, list[PeriodRecord]] = {}
         self._claude_closed: list[PeriodRecord] = []

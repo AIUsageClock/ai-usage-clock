@@ -1,6 +1,6 @@
 """Linux implementation of the platform seam.
 
-- App data follows XDG: ``$XDG_CONFIG_HOME/ai-gauge`` or ``~/.config/ai-gauge``.
+- App data follows XDG: ``$XDG_CONFIG_HOME/ai-usage-clock`` or ``~/.config/ai-usage-clock``.
 - Secrets go through ``keyring`` — usually the GNOME/KDE Secret Service over
   D-Bus. On headless boxes without a keyring daemon, the call raises and the
   caller treats the secret as missing (we don't fall back to plaintext).
@@ -18,9 +18,9 @@ import keyring
 
 from .base import APP_NAME, Platform, autostart_command
 
-log = logging.getLogger("aigauge.platforms.linux")
+log = logging.getLogger("aiusageclock.platforms.linux")
 
-_KEYRING_SERVICE = "ai-gauge"
+_KEYRING_SERVICE = "ai-usage-clock"
 _DESKTOP_FILENAME = f"{APP_NAME}.desktop"
 
 
@@ -74,7 +74,7 @@ class LinuxPlatform(Platform):
                 [
                     "[Desktop Entry]",
                     "Type=Application",
-                    "Name=AI Gauge",
+                    "Name=AI Usage Clock",
                     "Comment=AI usage monitor for Claude / Codex / Copilot",
                     f"Exec={exec_line}",
                     "Terminal=false",

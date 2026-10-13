@@ -12,7 +12,7 @@ from PyQt6.QtWebEngineCore import (
 
 from ..config import webview_profile_dir
 
-log = logging.getLogger("aigauge.webview.profile")
+log = logging.getLogger("aiusageclock.webview.profile")
 
 _REALISTIC_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -35,7 +35,7 @@ def get_profile(provider: str) -> QWebEngineProfile:
     storage_dir = webview_profile_dir(provider)
     storage_dir.mkdir(parents=True, exist_ok=True)
 
-    profile = QWebEngineProfile(f"ai-gauge-{provider}")
+    profile = QWebEngineProfile(f"ai-usage-clock-{provider}")
     profile.setPersistentStoragePath(str(storage_dir))
     profile.setCachePath(str(storage_dir / "cache"))
     profile.setPersistentCookiesPolicy(

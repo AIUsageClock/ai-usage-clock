@@ -17,7 +17,7 @@ COPILOT_PRODUCT = "copilot"
 COPILOT_AI_CREDITS_SKU = "copilot_ai_credits"
 COPILOT_AI_UNIT_SKU = "copilot_ai_unit"
 LEGACY_PREMIUM_REQUEST_SKU = "copilot_premium_request"
-log = logging.getLogger("aigauge.providers.copilot")
+log = logging.getLogger("aiusageclock.providers.copilot")
 
 
 def _github_headers(pat: str) -> dict[str, str]:

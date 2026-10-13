@@ -4,7 +4,7 @@ A window's usage is the activity from window start to the last quota reading,
 and its quota figure is the percent at that reading.
 
 - Claude: start is ``resets_at - window`` (5 hours for Session, 7 days for
-  Weekly), taken from AI Gauge's own readings.
+  Weekly), taken from AI Usage Clock's own readings.
 - Codex: the window comes from the ``resets_at`` and ``window_minutes`` that
   Codex writes into its logs; the reading is the last one at or before the time
   measured.

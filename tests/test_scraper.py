@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-from aigauge.webview.scraper import HeadlessScraper
+from aiusageclock.webview.scraper import HeadlessScraper
 from PyQt6.QtCore import QUrl
 
 
@@ -60,7 +60,7 @@ def test_extractor_retry_limit_is_retryable_transport_error():
 def test_extractor_retry_delay_is_capped(monkeypatch):
     scheduled = []
     monkeypatch.setattr(
-        "aigauge.webview.scraper.QTimer.singleShot",
+        "aiusageclock.webview.scraper.QTimer.singleShot",
         lambda delay, callback: scheduled.append((delay, callback)),
     )
     page = type(

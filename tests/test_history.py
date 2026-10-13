@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from aigauge.history import HistoryStore, PeriodRecord
-from aigauge.models import SnapshotStatus, UsageMetric, UsageSnapshot
+from aiusageclock.history import HistoryStore, PeriodRecord
+from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 
 
 def _snapshot(
