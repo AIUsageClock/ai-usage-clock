@@ -288,7 +288,7 @@ AI Usage Clock 内置可选的本地 stdio MCP 服务器，让工具可以查看
 ai-usage-clock-mcp --account-id codex-work
 ```
 
-从源码安装时，还需要执行 `pip install -e '.[mcp]'`。有关客户端使用说明、
+从源码安装时，还需要执行 `pip install -e ".[mcp]"`。有关客户端使用说明、
 已打包辅助程序的路径、macOS 隔离（quarantine）处理方式以及防护机制的安全模型，请参阅
 [docs/mcp.md](docs/mcp.md)。
 

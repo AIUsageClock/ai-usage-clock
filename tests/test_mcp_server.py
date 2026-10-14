@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from aiusageclock import mcp_server, usage_cache
+from aiusageclock import identity, mcp_server, usage_cache
 from aiusageclock.config import Config
 from aiusageclock.mcp_server import check_usage_guard, recommend_ai_account
 from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
@@ -403,3 +403,33 @@ def test_usage_cache_retries_windows_sharing_violation(tmp_path, monkeypatch):
     assert attempts == 3
     assert read_usage_cache()["accounts"]["codex"]["status"] == "ok"
     assert list(tmp_path.glob("*.tmp")) == []
+
+
+# --- the hint shown when the MCP SDK is missing ---------------------------------
+
+
+def test_a_missing_mcp_sdk_points_at_a_source_install_with_this_interpreter(
+    monkeypatch, capsys
+):
+    monkeypatch.setattr(mcp_server, "FastMCP", None)
+    monkeypatch.setattr(mcp_server.sys, "argv", ["ai-usage-clock-mcp"])
+
+    try:
+        mcp_server.main()
+    except SystemExit as exit_request:
+        assert exit_request.code == 2
+    else:
+        raise AssertionError("main() should exit when the MCP SDK is missing")
+
+    message = capsys.readouterr().err
+    assert f'"{mcp_server.sys.executable}" -m pip install -e ".[mcp]"' in message
+    assert "source folder" in message
+
+
+def test_the_missing_sdk_hint_does_not_name_a_package_index_project():
+    # The project is not on PyPI, so "pip install <name>[mcp]" would fetch
+    # whatever someone else registered under that name.
+    message = mcp_server.missing_sdk_message()
+
+    assert f"{identity.SLUG}[mcp]" not in message
+    assert "-e" in message

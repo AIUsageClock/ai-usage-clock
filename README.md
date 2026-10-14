@@ -298,7 +298,7 @@ client to its account:
 ai-usage-clock-mcp --account-id codex-work
 ```
 
-Source installations also need `pip install -e '.[mcp]'`. See
+Source installations also need `pip install -e ".[mcp]"`. See
 [docs/mcp.md](docs/mcp.md) for client instructions, packaged-helper paths,
 macOS quarantine handling, and the guard's security model.
 

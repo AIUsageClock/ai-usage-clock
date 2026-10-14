@@ -17,7 +17,7 @@ except ModuleNotFoundError as exc:
     FastMCP = None
 
 from .config import Config, browser_accounts, display_name_for_account
-from .identity import MCP_SERVER_NAME, MCP_URI_SCHEME, SLUG
+from .identity import MCP_SERVER_NAME, MCP_URI_SCHEME
 from .usage_cache import CACHE_SCHEMA_VERSION, read_usage_cache
 
 INSTRUCTIONS = """
@@ -411,6 +411,20 @@ def _run_stdio_with_owned_streams() -> None:
                     pass
 
 
+def missing_sdk_message() -> str:
+    """How to add the MCP SDK to the interpreter that is running this server.
+
+    The project is not published on PyPI, so the extra is installed from the
+    source folder (editable, like the README and docs/mcp.md say), using the
+    interpreter that just failed to import the SDK.
+    """
+    return (
+        "The MCP SDK is not installed for this Python interpreter. In the "
+        "AI Usage Clock source folder, run:\n"
+        f'    "{sys.executable}" -m pip install -e ".[mcp]"'
+    )
+
+
 def main() -> None:
     global _bound_account_id
     parser = argparse.ArgumentParser(description="AI Usage Clock MCP usage server")
@@ -420,11 +434,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     if FastMCP is None:
-        print(
-            "The MCP SDK is not installed. Install AI Usage Clock with: "
-            f"pip install '{SLUG}[mcp]'",
-            file=sys.stderr,
-        )
+        print(missing_sdk_message(), file=sys.stderr)
         raise SystemExit(2)
     _bound_account_id = args.account_id
     _run_stdio_with_owned_streams()

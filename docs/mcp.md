@@ -14,7 +14,7 @@ ai-usage-clock-mcp --account-id codex-work
 Source installations need the optional dependency first:
 
 ```text
-pip install -e '.[mcp]'
+pip install -e ".[mcp]"
 ```
 
 Release archives include the helper next to the application: inside the
