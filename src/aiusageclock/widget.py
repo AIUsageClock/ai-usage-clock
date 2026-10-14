@@ -2259,7 +2259,7 @@ class UsageWidget(QWidget):
         """Shed header detail as the pill narrows, least useful part first.
 
         Mirrors _apply_responsive_header for the collapsed pill: the version,
-        then "Usage" (the title shrinks to the short name), then the "Xs ago"
+        then the full name gives way to the short name, then the "Xs ago"
         stamp, then the cadence, then the name — leaving the icon and the
         three buttons, which always stay.
         """

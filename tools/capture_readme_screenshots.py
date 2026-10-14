@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
 from datetime import datetime, timedelta
@@ -17,7 +18,8 @@ if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
 os.environ.setdefault("QT_SCALE_FACTOR", "1")
 # The widget saves its config when it closes. Point the app data folder at a
 # throwaway directory so a capture run can never overwrite the real settings.
-os.environ["APPDATA"] = tempfile.mkdtemp(prefix="aiusageclock-readme-capture-")
+_CAPTURE_APPDATA = tempfile.mkdtemp(prefix="aiusageclock-readme-capture-")
+os.environ["APPDATA"] = _CAPTURE_APPDATA
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -166,4 +168,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    finally:
+        shutil.rmtree(_CAPTURE_APPDATA, ignore_errors=True)
