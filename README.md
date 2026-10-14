@@ -50,7 +50,7 @@ notice.
 **AI Usage Clock — Windows**
 
 <p align="center">
-  <img src="docs/screenshots/fork-0.9.0-windows.png" alt="AI Usage Clock on Windows showing Claude and Codex usage, Antigravity quotas, and Codex and Claude reset announcements" width="520" />
+  <img src="docs/screenshots/windows-1.0.0.png" alt="AI Usage Clock on Windows showing Claude and Codex usage, Antigravity quotas, and Codex and Claude reset announcements" width="520" />
 </p>
 
 Captured from the running Windows release. Usage values reflect the capture time.

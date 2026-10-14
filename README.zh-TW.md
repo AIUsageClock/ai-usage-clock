@@ -46,7 +46,7 @@ AI Usage Clock 是獨立的開源專案，屬於非官方的本機桌面小工�
 **AI Usage Clock — Windows**
 
 <p align="center">
-  <img src="docs/screenshots/fork-0.9.0-windows.png" alt="Windows 上的 AI Usage Clock，顯示 Claude 與 Codex 用量、Antigravity 額度，以及 Codex 與 Claude 重置公告" width="520" />
+  <img src="docs/screenshots/windows-1.0.0.png" alt="Windows 上的 AI Usage Clock，顯示 Claude 與 Codex 用量、Antigravity 額度，以及 Codex 與 Claude 重置公告" width="520" />
 </p>
 
 擷取自執行中的 Windows 發行版本。用量數值為擷取當下的狀態。
