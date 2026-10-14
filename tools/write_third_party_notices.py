@@ -13,11 +13,20 @@ dependencies are installed:
 
 Which packages are listed comes from the installed distribution metadata:
 the project's runtime ``Requires-Dist`` entries (plus the extras it ships, see
-SHIPPED_EXTRAS), followed recursively, plus the build tool whose bootloader is
-embedded in the executables. The Python runtime that PyInstaller bundles is
-listed first, with the license file found in the Python installation the
-virtualenv was created from. The output is UTF-8 with LF line endings and
-carries no timestamp, so the same environment always yields the same bytes.
+SHIPPED_EXTRAS), followed recursively, plus the build tools whose code is
+embedded in the executables (see EMBEDDED_BUILD_TOOLS). The Python runtime that
+PyInstaller bundles is listed first, with the license file found in the Python
+installation the virtualenv was created from. The output is UTF-8 with LF line
+endings and carries no timestamp, so the same environment always yields the
+same bytes.
+
+That list is derived from metadata, not from what PyInstaller really packed, so
+the two can drift apart: an optional import can drag in a package that is only
+installed for development (pytest through anyio, PyYAML through uvicorn,
+setuptools through cffi). The build scripts exclude those modules where they
+can, and tools/check_bundled_notices.py then compares PyInstaller's analysis of
+each executable with the file written here and fails the build when something
+ships without being listed.
 """
 
 from __future__ import annotations
@@ -38,12 +47,16 @@ PROJECT = "ai-usage-clock"
 REPO_URL = "https://github.com/AIUsageClock/ai-usage-clock"
 
 # Extras of the project whose dependencies end up in a release archive. The
-# packaged MCP helper bundles the "mcp" extra; "dev" (pytest and friends) is
-# never shipped.
+# packaged MCP helper bundles the "mcp" extra. The "dev" extra (pytest and
+# friends) is not a runtime dependency and is not listed; if PyInstaller's
+# analysis finds a dev-only package in an executable anyway, the build fails in
+# tools/check_bundled_notices.py rather than shipping it unannounced.
 SHIPPED_EXTRAS = ("mcp",)
-# Build tools whose own code is embedded in the executables (PyInstaller's
-# bootloader). Only the tool is listed, not its dependencies.
-EMBEDDED_BUILD_TOOLS = ("pyinstaller",)
+# Build tools whose own code is embedded in the executables: PyInstaller's
+# bootloader and runtime hooks, and the runtime hooks that
+# pyinstaller-hooks-contrib adds (see its license text for the terms). Only the
+# tools are listed, not their dependencies.
+EMBEDDED_BUILD_TOOLS = ("pyinstaller", "pyinstaller-hooks-contrib")
 
 # Files in a dist-info folder that are license texts even when the metadata
 # does not list them under License-File.
@@ -364,6 +377,45 @@ def render(packages: list[Package]) -> str:
             lines.append(f"--- {license_text.name} ---")
             lines.append(license_text.text)
     return "\n".join(lines) + "\n"
+
+
+_COMPONENTS_HEADING = re.compile(r"^Components \((\d+)\)$")
+
+
+def listed_component_names(text: str) -> list[str]:
+    """Canonical names of the components that a rendered notices file lists.
+
+    Reads the index that render() writes under "Components (N)": one
+    ``<name> <version> - <declared license>`` line per component, up to the
+    next blank line. The bundled Python runtime is in that index too (as
+    "python"). Raises ValueError when the index is missing or does not hold N
+    lines, so a file in some other format is never mistaken for a short list.
+    """
+    lines = text.split("\n")
+    heading = None
+    position = 0
+    for position, line in enumerate(lines):
+        heading = _COMPONENTS_HEADING.match(line)
+        if heading:
+            break
+    if heading is None:
+        raise ValueError("no 'Components (N)' index found in the notices text")
+    if lines[position + 1 : position + 2] != [_THIN_RULE]:
+        raise ValueError("the component index is not followed by its rule")
+    names = []
+    for entry in lines[position + 2 :]:
+        if not entry:
+            break
+        title = entry.split(" - ", 1)[0]
+        name, _, version = title.rpartition(" ")
+        if not name or not version:
+            raise ValueError(f"cannot read a component from the index line: {entry!r}")
+        names.append(str(canonicalize_name(name)))
+    if len(names) != int(heading.group(1)):
+        raise ValueError(
+            f"the index announces {heading.group(1)} components but lists {len(names)}"
+        )
+    return names
 
 
 def build_notices(

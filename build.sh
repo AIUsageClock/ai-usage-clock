@@ -37,6 +37,12 @@ PYINSTALLER_ARGS=(
     --windowed
     --noupx
     --name ai-usage-clock
+    # cffi (a cryptography dependency) imports setuptools lazily for its
+    # compile-time features, which nothing here calls. Without these flags
+    # setuptools, its vendored libraries and packaging end up in the bundle.
+    --exclude-module setuptools
+    --exclude-module pkg_resources
+    --exclude-module _distutils_hack
     --paths src
     --collect-data aiusageclock
     --collect-all PyQt6.QtWebEngineWidgets
@@ -65,6 +71,12 @@ fi
 # of anything the helper actually calls. A one-file payload is already
 # compressed, so it does not shrink again inside the release archive; dropping
 # these here is a straight ~8.6 MB off every platform's download.
+#
+# The same venv also leaks development and build-time packages through optional
+# imports: anyio tries _pytest, uvicorn and pydantic-settings try yaml, and cffi
+# tries setuptools. None of them is a runtime dependency of the helper, so they
+# stay out of the executable and out of THIRD_PARTY_NOTICES.txt;
+# tools/check_bundled_notices.py fails the build if one gets back in.
 "$VENV_PY" -m PyInstaller \
     --noconfirm \
     --clean \
@@ -74,6 +86,12 @@ fi
     --name ai-usage-clock-mcp \
     --exclude-module PIL \
     --exclude-module pygments \
+    --exclude-module _pytest \
+    --exclude-module pytest \
+    --exclude-module yaml \
+    --exclude-module setuptools \
+    --exclude-module pkg_resources \
+    --exclude-module _distutils_hack \
     --paths src \
     pyinstaller_mcp_entry.py
 
@@ -157,6 +175,13 @@ for NOTICE_FILE in LICENSE THIRD_PARTY_NOTICES.txt; do
         exit 1
     fi
 done
+
+# The notices are written from package metadata; what PyInstaller really packed
+# can differ. Compare the two and fail on any package that ships unlisted.
+"$VENV_PY" "$SCRIPT_DIR/tools/check_bundled_notices.py" \
+    "$NOTICE_DIR/THIRD_PARTY_NOTICES.txt" \
+    "$SCRIPT_DIR/build/ai-usage-clock/Analysis-00.toc" \
+    "$SCRIPT_DIR/build/ai-usage-clock-mcp/Analysis-00.toc"
 
 echo
 echo "Build complete."

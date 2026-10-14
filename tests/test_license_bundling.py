@@ -3,8 +3,11 @@
 The MIT License wants its text to travel with every copy, and the bundled
 PyQt6, Qt and the other dependencies carry terms of their own. The build
 scripts and the release workflow are shell code that unit tests cannot run, so
-this reads their text and checks that each step is still there. Every check has
-a deliberately broken counterpart further down.
+this reads their text and checks that each step is still there: the generator
+call, the file names it writes, the folder they land in, and the check that
+compares the notices with what PyInstaller really packed. Whitespace, line
+continuations and the wording of error messages are not pinned. Every check
+has a deliberately broken counterpart further down.
 """
 
 from __future__ import annotations
@@ -19,6 +22,10 @@ from aiusageclock import identity
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LICENSE_FILES = "LICENSE THIRD_PARTY_NOTICES.txt"
 
+# Between two tokens of a command: any whitespace, plus the line continuation
+# character of PowerShell (backtick) or of a POSIX shell (backslash).
+_GAP = r"[\s`\\]*"
+
 Expectation = tuple[str, re.Pattern[str]]
 
 
@@ -26,44 +33,68 @@ def _lit(label: str, text: str) -> Expectation:
     return label, re.compile(re.escape(text))
 
 
+def _seq(label: str, *tokens: str) -> Expectation:
+    """The tokens in this order, separated by anything that is not code."""
+    return label, re.compile(_GAP.join(re.escape(token) for token in tokens))
+
+
 def expectations() -> dict[str, list[Expectation]]:
     slug = identity.SLUG
     mcp = identity.MCP_COMMAND
     return {
         "build.ps1": [
-            _lit("notice folder choice", '$noticeDir = if ($OneFile) {'),
-            _lit(
+            _seq(
+                "notice folder of a one-file build",
+                "$noticeDir = if ($OneFile) {",
+                'Join-Path $PSScriptRoot "dist"',
+                "}",
+            ),
+            _seq(
+                "notice folder of a folder build",
+                "} else {",
+                f'Join-Path $PSScriptRoot "dist\\{slug}"',
+                "}",
+            ),
+            _seq(
                 "LICENSE copy",
-                'Copy-Item -LiteralPath (Join-Path $PSScriptRoot "LICENSE") '
+                'Copy-Item -LiteralPath (Join-Path $PSScriptRoot "LICENSE")',
                 '-Destination (Join-Path $noticeDir "LICENSE")',
             ),
-            _lit(
+            _seq(
                 "notices generator call",
-                '(Join-Path $PSScriptRoot "tools\\write_third_party_notices.py") '
+                'write_third_party_notices.py")',
                 '(Join-Path $noticeDir "THIRD_PARTY_NOTICES.txt")',
             ),
-            _lit("generator failure check", 'Write-Error "Could not write THIRD_PARTY_NOTICES.txt."'),
-            _lit(
-                "output existence check",
-                'foreach ($noticeFile in @("LICENSE", "THIRD_PARTY_NOTICES.txt"))',
+            _seq(
+                "output file names",
+                'foreach ($noticeFile in @("LICENSE",',
+                '"THIRD_PARTY_NOTICES.txt"))',
+            ),
+            _seq(
+                "coverage check call",
+                'check_bundled_notices.py")',
+                '(Join-Path $noticeDir "THIRD_PARTY_NOTICES.txt")',
+                f'(Join-Path $PSScriptRoot "build\\{slug}\\Analysis-00.toc")',
+                f'(Join-Path $PSScriptRoot "build\\{mcp}\\Analysis-00.toc")',
             ),
         ],
         "build.sh": [
-            _lit(
-                "notice folder choice",
-                'if [ "$(uname -s)" = "Darwin" ] || [ "$ONEFILE" -eq 1 ]; then\n'
-                '    NOTICE_DIR="dist"\n'
-                "else\n"
-                f'    NOTICE_DIR="dist/{slug}"\n'
-                "fi",
-            ),
-            _lit("LICENSE copy", 'cp "$SCRIPT_DIR/LICENSE" "$NOTICE_DIR/LICENSE"'),
-            _lit(
+            _seq("notice folder of a one-file or macOS build", 'NOTICE_DIR="dist"'),
+            _seq("notice folder of a folder build", f'NOTICE_DIR="dist/{slug}"'),
+            _seq("LICENSE copy", 'cp "$SCRIPT_DIR/LICENSE" "$NOTICE_DIR/LICENSE"'),
+            _seq(
                 "notices generator call",
-                '"$VENV_PY" "$SCRIPT_DIR/tools/write_third_party_notices.py" '
+                'tools/write_third_party_notices.py"',
                 '"$NOTICE_DIR/THIRD_PARTY_NOTICES.txt"',
             ),
-            _lit("output existence check", "for NOTICE_FILE in LICENSE THIRD_PARTY_NOTICES.txt; do"),
+            _seq("output file names", "for NOTICE_FILE in LICENSE THIRD_PARTY_NOTICES.txt; do"),
+            _seq(
+                "coverage check call",
+                'tools/check_bundled_notices.py"',
+                '"$NOTICE_DIR/THIRD_PARTY_NOTICES.txt"',
+                f'"$SCRIPT_DIR/build/{slug}/Analysis-00.toc"',
+                f'"$SCRIPT_DIR/build/{mcp}/Analysis-00.toc"',
+            ),
         ],
         ".github/workflows/release.yml": [
             _lit(
@@ -99,15 +130,73 @@ def test_build_files_ship_the_license_files(relative_path):
 def test_the_inputs_of_those_steps_exist():
     assert _read("LICENSE").startswith("MIT License")
     assert (REPO_ROOT / "tools" / "write_third_party_notices.py").is_file()
+    assert (REPO_ROOT / "tools" / "check_bundled_notices.py").is_file()
 
 
-def test_notices_are_written_after_pruning_and_before_the_build_is_declared_done():
+def test_notices_are_written_after_pruning_and_checked_before_the_build_is_declared_done():
     for relative_path, prune, done in (
         ("build.ps1", "prune_bundle.py", 'Write-Host "Build complete."'),
         ("build.sh", "prune_bundle.py", 'echo "Build complete."'),
     ):
         text = _read(relative_path)
-        assert text.index(prune) < text.index("write_third_party_notices.py") < text.index(done)
+        # The check is named in an earlier comment too; the call is the last mention.
+        assert (
+            text.index(prune)
+            < text.index("write_third_party_notices.py")
+            < text.rindex("check_bundled_notices.py")
+            < text.index(done)
+        )
+
+
+# --- what PyInstaller is told to leave out ---------------------------------------
+#
+# Optional imports reach development and build-time packages: anyio tries
+# _pytest, uvicorn and pydantic-settings try yaml, cffi tries setuptools. The
+# executables are not meant to carry them (nor their notices), so each build
+# command excludes them; the coverage check above is the net underneath.
+
+LEFT_OUT_OF_BOTH = ("setuptools", "pkg_resources", "_distutils_hack")
+LEFT_OUT_OF_THE_HELPER = ("_pytest", "pytest", "yaml")
+
+
+def command_texts(relative_path: str, text: str | None = None) -> dict[str, str]:
+    """The PyInstaller argument list of the GUI build and of the MCP helper build."""
+    if text is None:
+        text = _read(relative_path)
+    if relative_path == "build.ps1":
+        patterns = {
+            "GUI": r"\$args\s*=\s*@\((.*?)\n\)",
+            "helper": r"\$mcpArgs\s*=\s*@\((.*?)\n\)",
+        }
+    else:
+        patterns = {
+            "GUI": r"PYINSTALLER_ARGS=\((.*?)\n\)",
+            "helper": r"--name\s+" + re.escape(identity.MCP_COMMAND) + r"(.*?)pyinstaller_mcp_entry\.py",
+        }
+    found = {}
+    for label, pattern in patterns.items():
+        match = re.search(pattern, text, re.DOTALL)
+        assert match, f"no {label} PyInstaller command found in {relative_path}"
+        found[label] = match.group(1)
+    return found
+
+
+def excludes(relative_path: str, command: str) -> set[str]:
+    if relative_path == "build.ps1":
+        pattern = r'"--exclude-module"\s*,\s*"([^"]+)"'
+    else:
+        pattern = r"--exclude-module\s+(\S+)"
+    return set(re.findall(pattern, command))
+
+
+@pytest.mark.parametrize("relative_path", ["build.ps1", "build.sh"])
+def test_the_build_commands_leave_out_the_packages_the_notices_do_not_list(relative_path):
+    commands = command_texts(relative_path)
+
+    assert set(LEFT_OUT_OF_BOTH) <= excludes(relative_path, commands["GUI"])
+    assert set(LEFT_OUT_OF_BOTH + LEFT_OUT_OF_THE_HELPER) <= excludes(
+        relative_path, commands["helper"]
+    )
 
 
 # --- deliberately broken copies must be reported ---------------------------
@@ -124,6 +213,15 @@ def test_a_build_ps1_that_forgets_the_license_copy_is_reported():
     assert missing("build.ps1", broken) == ["LICENSE copy"]
 
 
+def test_a_build_ps1_that_reflows_the_commands_is_still_accepted():
+    text = _read("build.ps1")
+    reflowed = re.sub(r"[ \t]*`\r?\n[ \t]*", " ", text)
+    reflowed = reflowed.replace('"LICENSE", "THIRD_PARTY_NOTICES.txt"', '"LICENSE",   "THIRD_PARTY_NOTICES.txt"')
+    assert reflowed != text
+
+    assert missing("build.ps1", reflowed) == []
+
+
 def test_a_build_sh_that_skips_the_generator_is_reported():
     text = _read("build.sh")
     broken = text.replace("write_third_party_notices.py", "something_else.py")
@@ -137,7 +235,38 @@ def test_a_build_sh_that_puts_the_files_in_the_wrong_folder_is_reported():
     broken = text.replace(f'NOTICE_DIR="dist/{identity.SLUG}"', 'NOTICE_DIR="build"')
     assert broken != text
 
-    assert missing("build.sh", broken) == ["notice folder choice"]
+    assert missing("build.sh", broken) == ["notice folder of a folder build"]
+
+
+@pytest.mark.parametrize("relative_path", ["build.ps1", "build.sh"])
+def test_a_build_script_that_skips_the_coverage_check_is_reported(relative_path):
+    text = _read(relative_path)
+    broken = text.replace("check_bundled_notices.py", "something_else.py")
+    assert broken != text
+
+    assert "coverage check call" in missing(relative_path, broken)
+
+
+def test_a_build_sh_that_drops_a_toc_from_the_coverage_check_is_reported():
+    text = _read("build.sh")
+    broken = text.replace(f"build/{identity.MCP_COMMAND}/Analysis-00.toc", "build/other/Analysis-00.toc")
+    assert broken != text
+
+    assert missing("build.sh", broken) == ["coverage check call"]
+
+
+def test_a_helper_command_that_lets_yaml_back_in_is_reported():
+    for relative_path, flag in (
+        ("build.ps1", r'\n\s*"--exclude-module",\s*"yaml",'),
+        ("build.sh", r"\n\s*--exclude-module yaml [\\]"),
+    ):
+        text = _read(relative_path)
+        broken = re.sub(flag, "", text)
+        assert broken != text, relative_path
+
+        helper_excludes = excludes(relative_path, command_texts(relative_path, broken)["helper"])
+        assert "yaml" not in helper_excludes
+        assert {"_pytest", "pytest"} <= helper_excludes
 
 
 def test_a_macos_tar_command_without_the_license_files_is_reported():

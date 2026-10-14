@@ -13,51 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.dist_info_factory import make_dist, site  # noqa: F401  (site is a fixture)
 from tools import write_third_party_notices as notices
-
-
-def make_dist(
-    root: Path,
-    name: str,
-    version: str = "1.0",
-    *,
-    requires: tuple[str, ...] = (),
-    expression: str | None = None,
-    license_field: str | None = None,
-    classifiers: tuple[str, ...] = (),
-    license_file_entries: tuple[str, ...] = (),
-    files: dict[str, bytes] | None = None,
-) -> Path:
-    """Create ``<name>-<version>.dist-info`` under *root*; *files* are relative to it."""
-    folder = f"{name.replace('-', '_')}-{version}.dist-info"
-    dist_info = root / folder
-    dist_info.mkdir(parents=True)
-    header = ["Metadata-Version: 2.4", f"Name: {name}", f"Version: {version}"]
-    if expression:
-        header.append(f"License-Expression: {expression}")
-    if license_field:
-        header.append(f"License: {license_field}")
-    header.extend(f"Classifier: {value}" for value in classifiers)
-    header.extend(f"License-File: {value}" for value in license_file_entries)
-    header.extend(f"Requires-Dist: {value}" for value in requires)
-    (dist_info / "METADATA").write_text("\n".join(header) + "\n", encoding="utf-8")
-    record = [f"{folder}/METADATA,,", f"{folder}/RECORD,,"]
-    for relative, data in (files or {}).items():
-        target = dist_info / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
-        record.append(f"{folder}/{relative},,")
-    (dist_info / "RECORD").write_text("\n".join(record) + "\n", encoding="utf-8")
-    return dist_info
-
-
-@pytest.fixture
-def site(tmp_path, monkeypatch):
-    """An empty site directory that importlib.metadata searches first."""
-    root = tmp_path / "site"
-    root.mkdir()
-    monkeypatch.syspath_prepend(str(root))
-    return root
 
 
 def names_of(packages) -> list[str]:
@@ -382,6 +339,45 @@ def test_the_real_python_is_described_and_its_license_found():
         assert "\r" not in license_text.text
 
 
+# --- reading a written file back ----------------------------------------------
+
+
+def test_the_listed_components_are_read_back_from_a_rendered_file(site):
+    make_dist(site, "noticetest-app", requires=("Noticetest.Lib", "noticetest-other"))
+    make_dist(site, "Noticetest.Lib", version="2.5")
+    make_dist(site, "noticetest-other")
+
+    text, packages = build("noticetest-app")
+
+    assert notices.listed_component_names(text) == [
+        "python",
+        "noticetest-lib",
+        "noticetest-other",
+    ]
+    assert len(notices.listed_component_names(text)) == len(packages)
+
+
+def test_a_license_declaration_containing_a_dash_does_not_confuse_the_reader():
+    package = notices.Package(name="odd", version="1.0", declaration="MIT - with exceptions")
+
+    assert notices.listed_component_names(notices.render([package])) == ["odd"]
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        "no index here\n",
+        "Components (1)\nnot a rule\nodd 1.0 - MIT\n",
+        "Components (2)\n" + "-" * 80 + "\nodd 1.0 - MIT\n",
+        "Components (1)\n" + "-" * 80 + "\nnoversion - MIT\n",
+    ],
+    ids=["no index", "no rule", "wrong count", "no version"],
+)
+def test_a_file_that_is_not_a_notices_file_is_rejected(broken):
+    with pytest.raises(ValueError):
+        notices.listed_component_names(broken)
+
+
 # --- command line ----------------------------------------------------------
 
 
@@ -429,8 +425,12 @@ def test_pyqt6_is_listed_with_its_gpl_text(real_packages):
     assert "GNU LESSER GENERAL PUBLIC LICENSE" in real_packages["pyqt6-qt6"].texts[0].text
 
 
-def test_the_build_tool_is_listed_but_the_project_and_dev_tools_are_not(real_packages):
-    assert "pyinstaller" in real_packages
+def test_the_embedded_build_tools_are_listed_but_the_project_and_dev_tools_are_not(real_packages):
+    # PyInstaller's bootloader and runtime hooks, and the contrib hooks, are
+    # embedded in the executables; setuptools and packaging are kept out of
+    # them by --exclude-module and checked by tools/check_bundled_notices.py.
+    for build_tool in ("pyinstaller", "pyinstaller-hooks-contrib"):
+        assert build_tool in real_packages, build_tool
     assert notices.PROJECT not in real_packages
     for dev_only in ("pytest", "pytest-qt", "responses"):
         assert dev_only not in real_packages, dev_only
