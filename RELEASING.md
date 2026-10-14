@@ -79,15 +79,41 @@ PyInstaller cross-compilation isn't supported.
 2. Package the verified build. `build.ps1` / `build.sh` place `ai-usage-clock-mcp` inside
    `dist/ai-usage-clock/` on Windows and Linux, but leave it at `dist/ai-usage-clock-mcp`
    on macOS — so the macOS archive must name it explicitly or it ships
-   without the MCP helper:
+   without the MCP helper. The same goes for `LICENSE` and
+   `THIRD_PARTY_NOTICES.txt`: they sit inside `dist/ai-usage-clock/` on Windows
+   and Linux, but beside the `.app` and the helper on macOS, so the macOS
+   archive must name them too:
    - Windows: zip the full `dist\ai-usage-clock\` folder.
-   - macOS: `tar -C dist -czf ai-usage-clock-<ver>-macos.tar.gz ai-usage-clock.app ai-usage-clock-mcp`
+   - macOS: `tar -C dist -czf ai-usage-clock-<ver>-macos.tar.gz ai-usage-clock.app ai-usage-clock-mcp LICENSE THIRD_PARTY_NOTICES.txt`
    - Linux: `tar -C dist -czf ai-usage-clock-<ver>-linux.tar.gz ai-usage-clock`
 
-   Confirm the helper survived packaging before uploading:
+   Confirm the helper and the two license files survived packaging before
+   uploading, on all three platforms. The release workflow runs the same kind
+   of check on the archives it builds. List the archive and require each entry
+   (on macOS the entries sit at the top level; on Linux they carry the
+   `ai-usage-clock/` prefix):
+
+   ```powershell
+   # Windows
+   Add-Type -AssemblyName System.IO.Compression.FileSystem
+   $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path .\ai-usage-clock-<ver>-windows.zip).Path)
+   try { $entries = @($zip.Entries | ForEach-Object { $_.FullName -replace '\\', '/' }) } finally { $zip.Dispose() }
+   foreach ($required in @("ai-usage-clock/ai-usage-clock-mcp.exe", "ai-usage-clock/LICENSE", "ai-usage-clock/THIRD_PARTY_NOTICES.txt")) {
+       if ($entries -notcontains $required) { throw "$required is missing from the zip" }
+   }
+   ```
 
    ```bash
-   tar -tzf ai-usage-clock-<ver>-macos.tar.gz | grep ai-usage-clock-mcp
+   # macOS (prefix="") or Linux (prefix="ai-usage-clock/")
+   archive=ai-usage-clock-<ver>-macos.tar.gz
+   prefix=""
+   listing="$(tar -tzf "$archive")"
+   for required in ai-usage-clock-mcp LICENSE THIRD_PARTY_NOTICES.txt; do
+       if ! grep -qxF "${prefix}${required}" <<< "$listing"; then
+           echo "${prefix}${required} is missing from $archive" >&2
+           exit 1
+       fi
+   done
    ```
 3. Create a checksum:
 

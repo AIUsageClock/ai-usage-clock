@@ -1,14 +1,18 @@
 name: Provider layout broken
-description: Claude, Codex, or OpenCode tile shows `error · layout changed` or empty values after a provider UI update.
+description: Claude or Codex tile shows `error · layout changed` or empty values after a provider UI update.
 labels: [provider-layout]
 body:
   - type: markdown
     attributes:
       value: |
-        AI Usage Clock scrapes Claude.ai, ChatGPT Codex, and OpenCode usage pages.
-        When those pages change shape upstream, the corresponding page
-        extractor under `src/aiusageclock/providers/` needs adjusting. These
-        reports are very welcome.
+        AI Usage Clock reads Claude.ai and ChatGPT Codex usage by loading their
+        pages in an embedded browser. When those pages change shape upstream,
+        the corresponding page extractor under `src/aiusageclock/providers/`
+        needs adjusting. These reports are very welcome.
+
+        OpenCode Go, GitHub Copilot, and OpenRouter are read through their APIs
+        with your credentials, not from a page. Report problems with those
+        tiles with the **Bug report** template instead.
 
         **Do not paste your `Cookie:` header.** Paste only the diagnostic
         details below.
@@ -19,15 +23,14 @@ body:
       options:
         - Claude.ai
         - ChatGPT Codex
-        - OpenCode
-        - Multiple providers
+        - Both Claude.ai and ChatGPT Codex
     validations:
       required: true
   - type: input
     id: version
     attributes:
       label: AI Usage Clock version
-      placeholder: "e.g. 0.5.0"
+      placeholder: "e.g. 1.0.0"
     validations:
       required: true
   - type: textarea
@@ -61,6 +64,5 @@ body:
       label: Relevant log lines
       description: |
         From `ai-usage-clock.log` in the per-OS app-data directory. Look for
-        `provider=claude`, `provider=codex`, or `provider=opencode_go`
-        lines around the failed refresh.
+        `provider=claude` or `provider=codex` lines around the failed refresh.
       render: text

@@ -52,14 +52,18 @@ Refresh the deterministic README screenshots without using live accounts:
 
 This updates the full and compact floating-widget images using fixed demo data.
 
-On a logged-in Mac, refresh the native menu-bar image with:
+The README does not show a macOS screenshot at the moment. If you have a Mac,
+you can capture the native menu-bar item from a logged-in desktop session and
+add the image to the README:
 
 ```bash
 ./.venv/bin/python tools/capture_macos_menubar.py
 ```
 
-The command renders only AI Usage Clock's own menu-bar button with demo data, so it
-does not need Screen Recording permission or include other desktop content.
+It writes `docs/screenshots/mac-menubar.png` by default (`--output` picks
+another path). The command renders only AI Usage Clock's own menu-bar button
+with demo data, so it does not need Screen Recording permission or include
+other desktop content.
 
 ## Pull request expectations
 
