@@ -64,7 +64,7 @@ from .config import (
 )
 from .gauge import color_for_percent, thresholds_for_provider
 from .icons import app_icon
-from .identity import PRODUCT_NAME, PRODUCT_SHORT_NAME, SLUG
+from .identity import PRODUCT_NAME, PRODUCT_SHORT_NAME, PRODUCT_TINY_NAME, SLUG
 from .models import SnapshotStatus, UsageSnapshot
 from .ratio import (
     MIN_SAMPLES,
@@ -2449,7 +2449,7 @@ class UsageWidget(QWidget):
             header_layout.invalidate()
             header_layout.activate()
         if header_layout.minimumSize().width() > self.width():
-            self.title_label.setText("AI")
+            self.title_label.setText(PRODUCT_TINY_NAME)
             header_layout.invalidate()
             header_layout.activate()
 

@@ -72,15 +72,6 @@ def expectations() -> dict[str, list[Expectation]]:
             _lit("log file", f'config_dir / "{identity.LOG_FILENAME}"'),
             _lit("startup log prefix", f'f"{slug} {{expected_version}} starting platform="'),
         ],
-        # The smoke test above expects exactly this prefix in the startup log.
-        "src/aiusageclock/app.py": [
-            _lit(
-                "startup log prefix",
-                '"%s %s starting platform=%s frozen=%s executable=%s cwd=%s app_data=%s",\n'
-                "            SLUG,\n"
-                "            __version__,",
-            ),
-        ],
         ".github/workflows/release.yml": [
             _lit("Windows MCP smoke test", f"dist\\{slug}\\{mcp}.exe"),
             _lit("macOS MCP smoke test", f"smoke_test_mcp.py dist/{mcp}\n"),
@@ -214,6 +205,99 @@ def test_changing_an_identifier_is_reported_by_the_files_that_use_it(
     monkeypatch.setattr(identity, attribute, "changed-value")
 
     assert missing(path) != []
+
+
+# --- the startup log line the GUI smoke test looks for -----------------------
+#
+# tools/smoke_test_gui.py (checked above) waits for "<slug> <version> starting
+# platform=" in the log. app.py builds that line from a format string and
+# arguments, so the check evaluates the call instead of matching its layout:
+# how the call is wrapped or indented does not matter, what it prints does.
+
+APP_FILE = "src/aiusageclock/app.py"
+STARTUP_MARKER = "starting platform="
+
+
+def startup_log_prefix(source: str) -> str | None:
+    """What the startup ``log.info(...)`` call prints up to ``starting platform=``.
+
+    Only plain ``%s`` placeholders filled by ``SLUG``, ``__version__`` or a
+    string literal can be resolved; anything else returns None, as does a
+    source without such a call.
+    """
+    known = {"SLUG": identity.SLUG, "__version__": aiusageclock.__version__}
+    for node in ast.walk(ast.parse(source)):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "info"
+            and node.args
+        ):
+            continue
+        message = node.args[0]
+        if not (
+            isinstance(message, ast.Constant)
+            and isinstance(message.value, str)
+            and STARTUP_MARKER in message.value
+        ):
+            continue
+        head, _, _ = message.value.partition(STARTUP_MARKER)
+        head += STARTUP_MARKER
+        if re.search(r"%(?!s)", head.replace("%%", "")):
+            return None
+        values = []
+        for argument in node.args[1 : 1 + head.count("%s")]:
+            if isinstance(argument, ast.Name) and argument.id in known:
+                values.append(known[argument.id])
+            elif isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                values.append(argument.value)
+            else:
+                return None
+        if len(values) != head.count("%s"):
+            return None
+        return head % tuple(values)
+    return None
+
+
+def expected_startup_prefix() -> str:
+    return f"{identity.SLUG} {aiusageclock.__version__} {STARTUP_MARKER}"
+
+
+def test_the_startup_log_line_begins_the_way_the_smoke_test_expects():
+    assert startup_log_prefix(_read(APP_FILE)) == expected_startup_prefix()
+
+
+def test_the_startup_log_check_ignores_layout():
+    reflowed = (
+        "def start(log):\n"
+        "    log.info(  # a comment\n"
+        '        "%s %s "\n'
+        '        "starting platform=%s frozen=%s",\n'
+        "\n"
+        "        SLUG, __version__,\n"
+        "        platform, frozen)\n"
+    )
+    one_line = 'log.info("%s %s starting platform=%s", SLUG, __version__, p)\n'
+
+    assert startup_log_prefix(reflowed) == expected_startup_prefix()
+    assert startup_log_prefix(one_line) == expected_startup_prefix()
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'log.info("%s %s starting platform=%s", "other-name", __version__, p)\n',
+        'log.info("%s %s starting platform=%s", __version__, SLUG, p)\n',
+        'log.info("%s started platform=%s", SLUG, p)\n',
+        'log.info("%s %s starting platform=%s", SLUG, version_text(), p)\n',
+        'log.info("%d %s starting platform=%s", SLUG, __version__, p)\n',
+        "log.info(startup_message)\n",
+        "x = 1\n",
+    ],
+    ids=["other name", "swapped", "other wording", "unresolvable", "other placeholder", "no literal", "no call"],
+)
+def test_a_startup_log_call_that_would_not_match_the_smoke_test_is_reported(source):
+    assert startup_log_prefix(source) != expected_startup_prefix()
 
 
 # --- the generated Windows version resource names the publisher -------------
