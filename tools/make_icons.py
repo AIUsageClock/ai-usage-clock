@@ -5,11 +5,17 @@
 # ///
 """Build the AI Usage Clock app icons from a single vector design.
 
+The design is the code in icon_svg() below. Every file this script writes is
+generated from it and overwritten on each run, aiusageclockicon.svg included:
+to change the icon, edit icon_svg() and run the script, never the generated
+files. tests/test_icon_source.py fails when the committed SVG no longer matches
+icon_svg().
+
 Usage:
     uv run tools/make_icons.py [OUTPUT_DIR]
 
 OUTPUT_DIR defaults to src/aiusageclock/assets. Writes:
-    aiusageclockicon.svg   vector source
+    aiusageclockicon.svg   icon_svg() as is: the vector the other files are rendered from
     aiusageclockicon.png   1024x1024
     aiusageclockicon.ico   16-256 px, PNG-compressed frames
     aiusageclockicon.icns  16-1024 px, PNG-compressed frames
