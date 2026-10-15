@@ -414,7 +414,10 @@ def _run_stdio_with_owned_streams() -> None:
 
 # A Windows path that PowerShell and cmd.exe both run as typed, with no quotes:
 # no spaces and nothing either shell treats as syntax (parentheses, &, $, ', ...).
-_PLAIN_WINDOWS_PATH = re.compile(r"[\w.:\\/-]+")
+# No forward slash either: PowerShell runs C:/dir/python.exe, cmd.exe does not.
+_PLAIN_WINDOWS_PATH = re.compile(r"[\w.:\\-]+")
+# PowerShell reads these as single quotes: ' and the typographic U+2018..U+201B.
+_POWERSHELL_SINGLE_QUOTES = re.compile("['\u2018\u2019\u201a\u201b]")
 
 
 def missing_sdk_message(executable: str | None = None, platform: str | None = None) -> str:
@@ -427,8 +430,11 @@ def missing_sdk_message(executable: str | None = None, platform: str | None = No
     A path with a space has to be quoted, and PowerShell, unlike cmd.exe, only
     runs a quoted path when ``&`` comes first. So on Windows a plain path is
     given as is (valid in both shells) and any other path as two lines, one per
-    shell. The PowerShell line uses single quotes, which expand nothing, with a
-    quote inside the path doubled. Elsewhere the path is double-quoted.
+    shell. The PowerShell line uses single quotes, which expand nothing, with
+    each quote character inside the path doubled (that includes the curly ones
+    PowerShell also takes for quotes). The cmd.exe line spells the path with
+    backslashes, since cmd.exe cannot run ``C:/dir/python.exe``. Elsewhere the
+    path is double-quoted.
     """
     if executable is None:
         executable = sys.executable
@@ -443,12 +449,13 @@ def missing_sdk_message(executable: str | None = None, platform: str | None = No
         return f'{intro}:\n    "{executable}" {install}'
     if _PLAIN_WINDOWS_PATH.fullmatch(executable):
         return f"{intro}:\n    {executable} {install}"
-    powershell_path = executable.replace("'", "''")
+    powershell_path = _POWERSHELL_SINGLE_QUOTES.sub(lambda quote: quote.group() * 2, executable)
+    cmd_path = executable.replace("/", "\\")
     return (
         f"{intro} this in PowerShell:\n"
         f"    & '{powershell_path}' {install}\n"
         "or this in Command Prompt (cmd.exe):\n"
-        f'    "{executable}" {install}'
+        f'    "{cmd_path}" {install}'
     )
 
 

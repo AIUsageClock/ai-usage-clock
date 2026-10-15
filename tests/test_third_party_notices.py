@@ -538,15 +538,60 @@ def test_the_environment_roots_cover_python_the_virtualenv_and_the_repository(mo
     assert analysis.normal_path(Path(__file__).resolve().parents[1]) in roots
 
 
-def test_a_python_installed_under_usr_does_not_make_the_whole_system_look_like_python(monkeypatch):
-    monkeypatch.setattr(sys, "base_prefix", "/usr")
-    monkeypatch.setattr(sys, "base_exec_prefix", "/usr")
+def python_prefix(monkeypatch, prefix):
+    monkeypatch.setattr(sys, "base_prefix", prefix)
+    monkeypatch.setattr(sys, "base_exec_prefix", prefix)
+
+
+@pytest.mark.parametrize("prefix", ["/usr", "/usr/local", "/opt"])
+def test_a_python_prefix_that_holds_much_more_than_python_does_not_make_the_system_look_like_python(
+    monkeypatch, prefix
+):
+    python_prefix(monkeypatch, prefix)
 
     roots = notices.environment_roots()
 
-    assert analysis.normal_path("/usr") not in roots
+    assert analysis.normal_path(prefix) not in roots
     assert analysis.normal_path("/") not in roots
     assert analysis.normal_path(sys.prefix) in roots  # the other roots stay
+
+
+def test_a_python_installed_under_a_prefix_of_its_own_is_a_root(monkeypatch):
+    prefix = "/opt/hostedtoolcache/Python/3.11.9/x64"  # actions/setup-python
+    python_prefix(monkeypatch, prefix)
+
+    assert analysis.normal_path(prefix) in notices.environment_roots()
+
+
+@pytest.mark.parametrize("prefix", ["/usr/local", "/opt"])
+def test_libraries_beside_a_python_under_usr_local_or_opt_are_listed_not_swallowed(
+    monkeypatch, prefix
+):
+    python_prefix(monkeypatch, prefix)
+    unrelated = ("libfoo.so.1", f"{prefix}/lib/libfoo.so.1", "BINARY")
+    libpython = ("libpython3.12.so.1.0", f"{prefix}/lib/libpython3.12.so.1.0", "BINARY")
+
+    found = notices.bundled_system_libraries([unrelated, libpython])
+
+    # libpython comes out too, as a file no Debian package owns: a person decides
+    # about that, whereas a library left out here would go unnoticed.
+    assert set(found) == {"libfoo.so.1", "libpython3.12.so.1.0"}
+
+
+def test_a_python_with_a_prefix_of_its_own_keeps_its_own_libraries_out_but_not_its_neighbours(
+    monkeypatch,
+):
+    prefix = "/opt/hostedtoolcache/Python/3.11.9/x64"
+    python_prefix(monkeypatch, prefix)
+    own = [
+        ("libpython3.11.so.1.0", f"{prefix}/lib/libpython3.11.so.1.0", "BINARY"),
+        ("_ssl.so", f"{prefix}/lib/python3.11/lib-dynload/_ssl.so", "EXTENSION"),
+    ]
+    neighbours = [library("libnss3.so"), ("libother.so", "/opt/other/libother.so", "BINARY")]
+
+    found = notices.bundled_system_libraries(own + neighbours)
+
+    assert set(found) == {"libnss3.so", "libother.so"}
 
 
 def test_dpkg_answers_are_read_with_architecture_qualifiers_and_several_owners():
@@ -565,6 +610,25 @@ def test_dpkg_answers_are_read_with_architecture_qualifiers_and_several_owners()
         "/lib/x86_64-linux-gnu/libz.so.1": {"zlib1g"},
     }
     assert notices.parse_dpkg_search("dpkg-query: no path found matching pattern /x\n") == {}
+
+
+def test_local_diversion_notices_are_not_taken_for_package_names():
+    output = (
+        "local diversion from: /usr/lib/x86_64-linux-gnu/libfoo.so\n"
+        "local diversion to: /usr/lib/x86_64-linux-gnu/libfoo.so.distrib\n"
+        "diversion by libc6 to: /lib/x86_64-linux-gnu/libbar.so\n"
+        "Some Notice: /usr/lib/x86_64-linux-gnu/libodd.so\n"
+        "libnss3:amd64: /usr/lib/x86_64-linux-gnu/libnss3.so\n"
+    )
+
+    assert notices.parse_dpkg_search(output) == {
+        "/usr/lib/x86_64-linux-gnu/libnss3.so": {"libnss3"}
+    }
+    # Counterpart: a real package whose name starts like the notice is an owner.
+    assert notices.parse_dpkg_search("local-tools:amd64: /usr/bin/x\n") == {
+        "/usr/bin/x": {"local-tools"}
+    }
+    assert notices.parse_dpkg_search("local diversion from: /usr/bin/x\n") == {}
 
 
 def test_dpkg_is_asked_in_batches_and_unknown_paths_are_simply_absent():
@@ -662,6 +726,111 @@ def test_several_libraries_of_one_package_share_one_copyright_block(tmp_path):
     assert text.count("GLib licence text") == 1 and text.count("(Debian package)") == 2
 
 
+XCB_SAME_TEXT = "Copyright (C) the X.Org Foundation\nPermission is hereby granted, free of charge"
+
+
+def xcb_packages(tmp_path, texts):
+    """Three binary packages built from one source, with the copyright text in *texts*."""
+    owned = {}
+    entries = []
+    for package, library_name in (
+        ("libxcb-shm0", "libxcb-shm.so.0"),
+        ("libxcb-randr0", "libxcb-randr.so.0"),
+        ("libxcb-xkb1", "libxcb-xkb.so.1"),
+        ("libnss3", "libnss3.so"),
+    ):
+        owned[f"{LIB_DIR}/{library_name}"] = [package]
+        entries.append(library(library_name))
+        if package in texts:
+            write_copyright(tmp_path, package, texts[package])
+    return collect({"gui": entries}, owned, tmp_path), entries
+
+
+def test_binary_packages_with_the_same_copyright_text_print_it_once_and_point_back(tmp_path):
+    texts = {name: XCB_SAME_TEXT for name in ("libxcb-shm0", "libxcb-randr0", "libxcb-xkb1")}
+    texts["libnss3"] = "NSS licence text"
+    system, _ = xcb_packages(tmp_path, texts)
+
+    text = notices.render([], system)
+
+    base = tmp_path.as_posix()
+    first = f"{base}/libxcb-randr0/copyright"  # the first of the three by name
+    assert text.count("Copyright (C) the X.Org Foundation") == 1
+    assert f"--- {first} ---\n{XCB_SAME_TEXT}" in text
+    for later in ("libxcb-shm0", "libxcb-xkb1"):
+        assert f"--- {base}/{later}/copyright (same text as {first}, above) ---" in text
+    # Every package keeps its own block and its bundled files.
+    assert text.count("(Debian package)") == 4
+    assert "Bundled files: libxcb-shm.so.0\n" in text
+    assert "Bundled files: libxcb-xkb.so.1\n" in text
+    # Counterpart: a text that differs is printed in full.
+    assert text.count("NSS licence text") == 1
+    assert f"--- {base}/libnss3/copyright ---\nNSS licence text" in text
+
+
+def test_copyright_texts_that_differ_are_all_printed_in_full(tmp_path):
+    texts = {
+        "libxcb-shm0": XCB_SAME_TEXT,
+        "libxcb-randr0": XCB_SAME_TEXT + " (with a difference)",
+        "libxcb-xkb1": XCB_SAME_TEXT + "\nand a third wording",
+        "libnss3": "NSS licence text",
+    }
+    system, _ = xcb_packages(tmp_path, texts)
+
+    text = notices.render([], system)
+
+    assert "same text as" not in text
+    assert text.count("Copyright (C) the X.Org Foundation") == 3
+
+
+def test_a_missing_copyright_file_is_not_mistaken_for_a_repeat(tmp_path):
+    texts = {"libxcb-shm0": XCB_SAME_TEXT, "libxcb-randr0": XCB_SAME_TEXT, "libnss3": "NSS"}
+    system, _ = xcb_packages(tmp_path, texts)  # libxcb-xkb1 has no file
+
+    text = notices.render([], system)
+
+    base = tmp_path.as_posix()
+    assert f"No copyright text was found at {base}/libxcb-xkb1/copyright." in text
+    assert text.count("same text as") == 1  # only libxcb-shm0 pointing at libxcb-randr0
+
+
+def test_the_copyright_repeats_do_not_depend_on_the_order_of_the_libraries(tmp_path):
+    texts = {name: XCB_SAME_TEXT for name in ("libxcb-shm0", "libxcb-randr0", "libxcb-xkb1")}
+    texts["libnss3"] = "NSS licence text"
+    system, entries = xcb_packages(tmp_path, texts)
+    owned = {f"{LIB_DIR}/{name}": [package] for name, package in (
+        ("libxcb-shm.so.0", "libxcb-shm0"),
+        ("libxcb-randr.so.0", "libxcb-randr0"),
+        ("libxcb-xkb.so.1", "libxcb-xkb1"),
+        ("libnss3.so", "libnss3"),
+    )}
+
+    shuffled = collect({"helper": entries[::-1]}, owned, tmp_path)
+
+    assert notices.render([], system) == notices.render([], shuffled)
+
+
+def test_a_copyright_text_equal_to_a_python_license_text_points_at_it(site, tmp_path):
+    shared = "The shared license text, long enough to notice."
+    make_dist(site, "noticetest-app", requires=("noticetest-lib",))
+    make_dist(site, "noticetest-lib", files={"LICENSE": (shared + "\n").encode()})
+    write_copyright(tmp_path, "libnss3", shared)
+    system = collect(
+        {"gui": [library("libnss3.so")]}, {f"{LIB_DIR}/libnss3.so": ["libnss3"]}, tmp_path
+    )
+
+    text, _ = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system
+    )
+
+    assert text.count(shared) == 1
+    base = tmp_path.as_posix()
+    assert (
+        f"--- {base}/libnss3/copyright (same text as LICENSE of noticetest-lib 1.0, above) ---"
+        in text
+    )
+
+
 def test_a_library_no_package_owns_is_said_to_be_unowned_and_gets_no_invented_package(tmp_path):
     write_copyright(tmp_path, "libnss3", "NSS licence text")
     owned = {f"{LIB_DIR}/libnss3.so": ["libnss3"]}
@@ -689,14 +858,21 @@ def test_a_missing_copyright_file_is_reported_instead_of_papered_over(tmp_path):
 
 
 def test_a_package_name_that_could_leave_the_doc_folder_is_never_read(tmp_path):
-    (tmp_path / "doc").mkdir()
+    doc = tmp_path / "doc"
+    doc.mkdir()
     write_copyright(tmp_path, "secret", "not a copyright file")  # doc/../secret/copyright
     owned = {f"{LIB_DIR}/libx.so": ["../secret"]}
 
-    system = collect({"gui": [library("libx.so")]}, owned, tmp_path / "doc")
+    system = collect({"gui": [library("libx.so")]}, owned, doc)
 
-    assert (tmp_path / "doc" / ".." / "secret" / "copyright").is_file()
-    assert system.packages[0].copyright_text is None
+    assert (doc / ".." / "secret" / "copyright").is_file()
+    # Two layers refuse it: the reading of dpkg's answer does not accept the
+    # name as a package, and the reading of the file would not follow it either.
+    assert notices.parse_dpkg_search("../secret:amd64: /usr/lib/libx.so\n") == {}
+    assert system.packages == []
+    assert notices.read_debian_copyright("../secret", doc)[1] is None
+    # Counterpart: a plain package name is read from the same kind of place.
+    assert notices.read_debian_copyright("secret", tmp_path)[1] == "not a copyright file"
 
 
 # --- the standard license texts that copyright files point to ----------------

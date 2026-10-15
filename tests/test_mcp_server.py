@@ -483,6 +483,44 @@ def test_any_other_windows_path_gets_a_line_for_each_shell(executable):
     assert f"    {executable} {INSTALL}" not in lines
 
 
+@pytest.mark.parametrize("quote", ["'", "\u2018", "\u2019", "\u201a", "\u201b"])
+def test_every_character_powershell_reads_as_a_single_quote_is_doubled(quote):
+    executable = f"C:\\Users\\O{quote}Brien\\python.exe"
+
+    lines = mcp_server.missing_sdk_message(executable, "win32").splitlines()
+
+    assert lines[1] == f"    & 'C:\\Users\\O{quote}{quote}Brien\\python.exe' {INSTALL}"
+    # cmd.exe has no such quotes; its line keeps the path as it is.
+    assert lines[3] == f'    "{executable}" {INSTALL}'
+
+
+@pytest.mark.parametrize("lookalike", ["\u00b4", "\u2032", "\u201c", "\u201d", "`"])
+def test_characters_that_powershell_does_not_read_as_single_quotes_are_left_alone(lookalike):
+    executable = f"C:\\Users\\O{lookalike}Brien\\python.exe"
+
+    lines = mcp_server.missing_sdk_message(executable, "win32").splitlines()
+
+    assert lines[1] == f"    & '{executable}' {INSTALL}"
+
+
+@pytest.mark.parametrize(
+    "executable",
+    ["C:/Python312/python.exe", "C:\\Python312/Scripts\\python.exe"],
+)
+def test_a_path_with_forward_slashes_is_not_plain_and_cmd_gets_backslashes(executable):
+    backslashed = executable.replace("/", "\\")
+
+    lines = mcp_server.missing_sdk_message(executable, "win32").splitlines()
+
+    # PowerShell runs a forward-slash path, so that line keeps the path; cmd.exe does not.
+    assert lines[1] == f"    & '{executable}' {INSTALL}"
+    assert lines[3] == f'    "{backslashed}" {INSTALL}'
+    assert "/" not in backslashed
+    # Counterpart: the same path written with backslashes only is plain again.
+    plain = mcp_server.missing_sdk_message(backslashed, "win32")
+    assert plain.splitlines()[1:] == [f"    {backslashed} {INSTALL}"]
+
+
 @pytest.mark.parametrize("platform", ["linux", "darwin"])
 def test_elsewhere_the_path_is_double_quoted_on_one_line(platform):
     executable = "/home/me/my projects/.venv/bin/python"

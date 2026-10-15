@@ -71,6 +71,11 @@ the [Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases):
 
 Before publishing, verify the tag and version, all six asset names, hashes,
 archive contents, unsigned-build notes, and isolated GUI/MCP smoke evidence.
+Also read the "System libraries bundled on Linux" section of
+`THIRD_PARTY_NOTICES.txt` in the Linux archive that is about to be published,
+with the same checks as in the packaging trial above: a tag build can run on a
+newer runner image than the trial did, and the libraries it copies into the
+bundle come from that image.
 Replace the generated commit summary with the matching CHANGELOG notes. Publish
 the release from GitHub only after those checks pass. A draft build or a
 successful workflow run alone is not approval to publish.

@@ -467,10 +467,19 @@ def is_linux() -> bool:
     return sys.platform.startswith("linux")
 
 
+# Folders that hold much more than one Python installation. A Python whose
+# prefix is one of these (a distribution's under /usr, a source build or an
+# official Docker image under /usr/local, something dropped into /opt) would
+# otherwise make every library next to it look like part of Python.
+_BROAD_ROOTS = ("/usr", "/usr/local", "/opt")
+
+
 def _too_broad(root: str) -> bool:
-    """The whole file system (or /usr) rather than one Python installation."""
+    """The whole file system or one of _BROAD_ROOTS, rather than one Python installation."""
     cleaned = os.path.normpath(root)
-    return os.path.dirname(cleaned) == cleaned or cleaned == os.path.normpath("/usr")
+    return os.path.dirname(cleaned) == cleaned or cleaned in {
+        os.path.normpath(broad) for broad in _BROAD_ROOTS
+    }
 
 
 def environment_roots() -> list[str]:
@@ -479,9 +488,11 @@ def environment_roots() -> list[str]:
     Shared libraries from here are not system libraries: the Python
     installation (the interpreter's own libraries and extension modules), the
     virtualenv, site-packages (wheels carry their own libraries and their own
-    metadata) and the repository. A distribution's Python, installed under
-    /usr, would otherwise make every system library look like part of it, so a
-    root as broad as that is not used.
+    metadata) and the repository. A root as broad as /usr, /usr/local or /opt
+    is not used (see _BROAD_ROOTS): the libraries under it that are not
+    Python's own, libpython included, are listed, and show up as "no Debian
+    package owns this file" when no package does. Listing too much is the safe
+    side; leaving a library out would hide it.
     """
     candidates = [sys.prefix, sys.exec_prefix, sys.base_prefix, sys.base_exec_prefix]
     candidates.extend(
@@ -556,19 +567,22 @@ def parse_dpkg_search(output: str) -> dict[str, set[str]]:
 
     Lines look like ``libnss3:amd64: /usr/lib/x86_64-linux-gnu/libnss3.so`` and,
     for a path two packages share, ``pkg-a:amd64, pkg-b:amd64: /usr/share/x``.
-    The architecture qualifier is dropped. Diversion notices and anything else
-    that is not an owner line are ignored.
+    The architecture qualifier is dropped. Diversion notices (``diversion by
+    pkg from: /path``, ``local diversion from: /path``) and anything else that
+    is not an owner line are ignored.
     """
     owners: dict[str, set[str]] = {}
     for line in output.splitlines():
-        if line.startswith("diversion by "):
+        if line.startswith(("diversion by ", "local diversion ")):
             continue
         head, separator, tail = line.partition(": /")
         if not separator:
             continue
         for token in head.split(", "):
+            # Whatever precedes the colon must be a package name; a notice that
+            # happens to contain ": /" is not an owner line.
             name = token.partition(":")[0].strip()
-            if name:
+            if _DEBIAN_PACKAGE_NAME.match(name):
                 owners.setdefault("/" + tail, set()).add(name)
     return owners
 
@@ -706,14 +720,33 @@ def collect_system_libraries(
     return SystemLibraries(libraries, packages, problem, licenses)
 
 
+def _append_text_once(
+    lines: list[str], printed: dict[str, str], path: str, text: str
+) -> None:
+    """Add *text* under a ``--- path ---`` heading, unless the same text is already printed.
+
+    *printed* maps the digest of each text printed so far to where it is; a
+    repeat gets a heading that points there instead of the text again.
+    """
+    digest = LicenseText(path, text).digest
+    earlier = printed.get(digest)
+    if earlier is not None:
+        lines.append(f"--- {path} (same text as {earlier}) ---")
+        return
+    printed[digest] = f"{path}, above"
+    lines.append(f"--- {path} ---")
+    lines.append(text)
+
+
 def render_system_libraries(
     system: SystemLibraries, printed: dict[str, str] | None = None
 ) -> list[str]:
     """The lines of the "System libraries bundled on Linux" section.
 
     *printed* maps the digest of a license text that appears earlier in the
-    file to where; a referenced license text with the same digest is not
-    repeated. The texts printed here are added to it.
+    file to where. A copyright file or referenced license text with the same
+    digest is not repeated (binary packages built from one source often ship
+    the same copyright file). The texts printed here are added to it.
     """
     if printed is None:
         printed = {}
@@ -736,8 +769,7 @@ def render_system_libraries(
         if package.copyright_text is None:
             lines.append(f"No copyright text was found at {package.copyright_path}.")
         else:
-            lines.append(f"--- {package.copyright_path} ---")
-            lines.append(package.copyright_text)
+            _append_text_once(lines, printed, package.copyright_path, package.copyright_text)
     if system.licenses:
         lines.extend(
             ["", _THIN_RULE, REFERENCED_LICENSES_TITLE, _THIN_RULE, REFERENCED_LICENSES_NOTE]
@@ -746,15 +778,8 @@ def render_system_libraries(
             lines.append("")
             if referenced.text is None:
                 lines.append(f"Not found at {referenced.path}.")
-                continue
-            license_text = LicenseText(referenced.path, referenced.text)
-            earlier = printed.get(license_text.digest)
-            if earlier is not None:
-                lines.append(f"--- {referenced.path} (same text as {earlier}) ---")
-                continue
-            printed[license_text.digest] = f"{referenced.path}, above"
-            lines.append(f"--- {referenced.path} ---")
-            lines.append(referenced.text)
+            else:
+                _append_text_once(lines, printed, referenced.path, referenced.text)
     return lines
 
 
