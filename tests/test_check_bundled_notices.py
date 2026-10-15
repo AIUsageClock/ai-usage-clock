@@ -422,6 +422,280 @@ def test_main_reports_unreadable_inputs_with_status_2(isolated, tmp_path, capsys
     assert "error:" in capsys.readouterr().err
 
 
+# --- distributions without a name ---------------------------------------------------
+
+
+def make_nameless_dist(site: Path, top_level: str) -> None:
+    """A dist-info whose METADATA has no Name header, claiming one top-level module."""
+    folder = site / "nameless-1.0.dist-info"
+    folder.mkdir()
+    (folder / "METADATA").write_text("Metadata-Version: 2.1\nVersion: 1.0\n", encoding="utf-8")
+    (folder / "top_level.txt").write_text(f"{top_level}\n", encoding="utf-8")
+
+
+def test_a_distribution_without_a_name_is_left_out_of_the_module_owners():
+    owners = check.top_level_module_owners(
+        {"mixed": [None, "Real_Pkg", ""], "ghost": [None], "plain": ["Other"]}
+    )
+
+    assert owners == {"mixed": ["real-pkg"], "plain": ["other"]}
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_a_nameless_distribution_in_the_environment_does_not_crash_the_fallback(site):
+    make_nameless_dist(site, "ghostmod")
+    (site / "ghostmod.py").write_bytes(b"")
+
+    try:
+        owners = check.top_level_module_owners()
+    except KeyError:  # a future importlib.metadata refuses nameless distributions itself
+        pytest.skip("importlib.metadata raises for a distribution without a name")
+
+    assert "ghostmod" not in owners
+    # Nobody can be blamed for the file, so it is reported rather than crashing
+    # or being waved through.
+    result = attribute(site, [packed(site, "ghostmod.py", "ghostmod")], module_owners=owners)
+    assert result.distributions == {}
+    assert result.unattributed == {"ghostmod.py": ["ghostmod"]}
+    assert check.installed_file_owners([str(site)]) == {}
+
+
+# --- system libraries -----------------------------------------------------------------
+#
+# Away from Linux the analyses hold no such files and nothing here applies; the
+# fakes use POSIX paths that only ever get compared as text.
+
+LIB_DIR = "/usr/lib/x86_64-linux-gnu"
+
+
+def lib(name: str):
+    return (name, f"{LIB_DIR}/{name}", "BINARY")
+
+
+def notices_with_libraries(libraries=(), *packages: str) -> str:
+    """A notices file whose system library section lists *libraries* (none: no section)."""
+    system = (
+        notices.SystemLibraries([notices.SystemLibrary(n, ("some-pkg",)) for n in libraries], [])
+        if libraries
+        else None
+    )
+    return notices.render(
+        [notices.Package(name=name, version="1.0", declaration="MIT") for name in packages],
+        system,
+    )
+
+
+def library_report(text, analyses, *, enforce):
+    return check.check_system_libraries(text, analyses, roots=[], enforce=enforce)
+
+
+def test_packed_libraries_are_reported_per_analysis_apart_from_the_python_environment(tmp_path):
+    python_home = tmp_path / "python"
+    inside = ("libpython3.12.so", str(python_home / "libpython3.12.so"), "BINARY")
+    analyses = {
+        "gui": [lib("libnss3.so"), lib("libasound.so.2"), inside],
+        "helper": [lib("libnss3.so"), ("json", f"{LIB_DIR}/json.py", "PYMODULE")],
+        "bare": [inside],
+    }
+
+    report = check.check_system_libraries(
+        notices_with_libraries(), analyses, roots=[str(python_home)], enforce=False
+    )
+
+    assert report.packed == {"gui": ["libasound.so.2", "libnss3.so"], "helper": ["libnss3.so"]}
+
+
+def test_on_linux_the_notices_must_list_exactly_the_libraries_that_were_packed():
+    analyses = {"gui": [lib("libnss3.so"), lib("libasound.so.2")], "helper": [lib("libnss3.so")]}
+
+    exact = library_report(notices_with_libraries(["libasound.so.2", "libnss3.so"]), analyses, enforce=True)
+    forgotten = library_report(notices_with_libraries(["libnss3.so"]), analyses, enforce=True)
+    stale = library_report(
+        notices_with_libraries(["libasound.so.2", "libgone.so", "libnss3.so"]), analyses, enforce=True
+    )
+
+    assert exact.listed == ["libasound.so.2", "libnss3.so"] and not exact.mismatch
+    assert forgotten.unlisted == ["libasound.so.2"] and forgotten.not_packed == []
+    assert forgotten.mismatch
+    assert stale.not_packed == ["libgone.so"] and stale.unlisted == []
+    assert stale.mismatch
+
+
+def test_on_linux_libraries_packed_without_any_section_are_a_mismatch_but_none_is_fine():
+    packed_some = library_report(notices_with_libraries(), {"gui": [lib("libnss3.so")]}, enforce=True)
+    packed_none = library_report(notices_with_libraries(), {"gui": []}, enforce=True)
+
+    assert packed_some.listed is None and packed_some.unlisted == ["libnss3.so"]
+    assert packed_some.mismatch
+    assert packed_none.listed is None and not packed_none.mismatch
+
+
+def test_away_from_linux_the_libraries_are_information_only():
+    analyses = {"gui": [lib("libnss3.so")]}
+
+    no_section = library_report(notices_with_libraries(), analyses, enforce=False)
+    different = library_report(notices_with_libraries(["libother.so"]), analyses, enforce=False)
+
+    assert no_section.packed == {"gui": ["libnss3.so"]} and not no_section.mismatch
+    assert different.packed == {"gui": ["libnss3.so"]} and not different.mismatch
+    assert different.unlisted == [] and different.not_packed == []
+
+
+def test_whether_the_notices_are_held_to_the_libraries_follows_the_platform(monkeypatch):
+    analyses = {"gui": [lib("libnss3.so")]}
+    text = notices_with_libraries()
+
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+    on_linux = check.check_system_libraries(text, analyses, roots=[])
+    monkeypatch.setattr(notices, "is_linux", lambda: False)
+    elsewhere = check.check_system_libraries(text, analyses, roots=[])
+
+    assert on_linux.mismatch and not elsewhere.mismatch
+
+
+def run_main(isolated, tmp_path, *, libraries, section, extra_notices=(), packed_libraries=("libnss3.so",)):
+    """main() on a fake bundle that packs *packed_libraries* and a Python package."""
+    site = isolated
+    if not (site / "listedlib.py").exists():
+        make_dist(site, "listed-lib", site_files={"listedlib.py": b""})
+    notices_file = tmp_path / "THIRD_PARTY_NOTICES.txt"
+    notices_file.write_text(
+        notices_with_libraries(libraries if section else (), "listed-lib", *extra_notices),
+        encoding="utf-8",
+    )
+    toc = write_toc(
+        tmp_path / "Analysis-00.toc",
+        pure=[packed(site, "listedlib.py", "listedlib")],
+        binaries=[lib(name) for name in packed_libraries],
+    )
+    return check.main([str(notices_file), str(toc)])
+
+
+def test_main_lists_the_packed_libraries_and_passes_when_the_notices_name_them(
+    isolated, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+
+    status = run_main(isolated, tmp_path, libraries=["libnss3.so"], section=True)
+
+    out = capsys.readouterr()
+    assert status == 0
+    assert out.out.startswith("info: ") or "\ninfo: " in out.out
+    assert "libnss3.so" in out.out and "Analysis-00.toc (1)" in out.out
+    assert "accounts for every package" in out.out
+    assert out.err == ""
+
+
+def test_main_fails_on_linux_when_the_section_and_the_packed_libraries_differ(
+    isolated, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+
+    status = run_main(isolated, tmp_path, libraries=["libother.so"], section=True)
+
+    err = capsys.readouterr().err
+    assert status == 1
+    assert "libnss3.so" in err and "not listed in the 'System libraries bundled on Linux'" in err
+    assert "libother.so" in err and "not packed into any executable" in err
+    assert "does not match this build" in err
+
+
+def test_main_fails_on_linux_when_the_notices_have_no_section_at_all(
+    isolated, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+
+    status = run_main(isolated, tmp_path, libraries=[], section=False)
+
+    err = capsys.readouterr().err
+    assert status == 1
+    assert "has no 'System libraries bundled on Linux' section" in err
+    assert "libnss3.so" in err
+
+
+def test_main_only_informs_away_from_linux_even_when_the_notices_do_not_match(
+    isolated, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: False)
+
+    status = run_main(isolated, tmp_path, libraries=[], section=False)
+
+    out = capsys.readouterr()
+    assert status == 0
+    assert "info: " in out.out and "libnss3.so" in out.out
+    assert out.err == ""
+
+
+def test_main_says_nothing_about_libraries_when_none_were_packed(
+    isolated, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+
+    status = run_main(isolated, tmp_path, libraries=[], section=False, packed_libraries=())
+
+    out = capsys.readouterr()
+    assert status == 0
+    assert "info:" not in out.out and out.err == ""
+
+
+def test_main_reports_a_package_problem_and_a_library_problem_together(
+    isolated, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+    make_dist(isolated, "forgotten-lib", site_files={"forgottenlib.py": b""})
+    notices_file = tmp_path / "THIRD_PARTY_NOTICES.txt"
+    notices_file.write_text(notices_with_libraries(["libother.so"], "something-else"), encoding="utf-8")
+    toc = write_toc(
+        tmp_path / "Analysis-00.toc",
+        pure=[packed(isolated, "forgottenlib.py", "forgottenlib")],
+        binaries=[lib("libnss3.so")],
+    )
+
+    assert check.main([str(notices_file), str(toc)]) == 1
+
+    err = capsys.readouterr().err
+    assert "forgotten-lib" in err and "libnss3.so" in err and "libother.so" in err
+
+
+def test_main_refuses_a_damaged_system_library_section_with_status_2(
+    isolated, tmp_path, capsys
+):
+    make_dist(isolated, "listed-lib", site_files={"listedlib.py": b""})
+    notices_file = tmp_path / "THIRD_PARTY_NOTICES.txt"
+    damaged = notices_with_libraries(["libnss3.so"], "listed-lib").replace("System libraries (1)", "System libraries (7)")
+    notices_file.write_text(damaged, encoding="utf-8")
+    toc = write_toc(tmp_path / "Analysis-00.toc", pure=[packed(isolated, "listedlib.py", "listedlib")])
+
+    assert check.main([str(notices_file), str(toc)]) == 2
+
+    assert "announces 7 system libraries" in capsys.readouterr().err
+
+
+def test_main_reports_a_notices_file_that_is_not_utf8_with_status_2(isolated, tmp_path, capsys):
+    notices_file = tmp_path / "THIRD_PARTY_NOTICES.txt"
+    notices_file.write_bytes("Components (0)\n".encode("utf-8") + b"\xff\xfe broken \x80")
+    toc = write_toc(tmp_path / "Analysis-00.toc", pure=[("m", "/elsewhere/m.py", "PYMODULE")])
+
+    assert check.main([str(notices_file), str(toc)]) == 2
+
+    assert "cannot read" in capsys.readouterr().err
+
+
+def test_the_failure_advice_points_at_the_files_that_really_decide_what_is_listed(
+    isolated, tmp_path, capsys
+):
+    make_dist(isolated, "forgotten-lib", site_files={"forgottenlib.py": b""})
+    notices_file = tmp_path / "THIRD_PARTY_NOTICES.txt"
+    notices_file.write_text(notices_text("something-else"), encoding="utf-8")
+    toc = write_toc(tmp_path / "Analysis-00.toc", pure=[packed(isolated, "forgottenlib.py", "forgottenlib")])
+
+    assert check.main([str(notices_file), str(toc)]) == 1
+
+    err = capsys.readouterr().err
+    assert "--exclude-module" in err
+    assert "pyproject.toml" in err and "EMBEDDED_BUILD_TOOLS" in err
+
+
 # --- the real environment --------------------------------------------------------
 
 

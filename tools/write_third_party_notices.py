@@ -9,7 +9,8 @@ text they ship, so the notice can travel with the build.
 Run it with the build virtualenv's interpreter, after the project and its
 dependencies are installed:
 
-    .venv/bin/python tools/write_third_party_notices.py dist/ai-usage-clock/THIRD_PARTY_NOTICES.txt
+    .venv/bin/python tools/write_third_party_notices.py dist/ai-usage-clock/THIRD_PARTY_NOTICES.txt \\
+        build/ai-usage-clock/Analysis-00.toc build/ai-usage-clock-mcp/Analysis-00.toc
 
 Which packages are listed comes from the installed distribution metadata:
 the project's runtime ``Requires-Dist`` entries (plus the extras it ships, see
@@ -27,21 +28,42 @@ setuptools through cffi). The build scripts exclude those modules where they
 can, and tools/check_bundled_notices.py then compares PyInstaller's analysis of
 each executable with the file written here and fails the build when something
 ships without being listed.
+
+Python packages are not the whole story on Linux. PyInstaller leaves out only
+the C library, the graphics stack and a few others there, so shared libraries
+of the build machine (NSS, GLib, ALSA, XKB and so on) are copied into the
+build. When the Analysis-00.toc files are given and this runs on Linux, a
+"System libraries bundled on Linux" section is added: every packed shared
+library that does not come from the Python environment or this repository,
+the Debian package that owns it (``dpkg -S``) and that package's
+/usr/share/doc/<package>/copyright, followed by the standard license texts
+from /usr/share/common-licenses that those copyright files refer to (each
+once). Windows and macOS builds get no such section. What cannot be found (no
+dpkg, no owning package, no copyright file, no referenced license text) is said
+so in the section rather than left out.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
+import subprocess
 import sys
 import sysconfig
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
+
+if __package__:
+    from . import pyinstaller_analysis as analysis
+else:  # run as a script: tools/ is sys.path[0]
+    import pyinstaller_analysis as analysis
 
 PROJECT = "ai-usage-clock"
 REPO_URL = "https://github.com/AIUsageClock/ai-usage-clock"
@@ -344,7 +366,434 @@ def collect_python(license_dirs: list[Path] | None = None) -> Package:
     )
 
 
-def render(packages: list[Package]) -> str:
+# --- system libraries of a Linux build ------------------------------------
+
+SYSTEM_LIBRARIES_TITLE = "System libraries bundled on Linux"
+SYSTEM_LIBRARIES_NOTE = (
+    "PyInstaller copies the shared libraries that the bundled components link\n"
+    "against from the machine that built the application. It leaves out only a\n"
+    "few (the C library and the graphics stack, for example), so the libraries\n"
+    "below travel with the Linux build. Each one is listed with the Debian\n"
+    "package that owns the file on the build machine (found with dpkg -S),\n"
+    "followed by the license information that package ships in\n"
+    "/usr/share/doc/<package>/copyright. Those files may refer to the standard\n"
+    "license texts that a Debian system keeps under /usr/share/common-licenses\n"
+    "instead of reproducing them; the texts they refer to follow the packages,\n"
+    "under \"Referenced license texts\"."
+)
+REFERENCED_LICENSES_TITLE = "Referenced license texts"
+REFERENCED_LICENSES_NOTE = (
+    "The copyright files above refer to these license texts, which a Debian\n"
+    "system keeps under /usr/share/common-licenses. They are copied from the\n"
+    "machine that built the application."
+)
+NO_OWNING_PACKAGE = "no Debian package owns this file"
+PACKAGE_UNKNOWN = "package unknown (dpkg could not be used on the build machine)"
+_SYSTEM_LIBRARIES_HEADING = re.compile(r"^System libraries \((\d+)\)$")
+# Typecodes of the entries in an Analysis-00.toc that are shared libraries.
+LIBRARY_TYPECODES = ("BINARY", "EXTENSION")
+DEBIAN_DOC_ROOT = Path("/usr/share/doc")
+DEBIAN_LICENSES_ROOT = Path("/usr/share/common-licenses")
+# Debian package names: lower-case letters, digits and + - . only.
+_DEBIAN_PACKAGE_NAME = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
+# The name of a file under /usr/share/common-licenses (GPL-3, LGPL-2.1,
+# Apache-2.0, ...): it starts with a letter or digit and contains only letters,
+# digits, + _ - and inner dots, so it can be neither "." / ".." nor a path.
+_COMMON_LICENSE_NAME = r"[A-Za-z0-9][A-Za-z0-9+_-]*(?:\.[A-Za-z0-9+_-]+)*"
+_COMMON_LICENSE_FULL_NAME = re.compile(_COMMON_LICENSE_NAME)
+# A reference in a copyright text. The lookahead keeps a name that is followed by
+# more path ("…/licenses/sub/dir") or by more name characters from being cut
+# short and taken for another file; a full stop that ends a sentence is not
+# part of the name.
+_COMMON_LICENSE_REFERENCE = re.compile(
+    re.escape(f"{DEBIAN_LICENSES_ROOT.as_posix()}/") + f"({_COMMON_LICENSE_NAME})" + r"(?![\w+/-])"
+)
+# How many paths one dpkg call is asked about.
+_DPKG_BATCH = 100
+# Spellings of one directory under a merged /usr, where /lib is a link to
+# /usr/lib. dpkg's file lists use the spelling of the package that ships the
+# file, which is not necessarily the one the loader reported.
+_MERGED_USR_PAIRS = (("/usr/lib/", "/lib/"), ("/usr/lib64/", "/lib64/"))
+_SITE_DIR_NAMES = ("site-packages", "dist-packages")
+
+Runner = Callable[..., "subprocess.CompletedProcess[str]"]
+
+
+class DpkgUnavailable(Exception):
+    """dpkg could not be run or did not answer."""
+
+
+@dataclass(frozen=True)
+class SystemLibrary:
+    """One shared library packed into the build."""
+
+    name: str  # its name inside the build
+    # Debian packages that own the file; empty when none does (or when dpkg
+    # could not be asked, see SystemLibraries.dpkg_problem).
+    packages: tuple[str, ...] = ()
+
+
+@dataclass
+class DebianPackage:
+    """A Debian package that owns at least one packed library."""
+
+    name: str
+    libraries: list[str]
+    copyright_path: str
+    copyright_text: str | None  # None when the file does not exist
+
+
+@dataclass
+class ReferencedLicense:
+    """A standard license text that a package's copyright file points to."""
+
+    name: str  # its file name under /usr/share/common-licenses
+    path: str  # where it was looked for
+    text: str | None  # None when the file does not exist
+
+
+@dataclass
+class SystemLibraries:
+    libraries: list[SystemLibrary]  # sorted by name
+    packages: list[DebianPackage]  # sorted by name
+    # Why the owners could not be determined; empty when dpkg answered.
+    dpkg_problem: str = ""
+    # The standard license texts the packages' copyright files refer to,
+    # sorted by name, each once.
+    licenses: list[ReferencedLicense] = field(default_factory=list)
+
+
+def is_linux() -> bool:
+    return sys.platform.startswith("linux")
+
+
+def _too_broad(root: str) -> bool:
+    """The whole file system (or /usr) rather than one Python installation."""
+    cleaned = os.path.normpath(root)
+    return os.path.dirname(cleaned) == cleaned or cleaned == os.path.normpath("/usr")
+
+
+def environment_roots() -> list[str]:
+    """Folders whose files are the Python environment or this repository.
+
+    Shared libraries from here are not system libraries: the Python
+    installation (the interpreter's own libraries and extension modules), the
+    virtualenv, site-packages (wheels carry their own libraries and their own
+    metadata) and the repository. A distribution's Python, installed under
+    /usr, would otherwise make every system library look like part of it, so a
+    root as broad as that is not used.
+    """
+    candidates = [sys.prefix, sys.exec_prefix, sys.base_prefix, sys.base_exec_prefix]
+    candidates.extend(
+        sysconfig.get_path(key) for key in ("stdlib", "platstdlib", "purelib", "platlib")
+    )
+    candidates.extend(entry for entry in sys.path if Path(entry).name in _SITE_DIR_NAMES)
+    candidates.append(str(Path(__file__).resolve().parents[1]))
+    unique: dict[str, None] = {}
+    for candidate in candidates:
+        if candidate and not _too_broad(candidate):
+            for spelling in analysis.path_spellings(candidate):
+                unique.setdefault(spelling, None)
+    return list(unique)
+
+
+def _is_under(path: str, root: str) -> bool:
+    return path == root or path.startswith(root.rstrip(os.sep) + os.sep)
+
+
+def bundled_system_libraries(
+    entries: Iterable[analysis.TocEntry], roots: Sequence[str] | None = None
+) -> dict[str, str]:
+    """Packed shared libraries from outside *roots*: name in the build -> source file.
+
+    Only BINARY and EXTENSION entries count (not Python modules and data), and
+    only those whose source is not under any of *roots* (default:
+    environment_roots()). Sources are returned as the analysis recorded them.
+    """
+    if roots is None:
+        roots = environment_roots()
+    normal_roots = [analysis.normal_path(root) for root in roots]
+    found: dict[str, str] = {}
+    for name, source, typecode in entries:
+        if typecode not in LIBRARY_TYPECODES or not source or source == "-":
+            continue
+        if any(
+            _is_under(spelling, root)
+            for spelling in analysis.path_spellings(source)
+            for root in normal_roots
+        ):
+            continue
+        # The same library can be packed from two places in two executables;
+        # the smaller path wins so the result does not depend on their order.
+        if name not in found or source < found[name]:
+            found[name] = source
+    return found
+
+
+def _lookup_spellings(source: str, realpath: Callable[[str], str]) -> list[str]:
+    """The paths dpkg is asked about for one file, most specific first.
+
+    The file with symlinks resolved, then the path as recorded, each also in the
+    other spelling of a merged /usr (see _MERGED_USR_PAIRS). Only absolute
+    POSIX paths: dpkg -S would read anything else as a search for a substring.
+    """
+    spellings: list[str] = []
+    for path in (realpath(source), source):
+        variants = [path]
+        for merged, split in _MERGED_USR_PAIRS:
+            if path.startswith(merged):
+                variants.append(split + path[len(merged) :])
+            elif path.startswith(split):
+                variants.append(merged + path[len(split) :])
+        for variant in variants:
+            if variant.startswith("/") and variant not in spellings:
+                spellings.append(variant)
+    return spellings
+
+
+def parse_dpkg_search(output: str) -> dict[str, set[str]]:
+    """``dpkg -S`` output -> path -> names of the packages that own it.
+
+    Lines look like ``libnss3:amd64: /usr/lib/x86_64-linux-gnu/libnss3.so`` and,
+    for a path two packages share, ``pkg-a:amd64, pkg-b:amd64: /usr/share/x``.
+    The architecture qualifier is dropped. Diversion notices and anything else
+    that is not an owner line are ignored.
+    """
+    owners: dict[str, set[str]] = {}
+    for line in output.splitlines():
+        if line.startswith("diversion by "):
+            continue
+        head, separator, tail = line.partition(": /")
+        if not separator:
+            continue
+        for token in head.split(", "):
+            name = token.partition(":")[0].strip()
+            if name:
+                owners.setdefault("/" + tail, set()).add(name)
+    return owners
+
+
+def dpkg_owners(paths: Sequence[str], run: Runner = subprocess.run) -> dict[str, set[str]]:
+    """Ask ``dpkg -S`` who owns each path; paths nobody owns are absent from the result.
+
+    Raises DpkgUnavailable when dpkg cannot be run or fails (an unknown path is
+    not a failure: dpkg exits with 1 for it and still answers for the rest).
+    """
+    owners: dict[str, set[str]] = {}
+    unique = sorted(set(paths))
+    for start in range(0, len(unique), _DPKG_BATCH):
+        batch = unique[start : start + _DPKG_BATCH]
+        try:
+            done = run(
+                ["dpkg", "-S", *batch],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={**os.environ, "LC_ALL": "C"},
+                check=False,
+                timeout=300,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise DpkgUnavailable(f"dpkg could not be run: {exc}") from exc
+        if done.returncode not in (0, 1):
+            detail = (done.stderr or "").strip().splitlines()
+            raise DpkgUnavailable(
+                f"dpkg exited with status {done.returncode}"
+                + (f": {detail[0]}" if detail else "")
+            )
+        for path, names in parse_dpkg_search(done.stdout or "").items():
+            owners.setdefault(path, set()).update(names)
+    return owners
+
+
+def read_debian_copyright(package: str, doc_root: Path) -> tuple[str, str | None]:
+    """``(path, text)`` of a package's copyright file; text is None when it is not there."""
+    path = doc_root / package / "copyright"
+    shown = f"{doc_root.as_posix().rstrip('/')}/{package}/copyright"
+    if not _DEBIAN_PACKAGE_NAME.match(package):
+        return shown, None
+    try:
+        text = _normalise_text(path.read_bytes())
+    except OSError:
+        return shown, None
+    return shown, text or None
+
+
+def common_license_references(text: str) -> list[str]:
+    """Names of the files under /usr/share/common-licenses that *text* points to, sorted.
+
+    Only plain file names are taken (see _COMMON_LICENSE_NAME): a reference with
+    ``..`` or a deeper path in it is not a reference to one of those files.
+    """
+    return sorted(set(_COMMON_LICENSE_REFERENCE.findall(text)))
+
+
+def read_common_license(name: str, licenses_root: Path) -> ReferencedLicense:
+    """The standard license text called *name*; its text is None when it cannot be read.
+
+    A name that is not a plain file name is never looked up, whatever the
+    caller passes.
+    """
+    shown = f"{licenses_root.as_posix().rstrip('/')}/{name}"
+    if not _COMMON_LICENSE_FULL_NAME.fullmatch(name):
+        return ReferencedLicense(name, shown, None)
+    try:
+        text = _normalise_text((licenses_root / name).read_bytes())
+    except OSError:
+        return ReferencedLicense(name, shown, None)
+    return ReferencedLicense(name, shown, text or None)
+
+
+def collect_system_libraries(
+    analyses: Mapping[str, Sequence[analysis.TocEntry]],
+    *,
+    roots: Sequence[str] | None = None,
+    run: Runner = subprocess.run,
+    realpath: Callable[[str], str] = os.path.realpath,
+    doc_root: Path | None = None,
+    licenses_root: Path | None = None,
+) -> SystemLibraries:
+    """The system libraries packed according to *analyses*, with their Debian packages.
+
+    The result does not depend on the order of the analyses or of their
+    entries. If dpkg cannot be used the libraries are still returned, with
+    ``dpkg_problem`` saying why no package is known. The standard license
+    texts that the collected copyright files refer to are read from
+    *licenses_root* (default: /usr/share/common-licenses), each once.
+    """
+    sources: dict[str, str] = {}
+    for entries in analyses.values():
+        for name, source in bundled_system_libraries(entries, roots).items():
+            if name not in sources or source < sources[name]:
+                sources[name] = source
+
+    spellings = {name: _lookup_spellings(source, realpath) for name, source in sources.items()}
+    problem = ""
+    owners: dict[str, set[str]] = {}
+    try:
+        owners = dpkg_owners([path for paths in spellings.values() for path in paths], run)
+    except DpkgUnavailable as exc:
+        problem = str(exc)
+
+    libraries = []
+    for name in sorted(sources):
+        found = next((owners[path] for path in spellings[name] if path in owners), set())
+        libraries.append(SystemLibrary(name, tuple(sorted(found))))
+
+    by_package: dict[str, list[str]] = {}
+    for library in libraries:
+        for package in library.packages:
+            by_package.setdefault(package, []).append(library.name)
+    if doc_root is None:
+        doc_root = DEBIAN_DOC_ROOT
+    packages = []
+    for package in sorted(by_package):
+        copyright_path, text = read_debian_copyright(package, doc_root)
+        packages.append(DebianPackage(package, by_package[package], copyright_path, text))
+
+    if licenses_root is None:
+        licenses_root = DEBIAN_LICENSES_ROOT
+    referenced = sorted(
+        {
+            name
+            for package in packages
+            if package.copyright_text
+            for name in common_license_references(package.copyright_text)
+        }
+    )
+    licenses = [read_common_license(name, licenses_root) for name in referenced]
+    return SystemLibraries(libraries, packages, problem, licenses)
+
+
+def render_system_libraries(
+    system: SystemLibraries, printed: dict[str, str] | None = None
+) -> list[str]:
+    """The lines of the "System libraries bundled on Linux" section.
+
+    *printed* maps the digest of a license text that appears earlier in the
+    file to where; a referenced license text with the same digest is not
+    repeated. The texts printed here are added to it.
+    """
+    if printed is None:
+        printed = {}
+    lines = ["", _RULE, SYSTEM_LIBRARIES_TITLE, _RULE, SYSTEM_LIBRARIES_NOTE]
+    if system.dpkg_problem:
+        lines.extend(["", f"The owning packages could not be determined: {system.dpkg_problem}."])
+    lines.extend(["", f"System libraries ({len(system.libraries)})", _THIN_RULE])
+    for library in system.libraries:
+        if system.dpkg_problem:
+            status = PACKAGE_UNKNOWN
+        else:
+            status = ", ".join(library.packages) or NO_OWNING_PACKAGE
+        lines.append(f"{library.name} - {status}")
+    for package in system.packages:
+        lines.extend(
+            ["", _THIN_RULE, f"{package.name} (Debian package)", _THIN_RULE]
+        )
+        lines.append("Bundled files: " + ", ".join(package.libraries))
+        lines.append("")
+        if package.copyright_text is None:
+            lines.append(f"No copyright text was found at {package.copyright_path}.")
+        else:
+            lines.append(f"--- {package.copyright_path} ---")
+            lines.append(package.copyright_text)
+    if system.licenses:
+        lines.extend(
+            ["", _THIN_RULE, REFERENCED_LICENSES_TITLE, _THIN_RULE, REFERENCED_LICENSES_NOTE]
+        )
+        for referenced in system.licenses:
+            lines.append("")
+            if referenced.text is None:
+                lines.append(f"Not found at {referenced.path}.")
+                continue
+            license_text = LicenseText(referenced.path, referenced.text)
+            earlier = printed.get(license_text.digest)
+            if earlier is not None:
+                lines.append(f"--- {referenced.path} (same text as {earlier}) ---")
+                continue
+            printed[license_text.digest] = f"{referenced.path}, above"
+            lines.append(f"--- {referenced.path} ---")
+            lines.append(referenced.text)
+    return lines
+
+
+def listed_system_library_names(text: str) -> list[str] | None:
+    """Names of the libraries a rendered notices file lists, or None without that section.
+
+    Reads the index that render_system_libraries() writes under
+    "System libraries (N)": one ``<name> - <package or reason>`` line per
+    library, up to the next blank line. Raises ValueError when the section
+    title is there but the index is missing or does not hold N lines.
+    """
+    lines = text.split("\n")
+    if SYSTEM_LIBRARIES_TITLE not in lines:
+        return None
+    start = lines.index(SYSTEM_LIBRARIES_TITLE)
+    for position in range(start, len(lines)):
+        heading = _SYSTEM_LIBRARIES_HEADING.match(lines[position])
+        if heading:
+            break
+    else:
+        raise ValueError("the system libraries section has no 'System libraries (N)' index")
+    if lines[position + 1 : position + 2] != [_THIN_RULE]:
+        raise ValueError("the system library index is not followed by its rule")
+    names = []
+    for entry in lines[position + 2 :]:
+        if not entry:
+            break
+        name = entry.split(" - ", 1)[0]
+        if not name or " - " not in entry:
+            raise ValueError(f"cannot read a library from the index line: {entry!r}")
+        names.append(name)
+    if len(names) != int(heading.group(1)):
+        raise ValueError(
+            f"the index announces {heading.group(1)} system libraries but lists {len(names)}"
+        )
+    return names
+
+
+def render(packages: list[Package], system_libraries: SystemLibraries | None = None) -> str:
     lines = [INTRO, f"Components ({len(packages)})", _THIN_RULE]
     lines.extend(f"{package.title} - {package.declaration}" for package in packages)
 
@@ -376,6 +825,8 @@ def render(packages: list[Package]) -> str:
             printed[license_text.digest] = f"{license_text.name} of {package.title}, above"
             lines.append(f"--- {license_text.name} ---")
             lines.append(license_text.text)
+    if system_libraries is not None and system_libraries.libraries:
+        lines.extend(render_system_libraries(system_libraries, printed))
     return "\n".join(lines) + "\n"
 
 
@@ -423,19 +874,45 @@ def build_notices(
     extras: tuple[str, ...] = SHIPPED_EXTRAS,
     build_tools: tuple[str, ...] = EMBEDDED_BUILD_TOOLS,
     python_dirs: list[Path] | None = None,
+    system_libraries: SystemLibraries | None = None,
 ) -> tuple[str, list[Package]]:
-    """The notices text and every component in it: Python first, then the packages."""
+    """The notices text and every component in it: Python first, then the packages.
+
+    *system_libraries* adds the Linux section (see collect_system_libraries()).
+    """
     components = [collect_python(python_dirs), *collect_packages(project, extras, build_tools)]
-    return render(components), components
+    return render(components, system_libraries), components
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Write THIRD_PARTY_NOTICES.txt")
     parser.add_argument("output", type=Path, help="file to write")
+    parser.add_argument(
+        "analysis",
+        type=Path,
+        nargs="*",
+        help="PyInstaller Analysis-00.toc of each executable; on Linux they are read to "
+        "list the system libraries packed into the build (ignored elsewhere)",
+    )
     args = parser.parse_args(argv)
 
+    system_libraries = None
+    if args.analysis and is_linux():
+        try:
+            analyses = {str(path): analysis.read_analysis_toc(path) for path in args.analysis}
+        except analysis.InputError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        system_libraries = collect_system_libraries(analyses)
+        if system_libraries.dpkg_problem:
+            print(
+                f"warning: the Debian packages of the system libraries are unknown: "
+                f"{system_libraries.dpkg_problem}",
+                file=sys.stderr,
+            )
+
     try:
-        text, packages = build_notices()
+        text, packages = build_notices(system_libraries=system_libraries)
     except metadata.PackageNotFoundError:
         print(f"{PROJECT} is not installed in this environment.", file=sys.stderr)
         return 1
@@ -454,7 +931,10 @@ def main(argv: list[str] | None = None) -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     data = text.encode("utf-8")
     args.output.write_bytes(data)
-    print(f"Wrote {args.output} ({len(packages)} components, {len(data)} bytes)")
+    detail = f"{len(packages)} components"
+    if system_libraries is not None and system_libraries.libraries:
+        detail += f", {len(system_libraries.libraries)} system libraries"
+    print(f"Wrote {args.output} ({detail}, {len(data)} bytes)")
     return 0
 
 

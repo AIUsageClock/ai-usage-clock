@@ -16,104 +16,64 @@ notices generator:
         dist/ai-usage-clock/THIRD_PARTY_NOTICES.txt \\
         build/ai-usage-clock/Analysis-00.toc build/ai-usage-clock-mcp/Analysis-00.toc
 
+What this guarantees: every Python package packed from site-packages is listed.
 A packed file is attributed to the installed distribution that lists it in its
 RECORD. A file inside site-packages that no distribution lists falls back to
 the distributions that provide its top-level module name; one that nothing
 claims at all is an error too, because the notices cannot account for it.
-Files outside site-packages (the standard library, this project's own source,
-system libraries) are not third-party packages and are skipped.
+Files outside site-packages (the standard library, this project's own source)
+are not third-party packages and are skipped.
+
+What it does not guarantee: the licenses of the system libraries that a Linux
+build copies from the build machine (NSS, GLib, ALSA and so on). Those are
+written by the dpkg section of write_third_party_notices.py, which looks up the
+owning Debian package of each file; this tool cannot tell whether that lookup
+found the right text. It lists such files as ``info:`` and, on Linux, checks
+that the section names exactly the libraries that were packed, so a notices
+file from another build, or one written without the analyses, is caught. Away
+from Linux the list is information only.
 
 An analysis in which not a single file matches an installed package is refused
 rather than passed: it means the paths do not line up with this environment.
 
 Exit status: 0 when every packed package is listed, 1 when one is missing or
-cannot be attributed, 2 when an input cannot be read or matches nothing.
+cannot be attributed (or, on Linux, the system library section does not match
+what was packed), 2 when an input cannot be read or matches nothing.
 """
 
 from __future__ import annotations
 
 import argparse
-import ast
 import os
-import re
 import sys
 import sysconfig
-from collections.abc import Iterator, Mapping, Sequence
+import textwrap
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
 
 from packaging.utils import canonicalize_name
 
 if __package__:
+    from . import pyinstaller_analysis as analysis
     from . import write_third_party_notices as notices
 else:  # run as a script: tools/ is sys.path[0]
+    import pyinstaller_analysis as analysis
     import write_third_party_notices as notices
+
+# The reading of Analysis-00.toc lives in pyinstaller_analysis; these names stay
+# available here because this tool is where they were first defined.
+InputError = analysis.InputError
+TocEntry = analysis.TocEntry
+iter_toc_entries = analysis.iter_toc_entries
+read_analysis_toc = analysis.read_analysis_toc
+_normal = analysis.normal_path
+_spellings = analysis.path_spellings
 
 _SITE_DIR_NAMES = ("site-packages", "dist-packages")
 _METADATA_DIR_SUFFIXES = (".dist-info", ".egg-info")
-# PYMODULE, PYMODULE-1, PYSOURCE, EXTENSION, BINARY, DATA, SYMLINK, ...
-_TYPECODE = re.compile(r"^[A-Z][A-Z0-9]*(-[0-9]+)?$")
 _EXAMPLES = 3
-
-TocEntry = tuple[str, str, str]
-
-
-class InputError(Exception):
-    """A file the check needs cannot be read or does not look as expected."""
-
-
-def iter_toc_entries(node: object) -> Iterator[TocEntry]:
-    """Every ``(name, source path, typecode)`` triple in a parsed analysis.
-
-    Analysis-00.toc is a pprint of PyInstaller's analysis state. The fields are
-    positional and have been added to over the releases, so this walks the
-    whole structure for the triple shape instead of indexing into it. That also
-    covers the files the build was told to collect (the ``datas`` and
-    ``binaries`` inputs), not only the ones PyInstaller found.
-    """
-    if (
-        isinstance(node, tuple)
-        and len(node) == 3
-        and all(isinstance(value, str) for value in node)
-        and _TYPECODE.match(node[2])
-    ):
-        yield node
-    elif isinstance(node, (list, tuple)):
-        for child in node:
-            yield from iter_toc_entries(child)
-    elif isinstance(node, dict):
-        for child in node.values():
-            yield from iter_toc_entries(child)
-
-
-def read_analysis_toc(path: Path) -> list[TocEntry]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise InputError(f"cannot read the PyInstaller analysis {path}: {exc}") from exc
-    try:
-        data = ast.literal_eval(text)
-    except (ValueError, SyntaxError, MemoryError, RecursionError) as exc:
-        raise InputError(f"{path} is not a PyInstaller Analysis-00.toc: {exc}") from exc
-    entries = list(iter_toc_entries(data))
-    if not entries:
-        raise InputError(f"{path} lists no packed files; is it an Analysis-00.toc?")
-    return entries
-
-
-def _normal(path: str | os.PathLike[str]) -> str:
-    return os.path.normcase(os.path.abspath(path))
-
-
-def _spellings(path: str | os.PathLike[str]) -> list[str]:
-    """The path as given and with symlinks resolved, normalised; one when they agree.
-
-    A virtualenv reached through a symlink can show up under either spelling,
-    depending on whether PyInstaller or the package metadata recorded it.
-    """
-    plain = _normal(path)
-    resolved = os.path.normcase(os.path.realpath(path))
-    return [plain] if resolved == plain else [plain, resolved]
 
 
 def installed_file_owners(search_path: Sequence[str] | None = None) -> dict[str, str]:
@@ -139,13 +99,20 @@ def installed_file_owners(search_path: Sequence[str] | None = None) -> dict[str,
 def top_level_module_owners(
     mapping: Mapping[str, Sequence[str]] | None = None,
 ) -> dict[str, list[str]]:
-    """Case-folded top-level name -> canonical names of the distributions providing it."""
+    """Case-folded top-level name -> canonical names of the distributions providing it.
+
+    A distribution whose metadata has no Name is left out, as it is from
+    installed_file_owners(): importlib.metadata reports it as ``None`` (3.12) and
+    it cannot be listed in the notices under any name.
+    """
     if mapping is None:
         mapping = metadata.packages_distributions()
-    return {
-        top.casefold(): sorted({str(canonicalize_name(name)) for name in names})
-        for top, names in mapping.items()
-    }
+    owners: dict[str, list[str]] = {}
+    for top, names in mapping.items():
+        named = sorted({str(canonicalize_name(name)) for name in names if name})
+        if named:
+            owners[top.casefold()] = named
+    return owners
 
 
 def default_site_dirs() -> list[str]:
@@ -296,6 +263,105 @@ def _format_problems(heading: str, problems: Mapping[str, Mapping[str, Sequence[
     return "\n".join(lines)
 
 
+@dataclass
+class SystemLibraryReport:
+    """What the executables pack from the build machine, and what the notices say about it."""
+
+    # label of an analysis -> sorted names of the shared libraries it packs from
+    # outside the Python environment and this repository
+    packed: dict[str, list[str]] = field(default_factory=dict)
+    # names the notices' system library section lists; None without that section
+    listed: list[str] | None = None
+    # whether the notices are held to what was packed (only on Linux, where the
+    # generator writes the section); elsewhere the list is information only
+    enforced: bool = False
+    unlisted: list[str] = field(default_factory=list)  # packed, not in the notices
+    not_packed: list[str] = field(default_factory=list)  # in the notices, not packed
+
+    @property
+    def mismatch(self) -> bool:
+        return self.enforced and bool(self.unlisted or self.not_packed)
+
+
+def check_system_libraries(
+    notices_text: str,
+    analyses: Mapping[str, Sequence[TocEntry]],
+    *,
+    roots: Sequence[str] | None = None,
+    enforce: bool | None = None,
+) -> SystemLibraryReport:
+    """Compare the shared libraries packed from the build machine with the notices.
+
+    The library set comes from notices.bundled_system_libraries(), the same
+    function the generator uses, so the two sides can differ only when the
+    notices file was not written from these analyses: hand-edited, left over
+    from another build, or written without the analyses. *enforce* defaults to
+    "this is Linux". Raises ValueError when the notices' section is malformed.
+    """
+    if enforce is None:
+        enforce = notices.is_linux()
+    report = SystemLibraryReport(enforced=enforce)
+    for label, entries in analyses.items():
+        names = sorted(notices.bundled_system_libraries(entries, roots))
+        if names:
+            report.packed[label] = names
+    report.listed = notices.listed_system_library_names(notices_text)
+    if enforce:
+        packed = {name for names in report.packed.values() for name in names}
+        listed = set(report.listed or ())
+        report.unlisted = sorted(packed - listed)
+        report.not_packed = sorted(listed - packed)
+    return report
+
+
+def _wrapped(names: Sequence[str]) -> str:
+    return textwrap.fill(
+        ", ".join(names),
+        width=100,
+        initial_indent="    ",
+        subsequent_indent="    ",
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _format_system_libraries_info(report: SystemLibraryReport) -> str:
+    lines = [
+        "info: shared libraries packed from outside the Python environment (this check "
+        "does not look at their licenses; a Linux build lists them, with their Debian "
+        f"packages, in the '{notices.SYSTEM_LIBRARIES_TITLE}' section of the notices):"
+    ]
+    for label, names in report.packed.items():
+        lines.append(f"  {label} ({len(names)})")
+        lines.append(_wrapped(names))
+    return "\n".join(lines)
+
+
+def _system_library_errors(report: SystemLibraryReport, notices_path: Path) -> list[str]:
+    section = f"the '{notices.SYSTEM_LIBRARIES_TITLE}' section of {notices_path}"
+    errors = []
+    if report.unlisted:
+        if report.listed is None:
+            heading = (
+                f"error: {notices_path} has no '{notices.SYSTEM_LIBRARIES_TITLE}' section, "
+                "but these shared libraries were packed from the build machine:"
+            )
+        else:
+            heading = f"error: packed into an executable but not listed in {section}:"
+        errors.append(f"{heading}\n{_wrapped(report.unlisted)}")
+    if report.not_packed:
+        errors.append(
+            f"error: listed in {section} but not packed into any executable:\n"
+            f"{_wrapped(report.not_packed)}"
+        )
+    if errors:
+        errors.append(
+            "The notices file does not match this build. Write it again with "
+            "tools/write_third_party_notices.py, giving it the same Analysis-00.toc files."
+        )
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Check that every package packed into the executables is listed "
@@ -309,16 +375,18 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         notices_text = args.notices.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         print(f"error: cannot read {args.notices}: {exc}", file=sys.stderr)
         return 2
     try:
         analyses = {str(path): read_analysis_toc(path) for path in args.analysis}
         unlisted, unattributed = check_bundles(notices_text, analyses)
+        libraries = check_system_libraries(notices_text, analyses)
     except (InputError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    status = 0
     if unlisted:
         print(
             _format_problems(
@@ -339,12 +407,23 @@ def main(argv: list[str] | None = None) -> int:
     if unlisted or unattributed:
         print(
             "Keep the package out of the executable with --exclude-module in build.ps1 and "
-            "build.sh, or list it (EMBEDDED_BUILD_TOOLS or the runtime dependencies in "
-            "tools/write_third_party_notices.py).",
+            "build.sh. If it has to ship, list it: declare it in the dependencies of "
+            "pyproject.toml (the runtime dependencies are followed from there, and the 'mcp' "
+            "extra covers the helper), or, for a build tool embedded in the executables, add "
+            "it to EMBEDDED_BUILD_TOOLS in tools/write_third_party_notices.py.",
             file=sys.stderr,
         )
-        return 1
+        status = 1
 
+    if libraries.packed:
+        print(_format_system_libraries_info(libraries))
+    if libraries.mismatch:
+        for message in _system_library_errors(libraries, args.notices):
+            print(message, file=sys.stderr)
+        status = 1
+
+    if status:
+        return status
     print(
         f"{args.notices} accounts for every package packed into "
         f"{len(analyses)} executable(s)"

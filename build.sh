@@ -168,7 +168,13 @@ else
     NOTICE_DIR="dist/ai-usage-clock"
 fi
 cp "$SCRIPT_DIR/LICENSE" "$NOTICE_DIR/LICENSE"
-"$VENV_PY" "$SCRIPT_DIR/tools/write_third_party_notices.py" "$NOTICE_DIR/THIRD_PARTY_NOTICES.txt"
+# On Linux PyInstaller also copies shared libraries of this machine (NSS, GLib,
+# ALSA, ...) into the build. The generator reads PyInstaller's analysis of both
+# executables to find them and adds the owning Debian package and its copyright
+# file; the analyses are ignored on macOS.
+"$VENV_PY" "$SCRIPT_DIR/tools/write_third_party_notices.py" "$NOTICE_DIR/THIRD_PARTY_NOTICES.txt" \
+    "$SCRIPT_DIR/build/ai-usage-clock/Analysis-00.toc" \
+    "$SCRIPT_DIR/build/ai-usage-clock-mcp/Analysis-00.toc"
 for NOTICE_FILE in LICENSE THIRD_PARTY_NOTICES.txt; do
     if [ ! -f "$NOTICE_DIR/$NOTICE_FILE" ]; then
         echo "$NOTICE_FILE missing from the build output: $NOTICE_DIR" >&2

@@ -8,12 +8,14 @@ GPL text, and nothing from the dev extras may leak in.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
 from tests.dist_info_factory import make_dist, site  # noqa: F401  (site is a fixture)
+from tools import pyinstaller_analysis as analysis
 from tools import write_third_party_notices as notices
 
 
@@ -382,7 +384,7 @@ def test_a_file_that_is_not_a_notices_file_is_rejected(broken):
 
 
 def test_main_reports_missing_dependencies_and_writes_nothing(tmp_path, monkeypatch, capsys):
-    def fail():
+    def fail(**_options):
         raise notices.MissingDependencies(["somepackage"])
 
     monkeypatch.setattr(notices, "build_notices", fail)
@@ -396,13 +398,753 @@ def test_main_reports_missing_dependencies_and_writes_nothing(tmp_path, monkeypa
 
 def test_main_warns_about_packages_without_license_text(tmp_path, monkeypatch, capsys):
     bare = notices.Package(name="bare", version="2.0", declaration="MIT")
-    monkeypatch.setattr(notices, "build_notices", lambda: ("text\n", [bare]))
+    monkeypatch.setattr(notices, "build_notices", lambda **_options: ("text\n", [bare]))
     output = tmp_path / "THIRD_PARTY_NOTICES.txt"
 
     assert notices.main([str(output)]) == 0
 
     assert "no license text found for bare 2.0" in capsys.readouterr().err
     assert output.read_bytes() == b"text\n"
+
+
+# --- system libraries of a Linux build -------------------------------------
+#
+# dpkg is not available where these tests usually run, and neither are the
+# paths. A stand-in for subprocess.run answers ``dpkg -S`` from a dictionary,
+# the library paths are POSIX strings that are only compared as text, and the
+# "copyright files" live in a temporary folder. What really happens on Linux is
+# up to the workflow_dispatch run of release.yml.
+
+LIB_DIR = "/usr/lib/x86_64-linux-gnu"
+
+
+def library(name, directory=LIB_DIR, typecode="BINARY"):
+    """A toc entry for a library packed from *directory*."""
+    return (name, f"{directory}/{name}", typecode)
+
+
+def fake_dpkg(owned, calls=None):
+    """subprocess.run stand-in: answers ``dpkg -S`` from *owned* ({path: [packages]}).
+
+    Like the real one it prints an owner line per known path, complains on
+    stderr about the others and then exits with status 1.
+    """
+
+    def run(command, **_options):
+        assert command[:2] == ["dpkg", "-S"], command
+        paths = command[2:]
+        if calls is not None:
+            calls.append(paths)
+        known = [path for path in paths if path in owned]
+        unknown = [path for path in paths if path not in owned]
+        return subprocess.CompletedProcess(
+            command,
+            1 if unknown else 0,
+            stdout="".join(
+                ", ".join(f"{package}:amd64" for package in owned[path]) + f": {path}\n"
+                for path in known
+            ),
+            stderr="".join(f"dpkg-query: no path found matching pattern {p}\n" for p in unknown),
+        )
+
+    return run
+
+
+def write_copyright(doc_root, package, text):
+    folder = doc_root / package
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "copyright").write_text(text, encoding="utf-8", newline="")
+
+
+# The tests of main() replace notices.collect_system_libraries; these helpers
+# keep using the real one.
+REAL_COLLECT = notices.collect_system_libraries
+
+
+def collect(
+    analyses, owned, doc_root, *, calls=None, realpath=lambda path: path, licenses_root=None
+):
+    """collect_system_libraries with nothing excluded, a fake dpkg and fake copyright files.
+
+    *licenses_root* stands in for /usr/share/common-licenses; by default it is a
+    folder that does not exist, so the machine running the tests is never read.
+    """
+    if licenses_root is None:
+        licenses_root = doc_root / "no-such-common-licenses"
+    return REAL_COLLECT(
+        analyses,
+        roots=[],
+        run=fake_dpkg(owned, calls),
+        realpath=realpath,
+        doc_root=doc_root,
+        licenses_root=licenses_root,
+    )
+
+
+def write_common_license(licenses_root, name, text):
+    licenses_root.mkdir(parents=True, exist_ok=True)
+    (licenses_root / name).write_text(text, encoding="utf-8", newline="")
+
+
+def test_only_shared_libraries_from_outside_the_environment_are_system_libraries(tmp_path):
+    python_home = tmp_path / "python"
+    site_dir = tmp_path / "venv" / "site-packages"
+    extension = library("_ssl.cpython-312-x86_64-linux-gnu.so", "/usr/lib/python3.12", "EXTENSION")
+    entries = [
+        library("libnss3.so"),
+        extension,
+        ("libpython3.12.so.1.0", str(python_home / "lib" / "libpython3.12.so.1.0"), "BINARY"),
+        (
+            "PyQt6/Qt6/lib/libQt6Core.so.6",
+            str(site_dir / "PyQt6" / "Qt6" / "lib" / "libQt6Core.so.6"),
+            "BINARY",
+        ),
+        ("namespace", "-", "BINARY"),
+        ("nothing", "", "BINARY"),
+    ]
+
+    found = notices.bundled_system_libraries(entries, roots=[str(python_home), str(site_dir)])
+
+    assert found == {"libnss3.so": f"{LIB_DIR}/libnss3.so", extension[0]: extension[1]}
+
+
+def test_a_library_that_sits_inside_a_root_is_left_out_but_a_lookalike_folder_is_not(tmp_path):
+    python_home = tmp_path / "python"
+    inside = ("libinside.so", str(python_home / "lib" / "libinside.so"), "BINARY")
+    beside = ("libbeside.so", str(tmp_path / "python-extra" / "libbeside.so"), "BINARY")
+
+    found = notices.bundled_system_libraries([inside, beside], roots=[str(python_home)])
+
+    assert list(found) == ["libbeside.so"]
+
+
+@pytest.mark.parametrize("typecode", ["PYMODULE", "PYSOURCE", "DATA", "SYMLINK"])
+def test_packed_files_that_are_not_libraries_are_not_system_libraries(typecode):
+    entry = ("something", f"{LIB_DIR}/something", typecode)
+
+    assert notices.bundled_system_libraries([entry], roots=[]) == {}
+    assert notices.bundled_system_libraries([("something", entry[1], "BINARY")], roots=[]) != {}
+
+
+def test_the_environment_roots_cover_python_the_virtualenv_and_the_repository(monkeypatch, tmp_path):
+    python_home = tmp_path / "python-home"
+    monkeypatch.setattr(sys, "base_prefix", str(python_home))
+    monkeypatch.setattr(sys, "base_exec_prefix", str(python_home))
+
+    roots = notices.environment_roots()
+
+    assert analysis.normal_path(python_home) in roots
+    assert analysis.normal_path(sys.prefix) in roots
+    assert analysis.normal_path(Path(__file__).resolve().parents[1]) in roots
+
+
+def test_a_python_installed_under_usr_does_not_make_the_whole_system_look_like_python(monkeypatch):
+    monkeypatch.setattr(sys, "base_prefix", "/usr")
+    monkeypatch.setattr(sys, "base_exec_prefix", "/usr")
+
+    roots = notices.environment_roots()
+
+    assert analysis.normal_path("/usr") not in roots
+    assert analysis.normal_path("/") not in roots
+    assert analysis.normal_path(sys.prefix) in roots  # the other roots stay
+
+
+def test_dpkg_answers_are_read_with_architecture_qualifiers_and_several_owners():
+    output = (
+        "libnss3:amd64: /usr/lib/x86_64-linux-gnu/libnss3.so\n"
+        "libglib2.0-0:amd64, libglib2.0-0-dbg:amd64: /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0\n"
+        "diversion by libc6 from: /lib/x86_64-linux-gnu/libfoo.so\n"
+        "dpkg-query: no path found matching pattern /usr/lib/x\n"
+        "zlib1g: /lib/x86_64-linux-gnu/libz.so.1\n"
+        "\n"
+    )
+
+    assert notices.parse_dpkg_search(output) == {
+        "/usr/lib/x86_64-linux-gnu/libnss3.so": {"libnss3"},
+        "/usr/lib/x86_64-linux-gnu/libglib-2.0.so.0": {"libglib2.0-0", "libglib2.0-0-dbg"},
+        "/lib/x86_64-linux-gnu/libz.so.1": {"zlib1g"},
+    }
+    assert notices.parse_dpkg_search("dpkg-query: no path found matching pattern /x\n") == {}
+
+
+def test_dpkg_is_asked_in_batches_and_unknown_paths_are_simply_absent():
+    paths = [f"{LIB_DIR}/lib{i:03}.so" for i in range(250)]
+    owned = {path: ["pkg"] for path in paths[:10]}
+    calls = []
+
+    owners = notices.dpkg_owners(paths + paths[:5], fake_dpkg(owned, calls))
+
+    assert [len(batch) for batch in calls] == [100, 100, 50]  # duplicates asked once
+    assert sorted(owners) == sorted(owned)
+    assert notices.dpkg_owners([], fake_dpkg(owned, calls)) == {}
+    assert len(calls) == 3  # nothing to ask, nothing run
+
+
+def test_a_dpkg_that_cannot_run_or_fails_is_reported_not_mistaken_for_no_owners():
+    def missing(command, **_options):
+        raise FileNotFoundError(2, "No such file or directory: 'dpkg'")
+
+    def broken(command, **_options):
+        return subprocess.CompletedProcess(command, 2, stdout="", stderr="dpkg: error: bad\nmore\n")
+
+    def slow(command, **_options):
+        raise subprocess.TimeoutExpired(command, 300)
+
+    with pytest.raises(notices.DpkgUnavailable, match="could not be run"):
+        notices.dpkg_owners(["/usr/lib/libx.so"], missing)
+    with pytest.raises(notices.DpkgUnavailable, match="status 2: dpkg: error: bad"):
+        notices.dpkg_owners(["/usr/lib/libx.so"], broken)
+    with pytest.raises(notices.DpkgUnavailable):
+        notices.dpkg_owners(["/usr/lib/libx.so"], slow)
+
+
+def test_lookup_spellings_try_the_resolved_file_first_and_both_spellings_of_a_merged_usr():
+    def realpath(path):
+        return path.replace("libz.so.1", "libz.so.1.2.11")
+
+    spellings = notices._lookup_spellings("/lib/x86_64-linux-gnu/libz.so.1", realpath)
+
+    assert spellings == [
+        "/lib/x86_64-linux-gnu/libz.so.1.2.11",
+        "/usr/lib/x86_64-linux-gnu/libz.so.1.2.11",
+        "/lib/x86_64-linux-gnu/libz.so.1",
+        "/usr/lib/x86_64-linux-gnu/libz.so.1",
+    ]
+    # Not a path dpkg could match exactly: never asked (it would read a substring).
+    assert notices._lookup_spellings("relative/libx.so", lambda path: path) == []
+    # A file that is not under a merged directory has only its own spellings.
+    assert notices._lookup_spellings("/opt/x/libx.so", lambda path: path) == ["/opt/x/libx.so"]
+
+
+def test_each_library_is_listed_with_its_debian_package_and_that_packages_copyright(tmp_path):
+    write_copyright(tmp_path, "libnss3", "NSS is MPL-2.0\r\nsecond line\r\n")
+    write_copyright(tmp_path, "libasound2", "ALSA is LGPL-2.1+")
+    owned = {
+        f"{LIB_DIR}/libnss3.so": ["libnss3"],
+        f"{LIB_DIR}/libasound.so.2": ["libasound2"],
+    }
+
+    system = collect(
+        {"gui": [library("libnss3.so"), library("libasound.so.2")]}, owned, tmp_path
+    )
+
+    assert system.dpkg_problem == ""
+    assert [(lib.name, lib.packages) for lib in system.libraries] == [
+        ("libasound.so.2", ("libasound2",)),
+        ("libnss3.so", ("libnss3",)),
+    ]
+    assert [(p.name, p.libraries, p.copyright_text) for p in system.packages] == [
+        ("libasound2", ["libasound.so.2"], "ALSA is LGPL-2.1+"),
+        ("libnss3", ["libnss3.so"], "NSS is MPL-2.0\nsecond line"),
+    ]
+
+
+def test_several_libraries_of_one_package_share_one_copyright_block(tmp_path):
+    write_copyright(tmp_path, "libnss3", "NSS licence text")
+    write_copyright(tmp_path, "libglib2.0-0", "GLib licence text")
+    owned = {
+        f"{LIB_DIR}/libnss3.so": ["libnss3"],
+        f"{LIB_DIR}/libnssutil3.so": ["libnss3"],
+        f"{LIB_DIR}/libsmime3.so": ["libnss3"],
+        f"{LIB_DIR}/libglib-2.0.so.0": ["libglib2.0-0"],
+    }
+    entries = [library(name) for name in ("libnss3.so", "libnssutil3.so", "libsmime3.so", "libglib-2.0.so.0")]
+
+    system = collect({"gui": entries, "helper": entries[:2]}, owned, tmp_path)
+    text = notices.render([], system)
+
+    assert [p.name for p in system.packages] == ["libglib2.0-0", "libnss3"]
+    assert system.packages[1].libraries == ["libnss3.so", "libnssutil3.so", "libsmime3.so"]
+    assert text.count("NSS licence text") == 1
+    assert text.count("libnss3 (Debian package)") == 1
+    assert "Bundled files: libnss3.so, libnssutil3.so, libsmime3.so" in text
+    # Counterpart: two packages do get two blocks.
+    assert text.count("GLib licence text") == 1 and text.count("(Debian package)") == 2
+
+
+def test_a_library_no_package_owns_is_said_to_be_unowned_and_gets_no_invented_package(tmp_path):
+    write_copyright(tmp_path, "libnss3", "NSS licence text")
+    owned = {f"{LIB_DIR}/libnss3.so": ["libnss3"]}
+
+    system = collect({"gui": [library("libnss3.so"), library("libodd.so.1")]}, owned, tmp_path)
+    text = notices.render([], system)
+
+    assert dict((lib.name, lib.packages) for lib in system.libraries)["libodd.so.1"] == ()
+    assert [p.name for p in system.packages] == ["libnss3"]
+    assert "libodd.so.1 - no Debian package owns this file" in text
+    assert "libnss3.so - libnss3\n" in text
+
+
+def test_a_missing_copyright_file_is_reported_instead_of_papered_over(tmp_path):
+    write_copyright(tmp_path, "libnss3", "NSS licence text")
+    owned = {f"{LIB_DIR}/libnss3.so": ["libnss3"], f"{LIB_DIR}/libx.so": ["libgone"]}
+
+    system = collect({"gui": [library("libnss3.so"), library("libx.so")]}, owned, tmp_path)
+    text = notices.render([], system)
+
+    gone = {p.name: p for p in system.packages}["libgone"]
+    assert gone.copyright_text is None
+    assert f"No copyright text was found at {tmp_path.as_posix()}/libgone/copyright." in text
+    assert "NSS licence text" in text  # the package that has one is unaffected
+
+
+def test_a_package_name_that_could_leave_the_doc_folder_is_never_read(tmp_path):
+    (tmp_path / "doc").mkdir()
+    write_copyright(tmp_path, "secret", "not a copyright file")  # doc/../secret/copyright
+    owned = {f"{LIB_DIR}/libx.so": ["../secret"]}
+
+    system = collect({"gui": [library("libx.so")]}, owned, tmp_path / "doc")
+
+    assert (tmp_path / "doc" / ".." / "secret" / "copyright").is_file()
+    assert system.packages[0].copyright_text is None
+
+
+# --- the standard license texts that copyright files point to ----------------
+
+OWNED_BY_GLIB_AND_ALSA = {
+    f"{LIB_DIR}/libglib-2.0.so.0": ["libglib2.0-0"],
+    f"{LIB_DIR}/libasound.so.2": ["libasound2"],
+}
+
+
+def glib_and_alsa(tmp_path, glib_text, alsa_text, licenses_root):
+    write_copyright(tmp_path, "libglib2.0-0", glib_text)
+    write_copyright(tmp_path, "libasound2", alsa_text)
+    entries = [library("libglib-2.0.so.0"), library("libasound.so.2")]
+    return collect(
+        {"gui": entries}, OWNED_BY_GLIB_AND_ALSA, tmp_path, licenses_root=licenses_root
+    )
+
+
+def test_references_to_common_licenses_are_found_by_their_plain_file_name():
+    text = (
+        "On Debian systems the full text of the GNU Lesser General Public License\n"
+        "can be found in /usr/share/common-licenses/LGPL-2.1.\n"
+        "See also '/usr/share/common-licenses/GPL-3' and (/usr/share/common-licenses/Apache-2.0),\n"
+        "/usr/share/common-licenses/GPL-3 again, /usr/share/common-licenses/MPL-2.0;\n"
+        "and /usr/share/common-licenses/BSD."
+    )
+
+    assert notices.common_license_references(text) == [
+        "Apache-2.0",
+        "BSD",
+        "GPL-3",
+        "LGPL-2.1",
+        "MPL-2.0",
+    ]
+    assert notices.common_license_references("no reference in this text") == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "/usr/share/common-licenses/../../etc/passwd",
+        "/usr/share/common-licenses/..",
+        "/usr/share/common-licenses/.hidden",
+        "/usr/share/common-licenses/sub/dir/GPL-3",
+        "/usr/share/common-licenses/",
+        "/usr/share/common-licenses",
+        "/usr/share/other-licenses/GPL-3",
+    ],
+    ids=["parent folders", "parent", "dot file", "sub folder", "no name", "no slash", "other folder"],
+)
+def test_text_that_is_not_a_plain_file_name_under_the_folder_is_not_a_reference(text):
+    assert notices.common_license_references(text) == []
+    # Counterpart: the same folder with a plain name is a reference.
+    assert notices.common_license_references(text + "\nsee /usr/share/common-licenses/GPL-3") == [
+        "GPL-3"
+    ]
+
+
+def test_a_license_name_that_is_not_a_plain_file_name_is_never_read(tmp_path):
+    root = tmp_path / "licenses"
+    write_common_license(root, "GPL-3", "GPL text")
+    write_common_license(root, ".secret", "secret in the folder")
+    write_common_license(root / "sub", "GPL-3", "secret in a sub folder")
+    (tmp_path / "secret").write_text("secret beside the folder", encoding="utf-8")
+
+    for unsafe in ("../secret", "sub/GPL-3", "..", ".", "", ".secret", "GPL-3/../../secret"):
+        assert notices.read_common_license(unsafe, root).text is None, unsafe
+    # Counterpart: the files exist and a plain name reads fine.
+    assert (root / ".." / "secret").is_file() and (root / "sub" / "GPL-3").is_file()
+    assert notices.read_common_license("GPL-3", root).text == "GPL text"
+
+
+def test_each_referenced_license_text_is_copied_once_after_the_packages_sorted_by_name(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "LGPL-2.1", "Full LGPL 2.1 text\r\nsecond line\r\n")
+    write_common_license(licenses, "GPL-3", "Full GPL 3 text")
+    system = glib_and_alsa(
+        tmp_path,
+        "GLib: see /usr/share/common-licenses/LGPL-2.1 and /usr/share/common-licenses/GPL-3.",
+        "ALSA: see /usr/share/common-licenses/LGPL-2.1.",
+        licenses,
+    )
+
+    text = notices.render([], system)
+
+    assert [(lic.name, lic.text) for lic in system.licenses] == [
+        ("GPL-3", "Full GPL 3 text"),
+        ("LGPL-2.1", "Full LGPL 2.1 text\nsecond line"),
+    ]
+    assert text.count("Full LGPL 2.1 text") == 1 and text.count("Full GPL 3 text") == 1
+    assert "\r" not in text
+    base = licenses.as_posix()
+    assert (
+        text.index("libasound2 (Debian package)")
+        < text.index("libglib2.0-0 (Debian package)")
+        < text.index(notices.REFERENCED_LICENSES_TITLE + "\n")
+        < text.index(f"--- {base}/GPL-3 ---")
+        < text.index(f"--- {base}/LGPL-2.1 ---")
+    )
+
+
+def test_without_references_there_is_no_referenced_licenses_subsection(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL-3", "Full GPL 3 text")
+    system = glib_and_alsa(tmp_path, "GLib: no reference here", "ALSA: none either", licenses)
+
+    text = notices.render([], system)
+
+    assert system.licenses == []
+    assert notices.REFERENCED_LICENSES_TITLE not in text.split("\n")
+    assert "Full GPL 3 text" not in text  # present on disk, but nobody asked for it
+
+
+def test_a_referenced_license_text_that_is_not_there_is_reported_not_invented(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL-3", "Full GPL 3 text")
+    system = glib_and_alsa(
+        tmp_path,
+        "GLib: see /usr/share/common-licenses/LGPL-2.1 and /usr/share/common-licenses/GPL-3.",
+        "ALSA: nothing",
+        licenses,
+    )
+
+    text = notices.render([], system)
+
+    assert {lic.name: lic.text for lic in system.licenses} == {
+        "GPL-3": "Full GPL 3 text",
+        "LGPL-2.1": None,
+    }
+    assert f"Not found at {licenses.as_posix()}/LGPL-2.1." in text
+    assert "Full GPL 3 text" in text  # the one that exists is unaffected
+
+
+def test_a_reference_that_climbs_out_of_the_folder_is_ignored_even_when_the_target_exists(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL-3", "Full GPL 3 text")
+    (tmp_path / "secret").write_text("text that must not be copied", encoding="utf-8")
+    system = glib_and_alsa(
+        tmp_path,
+        "GLib: /usr/share/common-licenses/../secret and /usr/share/common-licenses/GPL-3",
+        "ALSA: nothing",
+        licenses,
+    )
+
+    text = notices.render([], system)
+
+    assert (licenses / ".." / "secret").is_file()
+    assert [lic.name for lic in system.licenses] == ["GPL-3"]
+    assert "must not be copied" not in text
+
+
+def test_a_referenced_text_equal_to_one_printed_earlier_is_not_repeated(site, tmp_path):
+    shared = "The shared license text, long enough to notice."
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL", shared)  # the link to GPL-3 reads the same
+    write_common_license(licenses, "GPL-3", shared)
+    write_common_license(licenses, "Zlib", "A different license text")
+    make_dist(site, "noticetest-app", requires=("noticetest-lib",))
+    make_dist(site, "noticetest-lib", files={"LICENSE": (shared + "\n").encode()})
+    system = glib_and_alsa(
+        tmp_path,
+        "GLib: /usr/share/common-licenses/GPL, /usr/share/common-licenses/GPL-3",
+        "ALSA: /usr/share/common-licenses/Zlib",
+        licenses,
+    )
+
+    text, _ = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system
+    )
+
+    base = licenses.as_posix()
+    assert text.count(shared) == 1  # printed with the package, nowhere else
+    assert f"--- {base}/GPL (same text as LICENSE of noticetest-lib 1.0, above) ---" in text
+    assert f"--- {base}/GPL-3 (same text as LICENSE of noticetest-lib 1.0, above) ---" in text
+    assert text.count("A different license text") == 1  # different text is printed in full
+
+
+def test_two_referenced_texts_that_are_equal_to_each_other_are_printed_once(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL", "Same words in both files")
+    write_common_license(licenses, "GPL-3", "Same words in both files")
+    write_common_license(licenses, "LGPL-3", "Other words entirely")
+    system = glib_and_alsa(
+        tmp_path,
+        "GLib: /usr/share/common-licenses/GPL, /usr/share/common-licenses/GPL-3",
+        "ALSA: /usr/share/common-licenses/LGPL-3",
+        licenses,
+    )
+
+    text = notices.render([], system)
+
+    base = licenses.as_posix()
+    assert text.count("Same words in both files") == 1
+    assert f"--- {base}/GPL-3 (same text as {base}/GPL, above) ---" in text
+    assert text.count("Other words entirely") == 1
+
+
+def test_the_referenced_licenses_do_not_depend_on_the_order_of_references_or_packages(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL-3", "Full GPL 3 text")
+    write_common_license(licenses, "LGPL-2.1", "Full LGPL 2.1 text")
+    refs = "/usr/share/common-licenses/GPL-3 /usr/share/common-licenses/LGPL-2.1"
+    reversed_refs = "/usr/share/common-licenses/LGPL-2.1 /usr/share/common-licenses/GPL-3"
+
+    def referenced_part(system):
+        text = notices.render([], system)
+        return text[text.index(notices.REFERENCED_LICENSES_TITLE + "\n") :]
+
+    forward = glib_and_alsa(tmp_path, f"GLib: {refs}", "ALSA: nothing", licenses)
+    again = glib_and_alsa(tmp_path, f"GLib: {refs}", "ALSA: nothing", licenses)
+    # The references sit in another package, in another order.
+    backward = glib_and_alsa(tmp_path, "GLib: nothing", f"ALSA: {reversed_refs}", licenses)
+    write_common_license(licenses, "GPL-3", "Edited GPL 3 text")
+    edited = glib_and_alsa(tmp_path, f"GLib: {refs}", "ALSA: nothing", licenses)
+
+    assert notices.render([], forward) == notices.render([], again)
+    assert referenced_part(forward) == referenced_part(backward)
+    assert referenced_part(forward) != referenced_part(edited)
+
+
+def test_the_owner_is_found_under_the_other_spelling_of_a_merged_usr_and_through_symlinks(tmp_path):
+    write_copyright(tmp_path, "zlib1g", "zlib licence")
+    # The loader reported the symlink under /lib; dpkg lists the real file
+    # under /usr/lib.
+    owned = {f"{LIB_DIR}/libz.so.1.2.11": ["zlib1g"]}
+    entry = ("libz.so.1", "/lib/x86_64-linux-gnu/libz.so.1", "BINARY")
+
+    def realpath(path):
+        return path.replace("/lib/x86_64-linux-gnu/libz.so.1", "/lib/x86_64-linux-gnu/libz.so.1.2.11")
+
+    found = collect({"gui": [entry]}, owned, tmp_path, realpath=realpath)
+    unknown = collect({"gui": [entry]}, {f"{LIB_DIR}/libother.so": ["other"]}, tmp_path)
+
+    assert found.libraries == [notices.SystemLibrary("libz.so.1", ("zlib1g",))]
+    assert unknown.libraries == [notices.SystemLibrary("libz.so.1", ())]
+
+
+def test_without_dpkg_the_libraries_are_still_listed_and_the_text_says_why_no_package_is_known(
+    tmp_path,
+):
+    def no_dpkg(command, **_options):
+        raise FileNotFoundError(2, "No such file or directory: 'dpkg'")
+
+    system = REAL_COLLECT(
+        {"gui": [library("libnss3.so")]},
+        roots=[],
+        run=no_dpkg,
+        realpath=lambda path: path,
+        doc_root=tmp_path,
+    )
+    text = notices.render([], system)
+
+    assert [lib.name for lib in system.libraries] == ["libnss3.so"]
+    assert system.packages == []
+    assert "dpkg could not be run" in system.dpkg_problem
+    assert "The owning packages could not be determined: dpkg could not be run" in text
+    assert "libnss3.so - package unknown (dpkg could not be used on the build machine)" in text
+    assert "no Debian package owns this file" not in text  # nobody checked, so nobody says it
+
+
+def test_the_result_does_not_depend_on_the_order_of_the_analyses_or_their_entries(tmp_path):
+    write_copyright(tmp_path, "libnss3", "NSS licence text")
+    # The helper packs libnss3 from another place, owned by another package;
+    # the smaller path must win whichever analysis is read first.
+    owned = {
+        f"{LIB_DIR}/libnss3.so": ["libnss3"],
+        "/opt/lib/libnss3.so": ["libnss3-opt"],
+        f"{LIB_DIR}/libz.so.1": ["zlib1g"],
+    }
+    first = [library("libnss3.so"), library("libz.so.1")]
+    second = [library("libz.so.1"), library("libnss3.so", "/opt/lib")]
+
+    forward = collect({"gui": first, "helper": second}, owned, tmp_path)
+    backward = collect({"helper": second[::-1], "gui": first[::-1]}, owned, tmp_path)
+    different = collect({"gui": first[:1]}, owned, tmp_path)
+
+    assert notices.render([], forward) == notices.render([], backward)
+    assert notices.render([], forward) != notices.render([], different)
+    assert [lib.name for lib in forward.libraries] == ["libnss3.so", "libz.so.1"]
+    assert forward.libraries[0].packages == ("libnss3-opt",)
+    assert different.libraries[0].packages == ("libnss3",)
+
+
+def test_a_name_packed_from_two_places_in_one_analysis_resolves_to_the_smaller_path():
+    entries = [
+        ("libx.so", "/b/libx.so", "BINARY"),
+        ("libx.so", "/a/libx.so", "BINARY"),
+    ]
+
+    assert notices.bundled_system_libraries(entries, roots=[]) == {"libx.so": "/a/libx.so"}
+    assert notices.bundled_system_libraries(entries[::-1], roots=[]) == {"libx.so": "/a/libx.so"}
+
+
+def test_the_system_libraries_section_is_written_after_the_packages_and_read_back(site, tmp_path):
+    write_copyright(tmp_path, "libnss3", "NSS licence text")
+    make_dist(site, "noticetest-app", requires=("noticetest-lib",))
+    make_dist(site, "noticetest-lib", files={"LICENSE": b"lib\n"})
+    owned = {f"{LIB_DIR}/libnss3.so": ["libnss3"]}
+    system = collect({"gui": [library("libnss3.so"), library("libodd.so")]}, owned, tmp_path)
+
+    text, _ = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system
+    )
+
+    assert text.index("noticetest-lib 1.0\n=") < text.index(notices.SYSTEM_LIBRARIES_TITLE)
+    assert notices.listed_component_names(text) == ["python", "noticetest-lib"]
+    assert notices.listed_system_library_names(text) == ["libnss3.so", "libodd.so"]
+    assert "\r" not in text and text.endswith("\n") and not text.endswith("\n\n")
+
+
+def test_no_section_is_written_without_system_libraries(site):
+    make_dist(site, "noticetest-app")
+
+    plain, _ = build("noticetest-app")
+    empty, _ = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], system_libraries=notices.SystemLibraries([], [])
+    )
+    with_one, _ = notices.build_notices(
+        "noticetest-app",
+        (),
+        (),
+        python_dirs=[],
+        system_libraries=notices.SystemLibraries([notices.SystemLibrary("libx.so")], []),
+    )
+
+    assert notices.SYSTEM_LIBRARIES_TITLE not in plain
+    assert empty == plain
+    assert notices.SYSTEM_LIBRARIES_TITLE in with_one
+    assert notices.listed_system_library_names(plain) is None
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        notices.SYSTEM_LIBRARIES_TITLE + "\nno index here\n",
+        notices.SYSTEM_LIBRARIES_TITLE + "\nSystem libraries (1)\nnot a rule\nlibx.so - pkg\n",
+        notices.SYSTEM_LIBRARIES_TITLE + "\nSystem libraries (2)\n" + "-" * 80 + "\nlibx.so - pkg\n",
+        notices.SYSTEM_LIBRARIES_TITLE + "\nSystem libraries (1)\n" + "-" * 80 + "\nlibx.so\n",
+    ],
+    ids=["no index", "no rule", "wrong count", "no reason"],
+)
+def test_a_damaged_system_libraries_section_is_rejected(broken):
+    with pytest.raises(ValueError):
+        notices.listed_system_library_names(broken)
+
+
+def test_main_adds_the_section_on_linux_and_writes_the_same_bytes_twice(tmp_path, monkeypatch):
+    toc = tmp_path / "Analysis-00.toc"
+    toc.write_text(repr(([library("libnss3.so")],)), encoding="utf-8")
+    write_copyright(
+        tmp_path / "doc", "libnss3", "NSS licence text, see /usr/share/common-licenses/MPL-2.0."
+    )
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "MPL-2.0", "Mozilla Public License text")
+    seen = []
+
+    def collect_fake(analyses):
+        seen.append(analyses)
+        return collect(
+            analyses,
+            {f"{LIB_DIR}/libnss3.so": ["libnss3"]},
+            tmp_path / "doc",
+            licenses_root=licenses,
+        )
+
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+    monkeypatch.setattr(notices, "collect_system_libraries", collect_fake)
+    first, second = tmp_path / "first.txt", tmp_path / "second.txt"
+
+    assert notices.main([str(first), str(toc)]) == 0
+    assert notices.main([str(second), str(toc)]) == 0
+
+    text = first.read_text(encoding="utf-8")
+    assert first.read_bytes() == second.read_bytes()
+    assert b"\r" not in first.read_bytes()
+    assert notices.listed_system_library_names(text) == ["libnss3.so"]
+    assert "NSS licence text" in text
+    assert "Mozilla Public License text" in text
+    assert [list(analyses) for analyses in seen] == [[str(toc)], [str(toc)]]
+
+
+def test_main_does_not_add_the_section_away_from_linux_or_without_the_analyses(
+    tmp_path, monkeypatch
+):
+    toc = tmp_path / "Analysis-00.toc"
+    toc.write_text(repr(([library("libnss3.so")],)), encoding="utf-8")
+    asked = []
+
+    def collect_fake(analyses):
+        asked.append(analyses)
+        return collect(analyses, {f"{LIB_DIR}/libnss3.so": ["libnss3"]}, tmp_path / "doc")
+
+    monkeypatch.setattr(notices, "collect_system_libraries", collect_fake)
+
+    monkeypatch.setattr(notices, "is_linux", lambda: False)
+    other = tmp_path / "other-os.txt"
+    assert notices.main([str(other), str(toc)]) == 0
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+    no_analyses = tmp_path / "no-analyses.txt"
+    assert notices.main([str(no_analyses)]) == 0
+
+    assert asked == []
+    for written in (other, no_analyses):
+        lines = written.read_text(encoding="utf-8").split("\n")
+        assert notices.SYSTEM_LIBRARIES_TITLE not in lines
+        assert notices.REFERENCED_LICENSES_TITLE not in lines
+    # Counterpart: on Linux, given the analysis, the collector is asked and the
+    # section appears.
+    linux = tmp_path / "linux.txt"
+    assert notices.main([str(linux), str(toc)]) == 0
+    assert len(asked) == 1
+    assert notices.SYSTEM_LIBRARIES_TITLE in linux.read_text(encoding="utf-8")
+
+
+def test_main_fails_without_writing_when_an_analysis_cannot_be_read_on_linux(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+    output = tmp_path / "THIRD_PARTY_NOTICES.txt"
+
+    assert notices.main([str(output), str(tmp_path / "absent.toc")]) == 1
+
+    assert "cannot read the PyInstaller analysis" in capsys.readouterr().err
+    assert not output.exists()
+
+
+def test_main_warns_but_succeeds_when_dpkg_could_not_be_used(tmp_path, monkeypatch, capsys):
+    toc = tmp_path / "Analysis-00.toc"
+    toc.write_text(repr(([library("libnss3.so")],)), encoding="utf-8")
+
+    def no_dpkg(command, **_options):
+        raise FileNotFoundError(2, "No such file or directory: 'dpkg'")
+
+    monkeypatch.setattr(notices, "is_linux", lambda: True)
+    monkeypatch.setattr(
+        notices,
+        "collect_system_libraries",
+        lambda analyses: REAL_COLLECT(
+            analyses, roots=[], run=no_dpkg, realpath=lambda path: path, doc_root=tmp_path
+        ),
+    )
+    output = tmp_path / "THIRD_PARTY_NOTICES.txt"
+
+    assert notices.main([str(output), str(toc)]) == 0
+
+    assert "the Debian packages of the system libraries are unknown" in capsys.readouterr().err
+    assert "libnss3.so - package unknown" in output.read_text(encoding="utf-8")
 
 
 # --- the real environment --------------------------------------------------
@@ -427,8 +1169,10 @@ def test_pyqt6_is_listed_with_its_gpl_text(real_packages):
 
 def test_the_embedded_build_tools_are_listed_but_the_project_and_dev_tools_are_not(real_packages):
     # PyInstaller's bootloader and runtime hooks, and the contrib hooks, are
-    # embedded in the executables; setuptools and packaging are kept out of
-    # them by --exclude-module and checked by tools/check_bundled_notices.py.
+    # embedded in the executables. setuptools is kept out of them by
+    # --exclude-module, and packaging stays out together with it (neither build
+    # script excludes packaging on its own); tools/check_bundled_notices.py
+    # fails the build if either gets in.
     for build_tool in ("pyinstaller", "pyinstaller-hooks-contrib"):
         assert build_tool in real_packages, build_tool
     assert notices.PROJECT not in real_packages
