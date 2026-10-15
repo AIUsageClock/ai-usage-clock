@@ -44,6 +44,7 @@ what was packed), 2 when an input cannot be read or matches nothing.
 from __future__ import annotations
 
 import argparse
+import inspect
 import os
 import sys
 import sysconfig
@@ -76,6 +77,50 @@ _METADATA_DIR_SUFFIXES = (".dist-info", ".egg-info")
 _EXAMPLES = 3
 
 
+def _distribution_name(dist: metadata.Distribution) -> str | None:
+    """The distribution's Name, or None when its metadata is missing or empty.
+
+    Python 3.12 reports such a folder as having no Name. On 3.11 a dependency
+    installs the importlib_metadata backport, whose finder also feeds
+    importlib.metadata.distributions() and raises MetadataNotFound (a
+    FileNotFoundError) for it instead.
+    """
+    try:
+        return dist.metadata.get("Name") or None
+    except FileNotFoundError:
+        return None
+
+
+def _top_level_names(dist: metadata.Distribution) -> set[str]:
+    """Importable top-level names, found the way packages_distributions() finds them."""
+    declared = dist.read_text("top_level.txt")
+    if declared:
+        return set(declared.split())
+    names: set[str] = set()
+    for entry in dist.files or ():
+        parts = entry.parts
+        name = parts[0] if len(parts) > 1 else inspect.getmodulename(entry)
+        if name and "." not in name:
+            names.add(name)
+    return names
+
+
+def _packages_distributions() -> dict[str, list[str]]:
+    """importlib.metadata.packages_distributions(), minus distributions without a Name.
+
+    The standard version reads every distribution's Name and so fails on 3.11
+    for the same unreadable metadata that _distribution_name() tolerates.
+    """
+    mapping: dict[str, list[str]] = {}
+    for dist in metadata.distributions():
+        name = _distribution_name(dist)
+        if not name:
+            continue
+        for top in _top_level_names(dist):
+            mapping.setdefault(top, []).append(name)
+    return mapping
+
+
 def installed_file_owners(search_path: Sequence[str] | None = None) -> dict[str, str]:
     """Absolute file path -> canonical name of the distribution whose RECORD lists it.
 
@@ -87,7 +132,7 @@ def installed_file_owners(search_path: Sequence[str] | None = None) -> dict[str,
         distributions = metadata.distributions(path=list(search_path))
     owners: dict[str, str] = {}
     for dist in distributions:
-        raw_name = dist.metadata.get("Name")
+        raw_name = _distribution_name(dist)
         if not raw_name:
             continue
         name = str(canonicalize_name(raw_name))
@@ -102,11 +147,10 @@ def top_level_module_owners(
     """Case-folded top-level name -> canonical names of the distributions providing it.
 
     A distribution whose metadata has no Name is left out, as it is from
-    installed_file_owners(): importlib.metadata reports it as ``None`` (3.12) and
-    it cannot be listed in the notices under any name.
+    installed_file_owners(): it cannot be listed in the notices under any name.
     """
     if mapping is None:
-        mapping = metadata.packages_distributions()
+        mapping = _packages_distributions()
     owners: dict[str, list[str]] = {}
     for top, names in mapping.items():
         named = sorted({str(canonicalize_name(name)) for name in names if name})

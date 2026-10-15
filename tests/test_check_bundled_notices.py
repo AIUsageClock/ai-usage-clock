@@ -186,6 +186,7 @@ def test_a_file_no_record_lists_falls_back_to_the_module_name_providers(site):
 
 
 def test_a_metadata_folder_of_an_unrecorded_distribution_is_still_recognised(site):
+    _load_the_metadata_backport_if_installed()
     folder = site / "Some_Dist-2.0.dist-info"
     folder.mkdir()
     (folder / "METADATA").write_bytes(b"")
@@ -441,15 +442,11 @@ def test_a_distribution_without_a_name_is_left_out_of_the_module_owners():
     assert owners == {"mixed": ["real-pkg"], "plain": ["other"]}
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_a_nameless_distribution_in_the_environment_does_not_crash_the_fallback(site):
     make_nameless_dist(site, "ghostmod")
     (site / "ghostmod.py").write_bytes(b"")
 
-    try:
-        owners = check.top_level_module_owners()
-    except KeyError:  # a future importlib.metadata refuses nameless distributions itself
-        pytest.skip("importlib.metadata raises for a distribution without a name")
+    owners = check.top_level_module_owners()
 
     assert "ghostmod" not in owners
     # Nobody can be blamed for the file, so it is reported rather than crashing
@@ -458,6 +455,92 @@ def test_a_nameless_distribution_in_the_environment_does_not_crash_the_fallback(
     assert result.distributions == {}
     assert result.unattributed == {"ghostmod.py": ["ghostmod"]}
     assert check.installed_file_owners([str(site)]) == {}
+
+
+class _UnreadableDist:
+    """A distribution whose metadata read fails the way the importlib_metadata backport fails."""
+
+    @property
+    def metadata(self):
+        raise FileNotFoundError("No package metadata was found.")
+
+
+class _NamedDist:
+    metadata = {"Name": "Real_Pkg"}
+
+
+def test_a_distribution_whose_metadata_cannot_be_read_has_no_name():
+    assert check._distribution_name(_UnreadableDist()) is None
+    assert check._distribution_name(_NamedDist()) == "Real_Pkg"
+
+
+def _load_the_metadata_backport_if_installed() -> None:
+    """Import importlib_metadata the way keyring does on Python 3.11.
+
+    Once imported, its finder also answers importlib.metadata.distributions() and
+    raises MetadataNotFound for unreadable metadata. Importing it here keeps the
+    test faithful to the build no matter which tests ran first.
+    """
+    try:
+        import importlib_metadata  # noqa: F401
+    except ImportError:
+        pass
+
+
+def test_a_distribution_with_a_record_but_empty_metadata_is_skipped(site):
+    # On Python 3.11 the importlib_metadata backport raises for this folder from
+    # inside importlib.metadata.distributions(); 3.12 just reports no Name.
+    _load_the_metadata_backport_if_installed()
+    broken = site / "broken_pkg-1.0.dist-info"
+    broken.mkdir()
+    (broken / "METADATA").write_bytes(b"")
+    (broken / "RECORD").write_text(
+        "brokenmod.py,,\nbroken_pkg-1.0.dist-info/METADATA,,\n", encoding="utf-8"
+    )
+    (site / "brokenmod.py").write_bytes(b"")
+    make_dist(site, "good-pkg", site_files={"goodmod.py": b""})
+
+    file_owners = check.installed_file_owners([str(site)])
+    module_owners = check.top_level_module_owners()
+
+    assert file_owners == {
+        normal(site / "goodmod.py"): "good-pkg",
+        normal(site / "good_pkg-1.0.dist-info" / "METADATA"): "good-pkg",
+        normal(site / "good_pkg-1.0.dist-info" / "RECORD"): "good-pkg",
+    }
+    assert module_owners["goodmod"] == ["good-pkg"]
+    assert "brokenmod" not in module_owners
+
+
+def test_top_level_names_are_found_like_the_standard_library_finds_them(site):
+    make_dist(site, "declared-pkg", top_level=("declared_a", "declared_b"),
+              site_files={"declared_a/__init__.py": b""})
+    make_dist(site, "inferred-pkg", site_files={
+        "inferred_pkg/__init__.py": b"",
+        "inferred_mod.py": b"",
+        "inferred-1.0.data/notes.txt": b"",
+    })
+    ours = check._packages_distributions()
+
+    import importlib.metadata as stdlib_metadata
+
+    theirs = stdlib_metadata.packages_distributions()
+    for top in ("declared_a", "declared_b", "inferred_pkg", "inferred_mod"):
+        assert ours[top] == theirs[top], top
+    # A top-level entry with a dot in it is not importable and is left out by both.
+    assert "inferred-1.0.data" not in ours
+
+
+def test_root_files_that_are_not_modules_and_empty_record_rows_are_ignored(site):
+    dist_info = make_dist(site, "odd-pkg", site_files={"oddmod.py": b"", "LICENSE": b""})
+    record = dist_info / "RECORD"
+    record.write_text(record.read_text(encoding="utf-8") + ",,\n", encoding="utf-8")
+
+    ours = check._packages_distributions()
+
+    assert ours["oddmod"] == ["odd-pkg"]
+    assert "LICENSE" not in ours
+    assert "" not in ours
 
 
 # --- system libraries -----------------------------------------------------------------
