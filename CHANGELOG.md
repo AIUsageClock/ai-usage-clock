@@ -8,6 +8,7 @@
 - Source, issues, and release downloads are at [AIUsageClock/ai-usage-clock](https://github.com/AIUsageClock/ai-usage-clock).
 - When the window is too narrow for the title, it shortens to **AI Usage Clock**, then **AI Clock**, then **AI**.
 - Windows file properties list `AI Usage Clock contributors` as the publisher.
+- The README is rewritten as a short overview, in English, Traditional Chinese, and Simplified Chinese. The detailed setup and usage guides moved to `docs/` ([setup](docs/setup.md), [usage](docs/usage.md), [build](docs/build.md); setup and usage also in Traditional and Simplified Chinese), and the MCP guard guide stays in [docs/mcp.md](docs/mcp.md).
 
 ### Changed names
 

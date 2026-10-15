@@ -32,11 +32,21 @@ Run the app:
 .\.venv\Scripts\python.exe -m aiusageclock
 ```
 
+On macOS or Linux, use `python3 -m venv .venv` and `./.venv/bin/python` in
+place of the Windows commands, and quote the extras as `'.[dev]'`. A plain
+source install (see [docs/build.md](docs/build.md)) omits the dev extras that
+the tests need.
+
 Run the tests:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m pytest    # Windows
+./.venv/bin/python -m pytest            # macOS / Linux
 ```
+
+The automated suite covers provider parsing, configuration, UI behavior,
+local usage tracking, MCP guards, credential storage, and platform
+integration. Live Claude and Codex browser sessions are validated manually.
 
 The version-sync check that gates CI:
 

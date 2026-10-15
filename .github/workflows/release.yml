@@ -275,5 +275,5 @@ jobs:
 
             **Verify:** SHA256 sums live next to each archive.
 
-            Builds are unsigned. Windows SmartScreen and macOS Gatekeeper may warn on first launch; see the README for the per-OS first-launch steps.
+            Builds are unsigned. Windows SmartScreen and macOS Gatekeeper may warn on first launch; see the [README FAQ](https://github.com/${{ github.repository }}/blob/${{ needs.resolve-version.outputs.tag }}/README.md#windows-smartscreen-or-macos-gatekeeper-warns-on-first-launch) for the per-OS first-launch steps.
           files: release/*

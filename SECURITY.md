@@ -130,7 +130,14 @@ provider sending the embedded browser to an arbitrary URL.
 
 AI Usage Clock does not include telemetry or a backend service. Provider requests
 are made from the local app to Claude.ai, ChatGPT, OpenCode, GitHub, and OpenRouter
-endpoints needed to read usage information.
+endpoints needed to read usage information. Antigravity usage comes from running
+your local `agy` command, which makes its own connections.
+
+The optional Codex Resets and Claude Resets announcements are off by default. Only
+after you turn one on does the app contact its tracker, codex-resets.com or
+claude-resets.com, at most once every 15 minutes while the app is running. Those
+sites can see your IP address and the User-Agent
+`ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)`.
 
 Diagnostic logs are written locally to `<app-data>/ai-usage-clock.log`. Logs
 are intended to avoid recording

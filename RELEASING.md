@@ -165,12 +165,13 @@ Native UI per OS: floating widget on Windows / Linux, menu-bar item on macOS.
 
 - Windows: `ai-usage-clock-<ver>-windows.zip` → extract, run `ai-usage-clock.exe`.
 - macOS: `ai-usage-clock-<ver>-macos.tar.gz` → drag `ai-usage-clock.app` to Applications.
-  First launch needs `xattr -dr com.apple.quarantine ai-usage-clock.app` or right-click → Open.
+  First launch needs `xattr -dr com.apple.quarantine ai-usage-clock.app` or
+  System Settings → Privacy & Security → Open Anyway.
 - Linux: `ai-usage-clock-<ver>-linux.tar.gz` → extract, run `./ai-usage-clock/ai-usage-clock`.
 
 Each archive also ships the optional `ai-usage-clock-mcp` usage-guard helper
 (alongside `ai-usage-clock.app` on macOS, inside the folder elsewhere). It is only
-needed by MCP clients — see the README. macOS users must clear quarantine on
+needed by MCP clients — see [docs/mcp.md](docs/mcp.md). macOS users must clear quarantine on
 the helper separately: `xattr -dr com.apple.quarantine ai-usage-clock-mcp`.
 
 ### Verification

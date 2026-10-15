@@ -1,10 +1,16 @@
 <p align="center">
-  <img src="src/aiusageclock/assets/aiusageclockicon.png" alt="AI Usage Clock app icon" width="180" />
+  <img src="src/aiusageclock/assets/aiusageclockicon.png" alt="AI Usage Clock app icon" width="160" />
 </p>
 
 <h1 align="center">AI Usage Clock</h1>
 
-<p align="center"><strong>Know your AI usage at a glance.</strong></p>
+<p align="center"><strong>See every AI limit. Know every reset.</strong></p>
+
+<p align="center">
+  One small desktop widget for the usage limits of your AI services. It also picks up<br />
+  Codex and Claude reset announcements: a heads-up when a reset is announced ahead of time,<br />
+  and a place to look when your usage suddenly drops to zero.
+</p>
 
 <p align="center">
   <strong>English</strong> · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.zh-CN.md">简体中文</a>
@@ -13,313 +19,112 @@
 <p align="center">
   <a href="https://github.com/AIUsageClock/ai-usage-clock/actions/workflows/test.yml"><img src="https://github.com/AIUsageClock/ai-usage-clock/actions/workflows/test.yml/badge.svg" alt="Test status" /></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d4" alt="Windows, macOS, and Linux" />
-  <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" />
 </p>
 
-AI Usage Clock is a compact desktop monitor for **Claude.ai**, **ChatGPT Codex**,
-**Antigravity**, **OpenCode Go**, **GitHub Copilot**, and **OpenRouter**. It shows
-usage limits, reset times, balances, and spend at a glance. Optional local
-tracking estimates the API-equivalent cost of Claude Code and Codex activity on
-this computer.
-
-- **Windows / Linux** — always-on-top draggable frameless widget plus a system-tray icon.
-- **macOS** — Stats-style menu-bar item (`● Cl 42% ● Cx 78% ● Co 15%`); the panel opens as a popover when you click it.
-
-> **Requires Python 3.11+.** Secrets live in the OS-native credential store (Windows Credential Manager / DPAPI, macOS Keychain, Linux Secret Service). Auto-start uses the platform's standard mechanism (Windows Task Scheduler / LaunchAgent / `~/.config/autostart`).
-
-Current version: **1.0.0**. See [CHANGELOG.md](CHANGELOG.md) for release notes.
-
-AI Usage Clock is an independent open-source project and unofficial local desktop
-utility. It is not affiliated with Anthropic, OpenAI, GitHub, Microsoft,
-OpenRouter, or any other provider. Provider pages and APIs may change without
-notice.
-
-## Highlights
-
-| Feature | What it does |
-| --- | --- |
-| Antigravity quota | Reads local `agy /quota` output, supports executable selection and Gemini / Claude+GPT display groups, and stops polling when a response may have consumed tokens. |
-| Reset announcements | Shows Codex Resets and Claude Resets tiles (off by default); on Windows, alerts use concurrent native toast notifications, with a tray-balloon fallback. |
-| Refresh status | Error labels show the cause and mark retained values as stale. |
-| Codex Overview | Reads current quota from the Overview page in English and Traditional Chinese, includes weekly reset countdowns, and rejects Analytics history as current quota. |
-| Claude sign-in | Shows a **Sign in** action when a recognized sign-in redirect is detected. |
-
-## Screenshots
-
-**AI Usage Clock — Windows**
+<p align="center">
+  <a href="https://github.com/AIUsageClock/ai-usage-clock/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2ea44f?style=for-the-badge" alt="Download the latest release" /></a>
+</p>
 
 <p align="center">
   <img src="docs/screenshots/windows-1.0.0.png" alt="AI Usage Clock on Windows showing Claude and Codex usage, Antigravity quotas, and Codex and Claude reset announcements" width="520" />
 </p>
 
-Captured from the running Windows release. Usage values reflect the capture time.
-
-**Windows / Linux** — always-on-top floating widget in full and compact modes:
+<p align="center"><sub>The Windows widget, captured from a running release. Usage values reflect the time of capture.</sub></p>
 
 <p align="center">
-  <img src="docs/screenshots/win-panel-full.png" alt="AI Usage Clock full panel showing provider usage" width="320" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/win-panel-compact.png" alt="AI Usage Clock collapsed pill mode" width="320" />
+  <img src="docs/screenshots/win-panel-compact.png" alt="Compact mode: one pill per service" width="440" />
 </p>
 
-## Download
+<p align="center"><sub>Compact mode shrinks the widget to one pill per service (sample data).</sub></p>
 
-Pre-built binaries for each release are published on the [Releases page](https://github.com/AIUsageClock/ai-usage-clock/releases). Pick the archive for your OS, extract, and run:
+## Why AI Usage Clock
 
-| OS      | Archive                              | Run                                |
-| ------- | ------------------------------------ | ---------------------------------- |
-| Windows | `ai-usage-clock-<version>-windows.zip`     | extract, run `ai-usage-clock.exe`        |
-| macOS   | `ai-usage-clock-<version>-macos.tar.gz`    | extract, drag `ai-usage-clock.app` to Applications |
-| Linux   | `ai-usage-clock-<version>-linux.tar.gz`    | extract, run `./ai-usage-clock/ai-usage-clock` |
+- **Your AI limits in one place.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, and OpenRouter, side by side, each with its own usage bar. Active limits also show the time left next to the bar.
+- **A heads-up before some resets, a place to check after the sudden ones.** Turn on reset announcements and AI Usage Clock picks up Codex and Claude reset announcements. Some resets are announced ahead of time (Codex announcements, plus an AI-predicted Watch row), so you can get ready. Others come out of nowhere: the tile keeps the latest announcement in view, so when your usage suddenly drops to zero you can check whether a reset just happened, with one click to the original post.
+- **Get notified when one appears.** Optionally get a notification when a new announcement shows up (native notifications on Windows), with a separate switch for each type. The announcements come from independent third-party trackers and can be late or wrong, so check the original post. This feature is off by default.
+- **It runs on your computer.** There is no AI Usage Clock account, server, or telemetry. API keys are kept in your operating system's secure storage. Claude and ChatGPT sign-in sessions are kept there too, plus in the app's own browser profile folder.
 
-SHA256 sums are published alongside each archive. Builds are unsigned - see the [first-launch warnings](#build-a-standalone-binary) section below for SmartScreen / Gatekeeper handling.
+## Get started in 3 steps
 
-## Run from source
+1. **Download** the archive for your system from the [latest release](https://github.com/AIUsageClock/ai-usage-clock/releases/latest): `ai-usage-clock-<version>-windows.zip`, `ai-usage-clock-<version>-macos.tar.gz`, or `ai-usage-clock-<version>-linux.tar.gz`.
+2. **Extract it and run it.**
+   - Windows: run `ai-usage-clock.exe`
+   - macOS: drag `ai-usage-clock.app` to Applications, then open it
+   - Linux: run `./ai-usage-clock/ai-usage-clock`
+3. **Connect your services.** Sign in to Claude and Codex in the app, or paste an API key in **Settings**. See the [setup guide](docs/setup.md).
 
-**Windows (PowerShell):**
+The builds are unsigned, so Windows or macOS may warn the first time you start the app. [Here is what to do](#windows-smartscreen-or-macos-gatekeeper-warns-on-first-launch).
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m aiusageclock
-```
+## Supported services
 
-**macOS / Linux (bash):**
+| Service | What you see | How it connects |
+| --- | --- | --- |
+| **Claude** | Session and weekly limits (plus the weekly Fable limit on plans that have one) | Sign in through your browser (Google and passkeys work), or paste a session cookie |
+| **Codex** (ChatGPT) | Session and weekly limits | Same as Claude |
+| **Antigravity** | Gemini and Claude+GPT usage, each with 5-hour and weekly limits | Reads your local `agy` command-line tool; no account or key in the app |
+| **OpenCode Go** | Rolling, weekly, and monthly usage | OpenCode API key |
+| **GitHub Copilot** | Monthly AI credits used against your plan's allowance, resetting on the 1st | Fine-grained GitHub personal access token |
+| **OpenRouter** | Spend today and this month, an optional daily budget; balance and model activity with a management key | OpenRouter API key |
 
-```bash
-python3 -m venv .venv
-./.venv/bin/python -m pip install -e .
-./.venv/bin/python -m aiusageclock
-```
+Claude, Codex, and GitHub Copilot are on by default. The other services, and the reset announcements, are switched on in **Settings**. You can track more than one Claude, Codex, or OpenCode Go account.
 
-On first launch the widget appears with enabled provider tiles. Claude and Codex use a **Sign in** or **Paste cookie** flow; OpenCode Go, GitHub Copilot, and OpenRouter are configured from Settings with API credentials. Open Settings to disable providers you don't use or to add more Claude, Codex, or OpenCode Go accounts.
+## For AI agents (MCP)
 
-## First-time setup per provider
+AI Usage Clock includes an optional local MCP server, off by default. It lets coding agents check your usage before starting costly work and pause when a limit you set is reached. It reads only a sanitized local usage cache, never your credentials. Setup is in [docs/mcp.md](docs/mcp.md).
 
-| Provider           | Setup                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Claude.ai**      | **Sign in (recommended):** asks which installed Chrome-family browser to use, remembers that choice, supports Google and passkeys, and connects the resulting Claude session automatically. No cookie copying is required. **Paste cookie:** remains available as a recovery fallback. Add extra Claude subscriptions from **Settings → Claude**. |
-| **ChatGPT Codex**  | Same as Claude — **Sign in** uses your chosen installed browser and automatically connects the ChatGPT session, including Google-linked and passkey accounts. **Paste cookie** remains available only as a fallback. Add extra Codex subscriptions from **Settings → Codex**. |
-| **OpenCode Go**    | Sign in at <https://opencode.ai/auth> and copy an API key. In **Settings → OpenCode**, paste the key beside the subscription name. Each subscription has an independent key and tile. AI Usage Clock stores keys in the system credential store and reads Rolling, Weekly, and Monthly usage from the authenticated Go API. The shorter name **OpenCode** is used in the app. |
-| **GitHub Copilot** | Create a **fine-grained PAT** at <https://github.com/settings/personal-access-tokens/new>. For personal plans, add **Account permissions → Plan → Read**. Paste into Settings; set your monthly AI credit allowance (Pro=1,500, Pro+=7,000, Max=20,000). If Copilot is billed through an organization, enter the billing org and use a token/account with org billing access and **Organization permissions → Administration → Read**. |
-| **OpenRouter**     | Create an inference API key at <https://openrouter.ai/keys> and paste it into Settings. To show account balance and model activity, also create a management key at <https://openrouter.ai/settings/provisioning-keys>. Management keys cannot be used for inference; AI Usage Clock stores it separately and only uses it for OpenRouter management endpoints. Daily spend budget is optional.                                                    |
-| **Antigravity**    | In **Settings → General**, enable **Antigravity**. AI Usage Clock runs the local `agy` CLI's `/quota` command; no account or API key is entered in AI Usage Clock. Leave **agy CLI** blank for auto-detection (`agy` on `PATH`, then `%LOCALAPPDATA%\agy\bin\agy.exe` on Windows), or select the executable. A missing file or a file not named `agy` is reported and not run. The tile can show Gemini and Claude+GPT usage, each with 5-hour and weekly limits; choose which groups to display in the Antigravity tab. AI Usage Clock disables `agy` background updates for its own calls and hides its console window; this does not affect updates when you run `agy` yourself. If a response indicates token use, or the result cannot confirm no use, polling stops until AI Usage Clock is restarted. |
+## FAQ
 
-### Multiple Claude / Codex / OpenCode Go accounts
+### How do reset announcements work?
 
-Claude, Codex, and OpenCode Go can track more than one subscription at a time. Open the provider's Settings tab, click **Add another**, and give the account a short name. Use **Sign in** or **Paste cookie** for each Claude or Codex row; paste the matching API key into each OpenCode row. Default accounts display as `Claude`, `Codex`, or `OpenCode`; named accounts display as `Claude (Work)`, `Codex (Account 2)`, `OpenCode (Team)`, etc. Claude and Codex accounts keep separate browser sessions, while OpenCode accounts keep separate system-keychain entries.
+They are off by default. Turn them on under **Settings → General** with **Codex Resets** or **Claude Resets**. AI Usage Clock then reads two independent third-party trackers: codex-resets.com (which uses AI to classify posts by @thsottiaux) and claude-resets.com (which collects posts by @ClaudeDevs and Claude Code team members). While the app is running, it asks each tracker at most once every 15 minutes (a restart asks again).
 
-The **General** tab controls provider groups. Enabling Claude, Codex, or OpenCode shows every configured account in that family. Any account can be removed from its provider tab, including the original account; the **Add another** button remains available when no accounts are configured. Every account has separate credentials, widget tile state, and history records.
+The tile shows the latest event and how long ago it happened, labeled by type:
 
-Use **Clear sign-in** beside an account to remove its session from AI Usage Clock.
-This clears both the OS-protected saved cookie and the account's live embedded
-browser cookies. It does not revoke sessions in other browsers or devices; use
-the provider's security settings when you need to sign out everywhere.
+- **Announced**: a reset was announced ahead of time. Only Codex has this type.
+- **Reset**: limits have been refilled.
+- **Banked**: you were granted a reset credit that you can redeem yourself.
 
-### Optional local usage and cost
+The Codex tile also has a **Watch** row, an AI forecast of how likely a reset is. It is not an official announcement and never sends a notification. Click ↗ to open the original post, or ✕ to hide the tile until the next entry arrives.
 
-Enable **Settings → Local usage** to estimate what Claude Code and Codex
-activity on this computer would cost at API prices. AI Usage Clock stores token
-counts, model names, and timestamps locally; nothing is uploaded and the
-estimates are not charges.
+Under **Settings → Reset alerts** you choose which types notify you (Codex: announced, reset, banked; Claude: reset, banked). The first event the app ever finds for a tracker is only recorded, not notified. Windows uses native notifications that open the original post when clicked; other systems use a system tray balloon when a tray exists. There are no notifications in macOS menu-bar mode or on Linux without a tray, though the tiles still update.
 
-### Optional reset announcements
+The data is compiled by third parties and can be late or wrong (new Claude entries can stay provisional for up to 24 hours), so treat the original post as the source of truth.
 
-Both reset tiles are off by default. Enable **Codex Resets** or **Claude Resets**
-in **Settings → General**. These
-third-party trackers are independent of OpenAI and Anthropic, and their AI
-classification can mistake an ambiguous post for a completed reset; open the
-linked original post to confirm. AI Usage Clock contacts each tracker no more than
-once every 15 minutes, including after a failed request; if a tracker asks for
-a longer wait, AI Usage Clock honors it. The sites receive your IP address and the
-`ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)` User-Agent.
-Requests go to `https://codex-resets.com/api/v1/status` and
-`https://claude-resets.com/api/resets`. The tiles show the latest event; ✕ hides
-the tile until another entry arrives. Codex also shows an
-AI-predicted **Watch** row, which is not an official announcement and does not
-trigger notifications. Claude provisional events are marked in the tooltip;
-Claude entries not marked as `reset` (including policy notices) are omitted.
-AI Usage Clock only opens links supplied by the trackers when they use `http` or
-`https`.
-Choose reset notification
-types in **Settings → Reset alerts**: Codex offers announced, landed, and
-banked-reset alerts; Claude offers landed and banked-reset alerts. The first
-event found after enabling a tracker is recorded without a notification.
-[Data from Codex Resets](https://codex-resets.com) · [Data from Claude Resets](https://claude-resets.com)
+### Is this an official app?
 
-Open **Usage details** to compare allowance use with estimated cost, including
-views by model, day, and trend. Browser chats, cloud tasks, other computers,
-and logs deleted before AI Usage Clock imports them are not included.
+No. AI Usage Clock is an independent open-source project and an unofficial local desktop utility, not made or endorsed by any of the services it shows. Provider pages and APIs can change without notice.
 
-### How browser sign-in works
+### Where does my data go?
 
-Google does not allow OAuth sign-in inside embedded browser controls, so AI
-Usage Clock can open Chrome, Edge, Brave, or Chromium instead. On first use it asks
-which one you want and remembers the choice; change it later under **Settings →
-General → Sign-in browser**. The flow is local:
+Your settings, usage history, and sign-in sessions stay on your computer. Sessions and API keys are stored with your operating system's credential facilities: Credential Manager and DPAPI on Windows, Keychain on macOS, Secret Service on Linux. Claude and ChatGPT sessions are also kept in the app's own browser profile folder. There is no telemetry and no AI Usage Clock server. The app connects directly to the services you turn on: the Claude and ChatGPT usage pages (loaded in a built-in browser), and the GitHub, OpenCode, and OpenRouter APIs. Antigravity usage comes from the `agy` tool on your computer, which the app runs for you; `agy` handles its own connections. If you enable reset announcements, it also contacts codex-resets.com and claude-resets.com; those sites see your IP address and the app's name and version. Optional local cost tracking reads your Claude Code and Codex logs on your computer and uploads nothing. More in [SECURITY.md](SECURITY.md).
 
-1. AI Usage Clock creates a new temporary browser profile containing none of your
-   regular browser history, extensions, cookies, or saved accounts.
-2. You sign in normally in that browser window, including with Google or a
-   passkey.
-3. AI Usage Clock watches the temporary browser through a random loopback-only
-   debugging port and accepts cookies only for the selected provider:
-   `claude.ai` or `chatgpt.com`.
-4. The provider session is copied into that AI Usage Clock account's persistent
-   browser profile and OS-protected secret storage. Google cookies and cookies
-   for unrelated sites are ignored.
-5. AI Usage Clock closes the temporary browser, deletes its temporary profile, and
-   verifies that the provider's usage page is signed in.
+### Windows SmartScreen or macOS Gatekeeper warns on first launch
 
-The small AI Usage Clock window shown alongside the external browser is a status and
-recovery dialog, not a second active browser. The embedded webview loads only
-when you choose it. If the external browser closes before authentication, AI
-Usage Clock returns to the browser choice instead of opening the fallback on its own.
-In embedded mode, a recognized session is verified automatically; **I'm signed
-in** remains available as a manual fallback.
+The release builds are not code-signed, and SHA256 sums are published next to each archive.
 
-Your everyday Chrome/Edge profile is never opened or inspected. The imported
-provider session remains available across AI Usage Clock restarts, so sign-in only
-needs to be repeated when the provider expires or revokes it. The embedded
-browser and manual **Paste cookie** option remain available as recovery paths.
+- **Windows:** if SmartScreen warns, click **More info**, then **Run anyway**.
+- **macOS:** Gatekeeper blocks the app the first time. Try to open it once, then go to **System Settings → Privacy & Security**, find the app in the Security section, click **Open**, then **Open Anyway**, enter your login password, and click **OK** (the **Open Anyway** button is available for about an hour after the attempt). Or run `xattr -dr com.apple.quarantine ai-usage-clock.app` once.
+- **Linux:** there is no signing layer. Make `ai-usage-clock` executable if it is not already.
 
-Sessions persist between runs under the per-OS app-data directory:
+More detail, including the MCP helper on macOS, is in [docs/build.md](docs/build.md#first-launch-warnings-on-unsigned-builds).
 
-| OS      | App data                                  | Secrets backend                           |
-| ------- | ----------------------------------------- | ----------------------------------------- |
-| Windows | `%APPDATA%/ai-usage-clock/`                     | Credential Manager (GitHub PAT + OpenRouter keys) + DPAPI-encrypted `secrets.dat` (cookies, since the Credential Manager blob limit is too small for ChatGPT JWTs) |
-| macOS   | `~/Library/Application Support/ai-usage-clock/` | Login Keychain                            |
-| Linux   | `~/.config/ai-usage-clock/`                     | Secret Service (GNOME Keyring / KWallet)  |
+### Do I need Python?
 
-AI Usage Clock does not include telemetry or a backend service. Provider requests
-are made from the local app to the configured providers. See
-[SECURITY.md](SECURITY.md) for security and privacy notes.
+Not for the downloads: Python and the browser engine are bundled. Python 3.11 or newer is only needed to run from source or to contribute; see [docs/build.md](docs/build.md).
 
-### Paste cookie (fallback)
+### Does it work on macOS and Linux?
 
-If automatic browser sign-in cannot start or import the provider session, you
-can still copy an existing Claude or Codex session cookie into the
-app manually. This is a recovery path; Google-linked and passkey accounts
-should work with the normal **Sign in** button.
+Yes, with a caveat. Windows is the platform it is developed on and tested with real accounts. The macOS (a menu-bar item instead of a floating widget) and Linux builds are published, and the automated tests run on all three systems, but refreshing real accounts has only been verified on Windows 11, so treat macOS and Linux as early-stage. Reset notifications differ by system; see the first question. Please [open an issue](https://github.com/AIUsageClock/ai-usage-clock/issues) if something is off.
 
-1. Sign into the provider in **Chrome / Edge / Firefox** as you normally do.
-2. For ChatGPT, press **F12** → **Network**, reload the page, click a
-   `chatgpt.com` request, and copy the full **Request Headers → Cookie:** value.
-   This includes split session cookies plus companion auth cookies such as
-   `__Secure-oai-is`.
-3. For Claude, press **F12** → **Network**, reload `https://claude.ai/new#settings/usage`,
-   click a `claude.ai` request, and copy the full **Request Headers → Cookie:**
-   value. It must include `sessionKey`.
-4. In the app, open the matching provider tab in Settings, click **Paste cookie**, paste the header, and Save.
+### Is it free?
 
-## Daily use
+Yes. It is free and open source under the MIT license. The services it shows need their own accounts or subscriptions.
 
-- **Windows / Linux:** drag the floating widget to move it and use the
-  bottom-right grip to resize it. Collapse it to a compact pill or hide it in
-  the system tray. Right-click the widget or tray icon for the full menu. On
-  desktops without a system tray, right-click the widget instead.
-- **macOS:** the menu-bar item shows the highest usage for each enabled
-  provider or account. Click it to open the popover.
-- Settings control providers, accounts, colors, window behavior, UI scale,
-  refresh timing, and start-at-login.
-- Auto-refresh runs every 5 minutes while usage is changing, then backs off to
-  a maximum of 60 minutes by default.
-- On Windows, reset alerts use native notifications in Notification Center;
-  clicking one opens its original post in your browser, including after AI Usage Clock
-  exits. Alerts that arrive together are shown at the same time. If native
-  notifications fail, or on non-Windows systems, a system
-  tray balloon is used when a Qt system tray is available. Balloons are spaced
-  at least 8 seconds apart; clicking one opens the last balloon's post.
-  Reset notifications are not shown in macOS menu-bar mode or on Linux
-  without a system tray. Reset tiles still update in the macOS popover and the
-  tray-less Linux floating widget.
-  If balloon tips are turned off in Windows, the fallback balloons are not
-  shown.
-  AI Usage Clock registers its
-  notification name and bundled icon under
-  `HKCU\Software\Classes\AppUserModelId\AIUsageClock.AIUsageClock` (`DisplayName` =
-  `AI Usage Clock`, `IconUri` = the bundled icon path); you can delete this key after
-  uninstalling.
-- On refresh errors, tiles show the short cause; retained values are marked
-  `<cause> · stale` (for example, `offline · stale` or `timeout · stale`), and
-  errors without retained values show `error · <cause>`.
+## More
 
-## Build a standalone binary
+[Setup guide](docs/setup.md) · [Daily use](docs/usage.md) · [MCP usage guard](docs/mcp.md) · [Build from source](docs/build.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License (MIT)](LICENSE)
 
-For most users the [pre-built downloads](#download) are easier — this section is for building locally or for maintainers cutting releases. The build machine needs Python 3.11+ and a `.venv` with `pip install -e .[dev]` already run. Windows builds also require PowerShell 7 (`pwsh`). The resulting binary does **not** require Python or PowerShell on the target machine.
+Current version: **1.0.0** · [Changelog](CHANGELOG.md)
 
-| OS      | Command          | Output                       |
-| ------- | ---------------- | ---------------------------- |
-| Windows | `pwsh -File .\build.ps1` | `dist/ai-usage-clock/ai-usage-clock.exe` |
-| macOS   | `./build.sh`     | `dist/ai-usage-clock.app`          |
-| Linux   | `./build.sh`     | `dist/ai-usage-clock/ai-usage-clock`     |
-
-Tagged commits matching `v*` run [the release workflow](.github/workflows/release.yml), which builds all three platforms and prepares a draft GitHub Release with SHA256 files. A separate maintainer-triggered test build uploads artifacts without creating a release. The maintainer checks the draft artifacts and isolated GUI/MCP smoke results before publishing; see [RELEASING.md](RELEASING.md). CI does not validate live provider accounts.
-
-Bundles are ~150-200 MB because the Chromium runtime ships inside. User data still lives outside the bundle, under the per-OS app-data directory.
-
-For a single-file binary (slower first launch), pass `-OneFile` (PowerShell) or `--onefile` (bash). On macOS the `.app` bundle is recommended over the single-file form.
-
-**First-launch warnings on signed-OS-bundle systems** - release artifacts are unsigned:
-
-- **Windows:** SmartScreen -> "More info" -> "Run anyway". Windows builds include product/version metadata, but unsigned low-prevalence binaries can still trigger SmartScreen or Microsoft Defender reputation warnings.
-- **macOS:** Gatekeeper blocks on first launch. Either right-click the `.app` → Open the first time, or run `xattr -dr com.apple.quarantine ai-usage-clock.app` once.
-- **Linux:** no signing layer; just make `ai-usage-clock` executable if it isn't already.
-
-See [RELEASING.md](RELEASING.md) for maintainer release steps.
-
-## Tests
-
-Tests need the dev extras, which the run-from-source install above omits:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -e .[dev]     # Windows
-./.venv/bin/python -m pip install -e '.[dev]'           # macOS / Linux
-```
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest    # Windows
-./.venv/bin/python -m pytest            # macOS / Linux
-```
-
-The automated suite covers provider parsing, configuration, UI behavior,
-local usage tracking, MCP guards, credential storage, and platform
-integration. Live Claude and Codex browser sessions are validated manually.
-
-## MCP usage guard
-
-AI Usage Clock includes an optional local stdio MCP server that lets tools inspect
-sanitized usage and cooperatively pause costly work. Enable it under
-**Settings → MCP**, configure an optional pause percentage, and bind each MCP
-client to its account:
-
-```text
-ai-usage-clock-mcp --account-id codex-work
-```
-
-Source installations also need `pip install -e ".[mcp]"`. See
-[docs/mcp.md](docs/mcp.md) for client instructions, packaged-helper paths,
-macOS quarantine handling, and the guard's security model.
-
-## Contributing
-
-Bug reports, provider-layout fixes, and PRs are welcome. Open issues on the
-[issue tracker](https://github.com/AIUsageClock/ai-usage-clock/issues).
-See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, test commands,
-and the issue templates to use.
-
-## Notes / limitations
-
-- Reset-announcement tiles have no percentage and are omitted from the macOS
-  menu-bar summary.
-- Antigravity usage, reset tiles, and native notifications have been tested on
-  Windows 11 only; macOS and Linux are untested.
-- **Why does Sign in open a separate Chrome-family window?** Google blocks OAuth in embedded user-agents, while Chrome's App-Bound Encryption prevents AI Usage Clock from reading an existing everyday browser profile. AI Usage Clock therefore opens a fresh temporary browser profile, receives only the selected provider's cookies through Chrome's loopback debugging interface, imports them into the app, and deletes the temporary profile.
-- **Claude / Codex layouts may change.** If a browser-backed provider tile shows "error" after the provider updates its UI, its page-extractor JS under `src/aiusageclock/providers/` may need adjusting — the rest of the app keeps working.
-- **Remote desktops and GPU-less sessions need one caveat.** The widget is plain Qt Widgets and runs anywhere, including over RDP/XRDP and on machines with no GPU. Claude and Codex are read by driving an embedded Chromium, which needs an OpenGL context; a session offering neither GLX nor EGL cannot provide one. In that case those tiles report that they need a browser, while OpenCode Go, GitHub Copilot, and OpenRouter use API credentials and work normally. Most Linux desktops supply software GL through Mesa, so this only bites on bare X servers and some remote sessions. If AI Usage Clock misjudges your session, set `AIUSAGECLOCK_FORCE_WEBENGINE=1` to skip the check.
-- The Copilot REST endpoint returns the _current calendar month_ of billing usage. The widget tracks gross AI credits consumed against the included allowance; net quantity/amount is only the billable overage. Reset is computed as the 1st of the next month. GitHub does not currently expose a reliable personal-plan allowance field, so Settings uses a plan dropdown with a Custom fallback. Annual/request-based accounts are handled with a legacy premium-request fallback.
-- **Copilot usage lags.** The Copilot REST endpoint updates noticeably slower than Claude or Codex — credit counts can take hours to reflect recent activity. The widget shows the most recent value GitHub returns; treat the Copilot tile as a trailing indicator, not real-time.
-- **Copilot AI credits.** GitHub moved Copilot from per-request quotas to token-based AI credits. Code completions and next edit suggestions remain included for paid plans, while Chat, CLI, cloud agent, Spaces, Spark, and third-party coding agents consume AI credits. The app shows the credit usage GitHub returns; if your account is org-billed, enter the billing organization so AI Usage Clock reads the organization billing pool.
-- **OpenRouter uses two key types.** The inference key is used for `/key` spend data. The management key is required for `/credits` account balance and `/activity` model history. Without a management key, AI Usage Clock still shows key-level spend but cannot show balance or model activity.
-- **OpenRouter time windows are UTC.** Today/month spend come from OpenRouter's current UTC day and month fields. Model activity comes from OpenRouter's default `/activity` history window: the last 30 completed UTC days, excluding the current UTC day.
+AI Usage Clock is not affiliated with Anthropic, OpenAI, Google, GitHub, Microsoft, OpenCode, OpenRouter, or any other provider. Product names belong to their owners.
