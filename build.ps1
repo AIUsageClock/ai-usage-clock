@@ -239,7 +239,7 @@ foreach ($noticeFile in @("LICENSE", "THIRD_PARTY_NOTICES.txt")) {
     (Join-Path $noticeDir "THIRD_PARTY_NOTICES.txt") `
     (Join-Path $PSScriptRoot "build\ai-usage-clock\Analysis-00.toc") `
     (Join-Path $PSScriptRoot "build\ai-usage-clock-mcp\Analysis-00.toc")
-if ($LASTEXITCODE -ne 0) { Write-Error "THIRD_PARTY_NOTICES.txt does not list everything packed into the executables." }
+if ($LASTEXITCODE -ne 0) { Write-Error "The THIRD_PARTY_NOTICES.txt check failed; see the error above." }
 
 Write-Host ""
 Write-Host "Build complete." -ForegroundColor Green

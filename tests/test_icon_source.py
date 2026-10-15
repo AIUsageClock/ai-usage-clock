@@ -66,14 +66,28 @@ def test_the_generator_is_deterministic(monkeypatch):
     assert generated_svg(monkeypatch) == generated_svg(monkeypatch)
 
 
+def test_an_edit_inside_a_line_is_reported_at_that_line(monkeypatch):
+    # Whatever the design is, put one character in front of its middle line.
+    generated = generated_svg(monkeypatch)
+    lines = generated.split("\n")
+    assert len(lines) > 2, "the generated SVG should be more than a single line"
+    middle = len(lines) // 2
+    lines[middle] = "x" + lines[middle]
+
+    difference = first_difference("\n".join(lines), generated)
+
+    assert difference is not None and difference.startswith(f"line {middle + 1}:")
+    # Counterpart: the unedited text has no difference.
+    assert first_difference(generated, generated) is None
+
+
 @pytest.mark.parametrize(
     ("edit", "expected"),
     [
-        (lambda svg: svg.replace("#0F172A", "#000000", 1), "line 2"),
         (lambda svg: svg.replace("</svg>", "<!-- hand edit --></svg>"), "line "),
         (lambda svg: svg.rstrip("\n"), "lines"),
     ],
-    ids=["changed colour", "extra element", "missing final newline"],
+    ids=["extra element", "missing final newline"],
 )
 def test_a_hand_edited_svg_is_noticed(monkeypatch, edit, expected):
     generated = generated_svg(monkeypatch)

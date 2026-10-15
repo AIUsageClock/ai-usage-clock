@@ -50,6 +50,16 @@ use its live profile for this check. The CI and bundle smoke checks do not
 prove that live Claude, Codex, or other provider accounts work, and do not
 count as real-account testing on macOS or Linux.
 
+Also read `THIRD_PARTY_NOTICES.txt` in the extracted Linux archive. The Linux
+build copies shared libraries of the build machine into the bundle, and the
+"System libraries bundled on Linux" section lists each one with its Debian
+package and that package's copyright text, then the standard license texts
+(LGPL, GPL, ...) that those copyright files refer to, under "Referenced license
+texts". Only a Linux run can produce it, so this is where it is verified. Look
+at every library marked "no Debian package owns this file" or "package
+unknown", and at every "No copyright text was found" or "Not found at" line:
+those need a decision before publishing.
+
 After release preparation is committed to `main`, push the matching `v<version>`
 tag. The `v*` release workflow builds Windows, macOS, and Linux bundles, creates
 SHA256 files, and attaches each archive/checksum pair to a **draft** release on
@@ -105,15 +115,19 @@ PyInstaller cross-compilation isn't supported.
 
    ```bash
    # macOS (prefix="") or Linux (prefix="ai-usage-clock/")
+   # Meant to be pasted into an open terminal: it reports with echo and never
+   # calls exit, which would close the terminal on a missing file.
    archive=ai-usage-clock-<ver>-macos.tar.gz
    prefix=""
    listing="$(tar -tzf "$archive")"
+   missing=0
    for required in ai-usage-clock-mcp LICENSE THIRD_PARTY_NOTICES.txt; do
        if ! grep -qxF "${prefix}${required}" <<< "$listing"; then
            echo "${prefix}${required} is missing from $archive" >&2
-           exit 1
+           missing=1
        fi
    done
+   if [ "$missing" -eq 0 ]; then echo "all required files are in $archive"; else echo "$archive is incomplete" >&2; fi
    ```
 3. Create a checksum:
 

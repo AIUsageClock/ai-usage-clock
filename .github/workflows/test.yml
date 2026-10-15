@@ -82,8 +82,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
+      # The same exclusions as the helper build in build.sh and build.ps1, so
+      # that this smoke test exercises the executable that gets released (the
+      # dev extras installed above would otherwise be packed into it).
+      # tests/test_license_bundling.py keeps the three lists identical. A folded
+      # scalar, so that it is one command line in any shell.
       - name: Build packaged MCP helper
-        run: python -m PyInstaller --noconfirm --clean --console --onefile --noupx --name ai-usage-clock-mcp --paths src pyinstaller_mcp_entry.py
+        run: >-
+          python -m PyInstaller --noconfirm --clean --console --onefile --noupx
+          --name ai-usage-clock-mcp --exclude-module PIL
+          --exclude-module pygments
+          --exclude-module _pytest
+          --exclude-module pytest
+          --exclude-module yaml
+          --exclude-module setuptools
+          --exclude-module pkg_resources
+          --exclude-module _distutils_hack
+          --paths src
+          pyinstaller_mcp_entry.py
 
       - name: Exercise packaged MCP handshake
         run: python tools/smoke_test_mcp.py dist/ai-usage-clock-mcp

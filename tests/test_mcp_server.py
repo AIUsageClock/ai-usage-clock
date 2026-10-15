@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+import pytest
+
 from aiusageclock import identity, mcp_server, usage_cache
 from aiusageclock.config import Config
 from aiusageclock.mcp_server import check_usage_guard, recommend_ai_account
@@ -422,7 +424,9 @@ def test_a_missing_mcp_sdk_points_at_a_source_install_with_this_interpreter(
         raise AssertionError("main() should exit when the MCP SDK is missing")
 
     message = capsys.readouterr().err
-    assert f'"{mcp_server.sys.executable}" -m pip install -e ".[mcp]"' in message
+    assert message.strip() == mcp_server.missing_sdk_message().strip()
+    assert mcp_server.sys.executable in message
+    assert '-m pip install -e ".[mcp]"' in message
     assert "source folder" in message
 
 
@@ -433,3 +437,57 @@ def test_the_missing_sdk_hint_does_not_name_a_package_index_project():
 
     assert f"{identity.SLUG}[mcp]" not in message
     assert "-e" in message
+
+
+INSTALL = '-m pip install -e ".[mcp]"'
+
+
+@pytest.mark.parametrize(
+    "executable",
+    [
+        r"C:\Python312\python.exe",
+        r"C:\Users\alex\projects\app\.venv\Scripts\python.exe",
+        r"D:\Dev-Tools\py_3.12\python.exe",
+        "C:\\Users\\使用者\\AppData\\Roaming\\uv\\python\\cpython-3.12\\python.exe",
+    ],
+)
+def test_a_plain_windows_path_is_given_as_typed_because_both_shells_run_it(executable):
+    message = mcp_server.missing_sdk_message(executable, "win32")
+
+    assert message.splitlines()[1:] == [f"    {executable} {INSTALL}"]
+    assert "&" not in message and "PowerShell" not in message
+
+
+@pytest.mark.parametrize(
+    "executable",
+    [
+        r"C:\Program Files\Python312\python.exe",
+        r"C:\Users\me (work)\python.exe",
+        r"C:\a&b\python.exe",
+        r"C:\Users\a$b\python.exe",
+        r"C:\Users\x,y\python.exe",
+        r"C:\Users\O'Brien\python.exe",
+    ],
+)
+def test_any_other_windows_path_gets_a_line_for_each_shell(executable):
+    message = mcp_server.missing_sdk_message(executable, "win32")
+    lines = message.splitlines()
+
+    powershell_line = executable.replace("'", "''")
+    assert lines[1] == f"    & '{powershell_line}' {INSTALL}"
+    assert lines[3] == f'    "{executable}" {INSTALL}'
+    # PowerShell needs the leading "&", cmd.exe must not get it.
+    assert "PowerShell" in lines[0] and "Command Prompt" in lines[2]
+    assert not lines[3].lstrip().startswith("&")
+    # What would have been typed before: an unquoted path that PowerShell cannot run.
+    assert f"    {executable} {INSTALL}" not in lines
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin"])
+def test_elsewhere_the_path_is_double_quoted_on_one_line(platform):
+    executable = "/home/me/my projects/.venv/bin/python"
+
+    message = mcp_server.missing_sdk_message(executable, platform)
+
+    assert message.splitlines()[1:] == [f'    "{executable}" {INSTALL}']
+    assert "PowerShell" not in message and "&" not in message

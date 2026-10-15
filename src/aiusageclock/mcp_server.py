@@ -6,6 +6,7 @@ from io import TextIOWrapper
 import json
 import math
 import os
+import re
 import sys
 from typing import Any
 
@@ -411,17 +412,43 @@ def _run_stdio_with_owned_streams() -> None:
                     pass
 
 
-def missing_sdk_message() -> str:
+# A Windows path that PowerShell and cmd.exe both run as typed, with no quotes:
+# no spaces and nothing either shell treats as syntax (parentheses, &, $, ', ...).
+_PLAIN_WINDOWS_PATH = re.compile(r"[\w.:\\/-]+")
+
+
+def missing_sdk_message(executable: str | None = None, platform: str | None = None) -> str:
     """How to add the MCP SDK to the interpreter that is running this server.
 
     The project is not published on PyPI, so the extra is installed from the
     source folder (editable, like the README and docs/mcp.md say), using the
     interpreter that just failed to import the SDK.
+
+    A path with a space has to be quoted, and PowerShell, unlike cmd.exe, only
+    runs a quoted path when ``&`` comes first. So on Windows a plain path is
+    given as is (valid in both shells) and any other path as two lines, one per
+    shell. The PowerShell line uses single quotes, which expand nothing, with a
+    quote inside the path doubled. Elsewhere the path is double-quoted.
     """
-    return (
+    if executable is None:
+        executable = sys.executable
+    if platform is None:
+        platform = sys.platform
+    install = '-m pip install -e ".[mcp]"'
+    intro = (
         "The MCP SDK is not installed for this Python interpreter. In the "
-        "AI Usage Clock source folder, run:\n"
-        f'    "{sys.executable}" -m pip install -e ".[mcp]"'
+        "AI Usage Clock source folder, run"
+    )
+    if platform != "win32":
+        return f'{intro}:\n    "{executable}" {install}'
+    if _PLAIN_WINDOWS_PATH.fullmatch(executable):
+        return f"{intro}:\n    {executable} {install}"
+    powershell_path = executable.replace("'", "''")
+    return (
+        f"{intro} this in PowerShell:\n"
+        f"    & '{powershell_path}' {install}\n"
+        "or this in Command Prompt (cmd.exe):\n"
+        f'    "{executable}" {install}'
     )
 
 

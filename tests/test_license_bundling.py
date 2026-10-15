@@ -87,6 +87,16 @@ def expectations() -> dict[str, list[Expectation]]:
                 'tools/write_third_party_notices.py"',
                 '"$NOTICE_DIR/THIRD_PARTY_NOTICES.txt"',
             ),
+            _seq(
+                # On Linux the generator finds the system libraries PyInstaller
+                # copied into the build from these two analyses. build.ps1 does
+                # not pass them: the generator ignores them on Windows.
+                "notices generator reads the analyses",
+                'tools/write_third_party_notices.py"',
+                '"$NOTICE_DIR/THIRD_PARTY_NOTICES.txt"',
+                f'"$SCRIPT_DIR/build/{slug}/Analysis-00.toc"',
+                f'"$SCRIPT_DIR/build/{mcp}/Analysis-00.toc"',
+            ),
             _seq("output file names", "for NOTICE_FILE in LICENSE THIRD_PARTY_NOTICES.txt; do"),
             _seq(
                 "coverage check call",
@@ -227,7 +237,40 @@ def test_a_build_sh_that_skips_the_generator_is_reported():
     broken = text.replace("write_third_party_notices.py", "something_else.py")
     assert broken != text
 
-    assert missing("build.sh", broken) == ["notices generator call"]
+    assert missing("build.sh", broken) == [
+        "notices generator call",
+        "notices generator reads the analyses",
+    ]
+
+
+_GENERATOR_CALL = r'(write_third_party_notices\.py" "\$NOTICE_DIR/THIRD_PARTY_NOTICES\.txt")'
+_ANALYSIS_ARGUMENT = r' \\\n[ \t]+"\$SCRIPT_DIR/build/%s/Analysis-00\.toc"'
+
+
+@pytest.mark.parametrize(
+    ("pattern", "replacement"),
+    [
+        # no analysis at all
+        (
+            _GENERATOR_CALL + 2 * (_ANALYSIS_ARGUMENT % r'[^/"\n]+'),
+            r"\1",
+        ),
+        # only the GUI's: the helper's is dropped
+        (
+            _GENERATOR_CALL
+            + r"(" + _ANALYSIS_ARGUMENT % re.escape(identity.SLUG) + r")"
+            + _ANALYSIS_ARGUMENT % re.escape(identity.MCP_COMMAND),
+            r"\1\2",
+        ),
+    ],
+    ids=["no analysis", "the helper's analysis"],
+)
+def test_a_build_sh_whose_generator_is_not_given_the_analyses_is_reported(pattern, replacement):
+    text = _read("build.sh")
+    broken = re.sub(pattern, replacement, text, count=1)
+    assert broken != text
+
+    assert missing("build.sh", broken) == ["notices generator reads the analyses"]
 
 
 def test_a_build_sh_that_puts_the_files_in_the_wrong_folder_is_reported():
@@ -249,8 +292,11 @@ def test_a_build_script_that_skips_the_coverage_check_is_reported(relative_path)
 
 def test_a_build_sh_that_drops_a_toc_from_the_coverage_check_is_reported():
     text = _read("build.sh")
-    broken = text.replace(f"build/{identity.MCP_COMMAND}/Analysis-00.toc", "build/other/Analysis-00.toc")
-    assert broken != text
+    # The generator call names the same file earlier; the check call is the last.
+    target = f"build/{identity.MCP_COMMAND}/Analysis-00.toc"
+    before, found, after = text.rpartition(target)
+    assert found
+    broken = before + "build/other/Analysis-00.toc" + after
 
     assert missing("build.sh", broken) == ["coverage check call"]
 
@@ -267,6 +313,47 @@ def test_a_helper_command_that_lets_yaml_back_in_is_reported():
         helper_excludes = excludes(relative_path, command_texts(relative_path, broken)["helper"])
         assert "yaml" not in helper_excludes
         assert {"_pytest", "pytest"} <= helper_excludes
+
+
+# The helper smoke test of test.yml builds the helper itself, in a venv with
+# the dev extras. Without the exclusions of the release build it would test an
+# executable that carries pytest, PyYAML and so on, not the one that ships.
+
+TEST_WORKFLOW = ".github/workflows/test.yml"
+
+
+def ci_helper_excludes(text: str | None = None) -> set[str]:
+    """The --exclude-module values of the PyInstaller command in test.yml's helper smoke job."""
+    if text is None:
+        text = _read(TEST_WORKFLOW)
+    match = re.search(
+        r"--name\s+" + re.escape(identity.MCP_COMMAND) + r"(.*?)pyinstaller_mcp_entry\.py",
+        text,
+        re.DOTALL,
+    )
+    assert match, f"no PyInstaller command for the MCP helper found in {TEST_WORKFLOW}"
+    return excludes("build.sh", match.group(1))
+
+
+def test_the_ci_helper_smoke_build_excludes_what_the_release_builds_exclude():
+    release_sh = excludes("build.sh", command_texts("build.sh")["helper"])
+    release_ps1 = excludes("build.ps1", command_texts("build.ps1")["helper"])
+
+    assert release_sh == release_ps1
+    assert ci_helper_excludes() == release_sh
+
+
+def test_a_ci_helper_smoke_build_that_lets_an_excluded_package_back_in_is_reported():
+    text = _read(TEST_WORKFLOW)
+    release = excludes("build.sh", command_texts("build.sh")["helper"])
+
+    broken = re.sub(r"\n\s*--exclude-module yaml(?=\n)", "", text)
+    assert broken != text
+    assert ci_helper_excludes(broken) == release - {"yaml"}
+
+    unrelated = text.replace("--exclude-module PIL", "--exclude-module PIL --exclude-module extra")
+    assert unrelated != text
+    assert ci_helper_excludes(unrelated) == release | {"extra"}
 
 
 def test_a_macos_tar_command_without_the_license_files_is_reported():
