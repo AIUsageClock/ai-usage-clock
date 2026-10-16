@@ -6,7 +6,7 @@
 
 本页介绍各项服务的首次设置。日常使用方式请见[使用 AI Usage Clock](usage.zh-CN.md)。
 
-首次启动时，小组件会显示已启用的服务磁贴。Claude、Codex 和 GitHub Copilot 默认启用；OpenCode Go、OpenRouter、Antigravity 和两个重置追踪站默认关闭，需要在 **Settings → General** 中开启。Claude 和 Codex 使用 **Sign in**（登录）或 **Paste cookie**（粘贴 Cookie）流程；OpenCode Go、GitHub Copilot 和 OpenRouter 则需在 Settings 中用 API 凭据进行设置。你可以打开 Settings 停用不使用的服务，或添加更多 Claude、Codex 或 OpenCode Go 账号。
+首次启动时，小组件会显示已启用的服务卡片。Claude、Codex 和 GitHub Copilot 默认启用；OpenCode Go、OpenRouter、Antigravity 和两个重置追踪站默认关闭，需要在 **Settings → General** 中开启。Claude 和 Codex 使用 **Sign in**（登录）或 **Paste cookie**（粘贴 Cookie）流程；OpenCode Go、GitHub Copilot 和 OpenRouter 则需在 Settings 中用 API 凭据进行设置。你可以打开 Settings 停用不使用的服务，或添加更多 Claude、Codex 或 OpenCode Go 账号。
 
 ## 各服务的首次设置
 
@@ -20,7 +20,7 @@
 
 ### OpenCode Go
 
-前往 <https://opencode.ai/auth> 登录并复制 API 密钥。在 **Settings → OpenCode** 中，将密钥粘贴到订阅名称旁边。每个订阅都有独立的密钥和磁贴。AI Usage Clock 会将密钥存放在系统凭据存储中，并通过已认证的 Go API 读取 Rolling、Weekly 和 Monthly 用量。应用内使用较短的名称 **OpenCode**。
+前往 <https://opencode.ai/auth> 登录并复制 API 密钥。在 **Settings → OpenCode** 中，将密钥粘贴到订阅名称旁边。每个订阅都有独立的密钥和卡片。AI Usage Clock 会将密钥存放在系统凭据存储中，并通过已认证的 Go API 读取 Rolling、Weekly 和 Monthly 用量。应用内使用较短的名称 **OpenCode**。
 
 ### GitHub Copilot
 
@@ -32,13 +32,13 @@
 
 ### Antigravity
 
-在 **Settings → General** 中启用 **Antigravity**。AI Usage Clock 会运行本地 `agy` CLI 的 `/quota` 命令；无需在 AI Usage Clock 中输入账号或 API 密钥。**agy CLI** 一栏留空即可自动检测（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行选择可执行文件。如果文件不存在，或文件名不是 `agy`，系统会报告错误且不会运行。磁贴可显示 Gemini 和 Claude+GPT 的用量，各有 5 小时和每周上限；请在 Antigravity 标签页中选择要显示的分组。AI Usage Clock 在自行调用 `agy` 时会禁用其后台更新并隐藏其控制台窗口；这不会影响你自己运行 `agy` 时的更新。如果响应表明有 token 消耗，或结果无法确认未消耗，轮询会停止，直到重启 AI Usage Clock。
+在 **Settings → General** 中启用 **Antigravity**。AI Usage Clock 会运行本地 `agy` CLI 的 `/quota` 命令；无需在 AI Usage Clock 中输入账号或 API 密钥。**agy CLI** 一栏留空即可自动检测（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行选择可执行文件。如果文件不存在，或文件名不是 `agy`，系统会报告错误且不会运行。卡片可显示 Gemini 和 Claude+GPT 的用量，各有 5 小时和每周上限；请在 Antigravity 标签页中选择要显示的分组。AI Usage Clock 在自行调用 `agy` 时会禁用其后台更新并隐藏其控制台窗口；这不会影响你自己运行 `agy` 时的更新。如果响应表明有 token 消耗，或结果无法确认未消耗，轮询会停止，直到重启 AI Usage Clock。
 
 ## 多个 Claude / Codex / OpenCode Go 账号
 
 Claude、Codex 和 OpenCode Go 都可以同时跟踪多个订阅。打开该服务的 Settings 标签页，点击 **Add another**（添加其他账号），并为账号起一个简短的名称。每个 Claude 或 Codex 条目请使用 **Sign in** 或 **Paste cookie**；每个 OpenCode 条目则粘贴对应的 API 密钥。默认账号显示为 `Claude`、`Codex` 或 `OpenCode`；命名账号则显示为 `Claude (Work)`、`Codex (Account 2)`、`OpenCode (Team)` 等。Claude 和 Codex 账号各自保留独立的浏览器会话，OpenCode 账号则各自使用独立的系统钥匙串条目。
 
-**General**（常规）标签页用于控制服务分组。启用 Claude、Codex 或 OpenCode 后，会显示该系列下所有已配置的账号。任何账号（包括最初的账号）都可以从其标签页中移除；当尚未配置任何账号时，**Add another** 按钮仍然可用。每个账号都有各自独立的凭据、小组件磁贴状态和历史记录。
+**General**（常规）标签页用于控制服务分组。启用 Claude、Codex 或 OpenCode 后，会显示该系列下所有已配置的账号。任何账号（包括最初的账号）都可以从其标签页中移除；当尚未配置任何账号时，**Add another** 按钮仍然可用。每个账号都有各自独立的凭据、小组件卡片状态和历史记录。
 
 使用账号旁边的 **Clear sign-in**（清除登录）可从 AI Usage Clock 中移除该账号的会话。这会同时清除受操作系统保护的已保存 Cookie，以及该账号内嵌浏览器中的实时 Cookie。它不会撤销其他浏览器或设备上的会话；如需在所有位置退出登录，请使用服务提供商的安全设置。
 
@@ -50,15 +50,15 @@ Claude、Codex 和 OpenCode Go 都可以同时跟踪多个订阅。打开该服�
 
 ## 可选：重置公告
 
-两个重置磁贴默认均为关闭。请在 **Settings → General** 中启用 **Codex Resets** 或 **Claude Resets**。这些第三方追踪站独立于 OpenAI 和 Anthropic，其 AI 分类可能会把含义模糊的帖子误判为已完成的重置；请打开所附的原始帖子加以确认。
+两张重置卡片默认均为关闭。请在 **Settings → General** 中启用 **Codex Resets** 或 **Claude Resets**。这些第三方追踪站独立于 OpenAI 和 Anthropic，其 AI 分类可能会把含义模糊的帖子误判为已完成的重置；请打开所附的原始帖子加以确认。
 
 - AI Usage Clock 运行期间，对每个追踪站最多每 15 分钟连接一次（请求失败后同样如此）；如果追踪站要求更长的等待时间，AI Usage Clock 会遵从。重新启动后会立刻再查一次。
 - 这些网站会收到你的 IP 地址，以及 `ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)` 这个 User-Agent。请求会发送到 `https://codex-resets.com/api/v1/status` 和 `https://claude-resets.com/api/resets`。
-- 每个磁贴会显示最新事件以及它发生至今的时间，并标明类型：**Announced**（预告，重置提前宣布；只有 Codex 有这一类）、**Reset**（已重置，额度已补满）或 **Banked**（重置额度，可自行兑换）。点击 ↗ 可打开原始帖子；点击 ✕ 会隐藏该磁贴，直到出现新的条目。
+- 每张卡片会显示最新事件以及它发生至今的时间，并标明类型：**Announced**（预告，重置提前宣布；只有 Codex 有这一类）、**Reset**（已重置，额度已补满）或 **Banked**（重置券，可自行兑换）。点击 ↗ 可打开原始帖子；点击 ✕ 会隐藏该卡片，直到出现新的条目。
 - Codex 另外会显示一行由 AI 预测的 **Watch**（预测等级、可选的重置概率和时间范围）。它不是官方公告，也不会触发通知；预测到期后就会消失。
 - Claude 的暂定事件会在提示文字中标注；未标记为 `reset` 的 Claude 条目（包括政策公告）会被省略。
 - AI Usage Clock 仅会打开追踪站提供的、使用 `http` 或 `https` 的链接。
-- 请在 **Settings → Reset alerts**（重置提醒）中选择重置通知类型：Codex 提供预告、已重置和重置额度提醒；Claude 提供已重置和重置额度提醒。程序第一次从某个追踪站发现的事件只会被记录，不会发出通知。如果你把追踪站关闭一阵子再开启，程序会拿最新事件和上次记录的做比对，所以关闭期间发布的事件可能会触发通知。
+- 请在 **Settings → Reset alerts**（重置提醒）中选择重置通知类型：Codex 提供预告、已重置和重置券提醒；Claude 提供已重置和重置券提醒。程序第一次从某个追踪站发现的事件只会被记录，不会发出通知。如果你把追踪站关闭一阵子再开启，程序会拿最新事件和上次记录的做比对，所以关闭期间发布的事件可能会触发通知。
 
 [数据来源：Codex Resets](https://codex-resets.com) · [数据来源：Claude Resets](https://claude-resets.com)
 

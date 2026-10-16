@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/aiusageclock/assets/aiusageclockicon.png" alt="AI Usage Clock 应用图标" width="160" />
+  <img src="src/aiusageclock/assets/aiusageclockicon.png" alt="AI Usage Clock 图标" width="160" />
 </p>
 
 <h1 align="center">AI Usage Clock</h1>
@@ -7,123 +7,144 @@
 <p align="center"><strong>看见每个 AI 额度，掌握每次重置。</strong></p>
 
 <p align="center">
-  一个桌面小工具，把各家 AI 服务的用量上限集中在一处，<br />
-  并抓取 Codex 和 Claude 的重置公告：提前预告时让你有心理准备，突然清零时也有地方可以查看原因。
+  AI 服务用得一多，额度就散在各家；Codex 和 Claude 的重置，有的提前预告，有的说来就来。<br />
+  AI Usage Clock 把各家额度收进桌面上的一个小组件，并抓取这两家的重置公告：<br />
+  有预告可以早做准备，用量突然清零也能查查是不是刚重置过。
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-TW.md">繁體中文</a> · <strong>简体中文</strong>
+  <a href="README.md">English</a> · <a href="README.zh-TW.md">繁體中文</a> · <strong>简体中文</strong> · <a href="README.ja.md">日本語</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/AIUsageClock/ai-usage-clock/actions/workflows/test.yml"><img src="https://github.com/AIUsageClock/ai-usage-clock/actions/workflows/test.yml/badge.svg" alt="测试状态" /></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d4" alt="支持 Windows、macOS 和 Linux" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d4" alt="支持 Windows、macOS、Linux" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT 许可证" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/AIUsageClock/ai-usage-clock/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2ea44f?style=for-the-badge" alt="下载最新版本" /></a>
+  <a href="https://github.com/AIUsageClock/ai-usage-clock/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2ea44f?style=for-the-badge" alt="下载最新版" /></a>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/windows-1.0.0.png" alt="Windows 上的 AI Usage Clock，显示 Claude 和 Codex 用量、Antigravity 额度，以及 Codex 和 Claude 的重置公告" width="520" />
+  <img src="docs/screenshots/windows-1.0.0.png" alt="Windows 上的 AI Usage Clock：Claude 和 Codex 的用量、Antigravity 额度，以及 Codex 和 Claude 的重置公告" width="520" />
 </p>
 
-<p align="center"><sub>Windows 悬浮小组件，截取自运行中的发行版。用量数值为截图时的状态。</sub></p>
+<p align="center"><sub>Windows 小组件，截自实际运行的发布版；图中用量是截图当时的数值。</sub></p>
 
 <p align="center">
-  <img src="docs/screenshots/win-panel-compact.png" alt="紧凑模式：每项服务一颗胶囊" width="440" />
+  <img src="docs/screenshots/win-panel-compact.png" alt="紧凑模式：每个服务缩成一个胶囊" width="440" />
 </p>
 
-<p align="center"><sub>紧凑模式会把小组件缩成每项服务一颗胶囊（示例数据）。</sub></p>
+<p align="center"><sub>紧凑模式下，每个服务缩成一个胶囊（示例数据）。</sub></p>
 
-## 为什么选 AI Usage Clock
+## 主要功能
 
-- **你的 AI 额度，一个地方看完。** Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot 和 OpenRouter 并排显示，每项各有一条用量条；进行中的额度，用量条旁还会标示剩余时间。
-- **提前预告有准备，突然清零有原因。** 开启重置公告后，AI Usage Clock 会抓取 Codex 和 Claude 的重置公告。有些重置会提前预告（Codex 的预告，以及 AI 预测的 Watch 行），让你先有心理准备；有些来得很突然，磁贴会一直保留最新的公告，所以用量一下子清零时，你可以看一下是不是刚重置，并一键打开原始帖子。
-- **新公告出现就通知你。** 可以选择在公告出现时发出通知（Windows 为原生通知），每种公告都能单独设置。公告来自独立的第三方追踪站，可能延迟或误判，请以原始帖子为准；这项功能默认关闭。
-- **在你的电脑上运行。** 没有 AI Usage Clock 账号、服务器或遥测。API 密钥由操作系统的安全存储机制保管；Claude 和 ChatGPT 的登录会话除了存在那里，也存在程序自己的浏览器配置文件所在的文件夹。
+- **各家额度，一处看完**：Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter 并排显示，每家单独一条进度条。已经开始计时的额度，进度条旁边还会显示剩余时间。
+- **有预告早知道，突然清零查得到**：开启重置公告后，程序就会去抓 Codex 和 Claude 发的公告。有的重置会提前预告（Codex 的预告公告，外加一行由 AI 预测重置可能性的 **Watch**），可以早做准备；有的说来就来，卡片会一直显示最新一条公告，用量突然清零时可以看看是不是刚重置过，一键就能打开原帖。
+- **新公告出来就通知**：可以设置在新公告出现时发通知（Windows 上是系统原生通知），每种类型单独开关。公告来自独立的第三方追踪网站，可能延迟，也可能判断错，请以原帖为准。这个功能默认关闭。
+- **在本机运行**：没有 AI Usage Clock 账号，没有服务器，也没有遥测。API 密钥存在操作系统的安全存储里；Claude 和 ChatGPT 的登录会话也存在那里，程序专用的浏览器配置目录里另有一份。
 
 ## 三步上手
 
-1. **下载**：到[最新版本](https://github.com/AIUsageClock/ai-usage-clock/releases/latest)下载对应系统的压缩包：`ai-usage-clock-<version>-windows.zip`、`ai-usage-clock-<version>-macos.tar.gz` 或 `ai-usage-clock-<version>-linux.tar.gz`。
-2. **解压后运行。**
+1. **下载**：到[最新 Release](https://github.com/AIUsageClock/ai-usage-clock/releases/latest) 下载对应系统的压缩包：`ai-usage-clock-<version>-windows.zip`、`ai-usage-clock-<version>-macos.tar.gz` 或 `ai-usage-clock-<version>-linux.tar.gz`。
+2. **解压运行**：
    - Windows：运行 `ai-usage-clock.exe`
-   - macOS：把 `ai-usage-clock.app` 拖到“应用程序”文件夹，然后打开
+   - macOS：把 `ai-usage-clock.app` 拖进“应用程序”文件夹，再打开
    - Linux：运行 `./ai-usage-clock/ai-usage-clock`
-3. **连上你的服务。** 在程序中登录 Claude 和 Codex，或在 **Settings** 中粘贴 API 密钥。详见[设置指南](docs/setup.zh-CN.md)。
+3. **接入服务**：Claude 和 Codex 直接在程序里登录；用 API 密钥的服务，到 **Settings**（设置）里粘贴密钥。详见[设置指南](docs/setup.zh-CN.md)。
 
-发行版本尚未签名，第一次启动时 Windows 或 macOS 可能会弹出警告，[处理方式在这里](#首次启动时出现-smartscreen-或-gatekeeper-警告)。
+发行版没有做代码签名，第一次打开时 Windows 或 macOS 可能会弹出警告，[解决办法看这里](#首次启动时出现-smartscreen-或-gatekeeper-警告)。
 
 ## 支持的服务
 
-| 服务 | 你会看到什么 | 连接方式 |
+| 服务 | 显示什么 | 怎么接入 |
 | --- | --- | --- |
-| **Claude** | Session 和 Weekly 额度（方案有每周 Fable 额度时一并显示） | 通过浏览器登录（支持 Google 和通行密钥 passkey），或粘贴会话 Cookie |
-| **Codex**（ChatGPT） | Session 和 Weekly 额度 | 同 Claude |
-| **Antigravity** | Gemini 和 Claude+GPT 两组，各有 5 小时和每周额度 | 读取本地的 `agy` 命令行工具，程序内不需要账号或密钥 |
-| **OpenCode Go** | Rolling、Weekly 和 Monthly 用量 | OpenCode API 密钥 |
-| **GitHub Copilot** | 本月已用的 AI 积分，相对于方案内含额度，每月 1 日重置 | fine-grained GitHub 个人访问令牌（PAT） |
-| **OpenRouter** | 今日和本月花费、可选的每日预算；加上管理密钥还能看余额和各模型用量 | OpenRouter API 密钥 |
+| **Claude** | 会话额度和每周额度（套餐带每周 Fable 额度的，也会一起显示） | 用浏览器登录（支持 Google 账号和通行密钥），或者粘贴会话 Cookie |
+| **Codex**（ChatGPT） | 会话额度和每周额度 | 同 Claude |
+| **Antigravity** | Gemini、Claude+GPT 两组用量，各有 5 小时额度和每周额度 | 读取本机的 `agy` 命令行工具，程序里不用登录账号，也不用填密钥 |
+| **OpenCode Go** | 滚动窗口、每周、每月用量 | OpenCode API 密钥 |
+| **GitHub Copilot** | 本月已用的 AI 积分，对照套餐内含的额度，每月 1 日重置 | GitHub 细粒度个人访问令牌（fine-grained PAT） |
+| **OpenRouter** | 今天和本月的花费，可设每日预算；填了管理密钥，还能看余额和各模型用量 | OpenRouter API 密钥 |
 
-Claude、Codex 和 GitHub Copilot 默认启用；其他服务和重置公告需要在 **Settings** 中开启。Claude、Codex 和 OpenCode Go 都可以同时跟踪多个账号。
+Claude、Codex 和 GitHub Copilot 默认开启；其他服务和重置公告要到 **Settings** 里手动开启。Claude、Codex 和 OpenCode Go 都支持添加多个账号。
 
-## 给 AI 代理用（MCP）
+## 给 AI Agent 用（MCP）
 
-AI Usage Clock 内置可选的本地 MCP 服务器，默认关闭。它让写代码用的 AI 代理在开始消耗额度的工作之前，先查询你的用量，并在达到你设定的上限时暂停。它只读取已去除敏感信息的本地用量缓存，不会获取你的凭据。设置方式见 [docs/mcp.md](docs/mcp.md)（英文）。
+程序内置一个可选的本地 MCP 服务器，默认关闭。编程 Agent 可以在开始耗额度的任务之前先查一下用量，到了你设的上限就暂停。它只读取一份脱敏后的本地用量缓存，不会读取凭据。配置方法见 [docs/mcp.md](docs/mcp.md)（英文）。
 
 ## 常见问题
 
-### 重置公告是怎么运作的？
+### 重置公告怎么用？
 
-默认关闭。到 **Settings → General** 勾选 **Codex Resets** 或 **Claude Resets** 即可开启。AI Usage Clock 会从两个独立的第三方追踪站获取数据：codex-resets.com（用 AI 对 @thsottiaux 的帖子分类）和 claude-resets.com（汇总 @ClaudeDevs 和 Claude Code 团队成员的帖子），程序运行期间，每个站最多每 15 分钟查询一次，重新启动时会再查一次。
+默认关闭。在 **Settings → General**（设置 → 常规）里开启 **Codex Resets** 或 **Claude Resets**（分别对应 Codex 和 Claude 的重置公告）就行。开启后，程序会从两个独立的第三方追踪网站读取数据：
 
-磁贴会显示最新一条事件以及它发生至今的时间，并标明类型：
+- codex-resets.com：用 AI 给 @thsottiaux 发的帖子分类；
+- claude-resets.com：汇总 @ClaudeDevs 和 Claude Code 团队成员发的帖子。
 
-- **Announced**（预告）：重置提前宣布。目前只有 Codex 有这一类。
+程序运行期间，每个网站最多每 15 分钟查询一次；重启程序会重新查询。
+
+卡片上显示最新一条事件、距今多久，并标明类型：
+
+- **Announced**（预告）：提前宣布了重置。只有 Codex 有这一类。
 - **Reset**（已重置）：额度已经补满。
-- **Banked**（重置额度）：你获得了一次可以自行兑换的重置额度。
+- **Banked**（重置券）：你获得了一张重置券，可以自己兑换。
 
-Codex 的磁贴另有一行 **Watch**，是 AI 预测的重置可能性，不是官方公告，也不会发通知。点击 ↗ 可打开原始帖子，点击 ✕ 可先隐藏，等下一条出现再显示。
+Codex 的卡片还多一行 **Watch**（预测），是 AI 对重置可能性的预测，不是官方公告，也从不发通知。点击 ↗ 打开原帖，点击 ✕ 隐藏这张卡片，等下一条出现时再显示。
 
-在 **Settings → Reset alerts** 可以选择哪些类型要通知（Codex：预告、已重置、重置额度；Claude：已重置、重置额度）。程序第一次从某个追踪站发现的事件只会记录，不会通知。Windows 使用原生通知，点一下就会打开原始帖子；其他系统在有系统托盘时改用系统托盘气泡通知；macOS 菜单栏模式和没有系统托盘的 Linux 不会弹出通知，但磁贴仍会更新。
+要接收哪些通知，在 **Settings → Reset alerts**（设置 → 重置提醒）里选：Codex 可选 Announced、Reset、Banked，Claude 可选 Reset、Banked。每个追踪网站，程序第一次抓到的事件只记录，不通知。
 
-这些数据由第三方汇总，可能延迟或误判（Claude 的新条目最长 24 小时内可能是暂定的），请以原始帖子为准。
+通知方式因系统而异：
 
-### 这是官方应用吗？
+- **Windows**：系统原生通知，点击就打开原帖。
+- **其他系统**：有系统托盘时，用托盘气泡通知。
+- **macOS 菜单栏模式、没有托盘的 Linux**：不发通知，但卡片照常更新。
 
-不是。AI Usage Clock 是独立的开源项目，属于非官方的本地桌面小工具，与它所显示的各项服务均无关联，也未经这些服务认可。各服务的页面和 API 可能随时变更。
+这些数据由第三方整理，可能延迟或出错（Claude 的新条目最长 24 小时内可能仍是暂定状态），一切以原帖为准。
 
-### 我的数据会发到哪里？
+### 是官方出品吗？
 
-你的设置、用量历史和登录会话都留在你的电脑上。会话和 API 密钥存放在操作系统提供的安全存储机制中：Windows 的凭据管理器和 DPAPI、macOS 的钥匙串、Linux 的 Secret Service。Claude 和 ChatGPT 的会话另外也存在程序自己的浏览器配置文件所在的文件夹。没有遥测，也没有 AI Usage Clock 的服务器。程序只会直接连接你开启的服务：Claude 和 ChatGPT 的用量页面（在内置浏览器中加载），以及 GitHub、OpenCode 和 OpenRouter 的 API。Antigravity 的用量则是由程序运行你电脑上的 `agy` 工具获取，`agy` 自己负责它的连接。如果开启重置公告，还会连接 codex-resets.com 和 claude-resets.com，对方能看到你的 IP 地址，以及程序名称和版本。可选的本地费用统计会读取你电脑上的 Claude Code 和 Codex 日志文件，不会上传任何内容。详见 [SECURITY.md](SECURITY.md)（英文）。
+不是。AI Usage Clock 是独立的开源项目，非官方的本地桌面软件；它显示的各家服务都没有参与开发，也没有为它背书。各家的页面和 API 随时可能变，不一定会提前通知。
+
+### 数据存在哪？会连哪些网站？
+
+设置、用量历史和登录会话都保存在本机。
+
+- 会话和 API 密钥交给操作系统的凭据存储保管：Windows 用凭据管理器和 DPAPI，macOS 用钥匙串，Linux 用 Secret Service。Claude 和 ChatGPT 的会话另外还存在程序专用的浏览器配置目录里。
+- 没有遥测，也没有 AI Usage Clock 服务器。
+- 程序直接连接你开启的服务：Claude 和 ChatGPT 的用量页面（在内置浏览器里加载），以及 GitHub、OpenCode、OpenRouter 的 API。
+- Antigravity 的用量来自本机的 `agy` 工具，由程序代为运行；`agy` 的网络连接由它自己处理。
+- 开启重置公告后，还会访问 codex-resets.com 和 claude-resets.com，这两个网站能看到你的 IP 地址，以及程序的名称和版本号。
+- 可选的本地费用统计会读取本机的 Claude Code 和 Codex 日志，不上传任何内容。
+
+详见 [SECURITY.md](SECURITY.md)（英文）。
 
 ### 首次启动时出现 SmartScreen 或 Gatekeeper 警告
 
-发行版本尚未经过代码签名，每个压缩包旁都附有 SHA256 哈希值可供核对。
+发行版没有做代码签名，每个压缩包旁边都附有 SHA256 校验值。
 
-- **Windows：** 如果 SmartScreen 弹出警告，点击 **More info**，再点击 **Run anyway**。
-- **macOS：** Gatekeeper 第一次会拦下这个 App。先尝试打开一次，再到“系统设置”→“隐私与安全”，在“安全性”中找到它并点按“打开”，接着点按“仍要打开”，输入登录密码后点按“好”（“仍要打开”按钮在尝试打开后约一小时内可用）。你也可以改为运行一次 `xattr -dr com.apple.quarantine ai-usage-clock.app`。
-- **Linux：** 没有签名机制。如果 `ai-usage-clock` 还没有执行权限，请先加上。
+- **Windows**：如果 SmartScreen 弹出警告，点击 **更多信息**，再点击 **仍要运行**。
+- **macOS**：第一次打开会被 Gatekeeper 拦下。先尝试打开一次，然后进入“系统设置”→“隐私与安全”，在“安全性”部分找到这个应用，点击“打开”，再点击“仍要打开”，输入登录密码后点击“好”（“仍要打开”按钮在尝试打开后大约一小时内可用）。也可以运行一次 `xattr -dr com.apple.quarantine ai-usage-clock.app`。
+- **Linux**：没有签名机制。如果 `ai-usage-clock` 还没有可执行权限，先加上。
 
 更多细节（包括 macOS 上的 MCP 辅助程序）见 [docs/build.md](docs/build.md#first-launch-warnings-on-unsigned-builds)（英文）。
 
-### 需要安装 Python 吗？
+### 需要装 Python 吗？
 
-下载版不需要：Python 和浏览器引擎都已经内置。只有从源码运行或参与开发时，才需要 Python 3.11 及以上版本，见 [docs/build.md](docs/build.md)（英文）。
+下载版不需要，Python 和浏览器引擎都已经打包在里面。只有从源码运行或参与开发，才需要 Python 3.11 及以上版本，见 [docs/build.md](docs/build.md)（英文）。
 
-### macOS 和 Linux 也能用吗？
+### macOS 和 Linux 能用吗？
 
-可以，但有个前提。Windows 是主要的开发平台，也是用真实账号测试过的平台。macOS（用菜单栏项代替悬浮小组件）和 Linux 版本也有发布，自动化测试在三个系统上都会运行，但用真实账号刷新用量，目前只在 Windows 11 上验证过，所以请把 macOS 和 Linux 视为早期阶段。重置通知在各系统上的差异见前面。遇到问题欢迎[提交 issue](https://github.com/AIUsageClock/ai-usage-clock/issues) 反馈。
+能用，不过目前是测试版。Windows 是主要开发平台，也用真实账号测过；macOS 版（以菜单栏图标代替悬浮小组件）和 Linux 版都已发布，自动化测试在三个系统上都会跑，但用真实账号刷新用量只在 Windows 11 上验证过。各系统的重置通知不太一样，见第一个问题。用着有问题，欢迎[提 issue](https://github.com/AIUsageClock/ai-usage-clock/issues)。
 
 ### 免费吗？
 
-免费，以 MIT 许可证开源。你所查看的各项服务仍需要各自的账号或订阅。
+免费，采用 MIT 许可证开源。它显示的各家服务，需要你自己有账号或订阅。
 
-## 更多信息
+## 相关链接
 
 [设置指南](docs/setup.zh-CN.md) · [日常使用](docs/usage.zh-CN.md) · [MCP 用量防护](docs/mcp.md)（英文） · [从源码构建](docs/build.md)（英文） · [参与贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [许可证（MIT）](LICENSE)
 
 当前版本：**1.0.0** · [更新日志](CHANGELOG.md)
 
-AI Usage Clock 与 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter 或任何其他服务提供商均无关联。产品名称归各自的所有者所有。
+AI Usage Clock 与 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter 以及其他任何服务商都没有关联。文中的产品名称归各自的所有者。

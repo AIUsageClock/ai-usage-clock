@@ -54,11 +54,11 @@ Claude、Codex 與 OpenCode Go 都可以同時追蹤多個訂閱。開啟該服�
 
 - AI Usage Clock 執行期間，對每個追蹤站最多每 15 分鐘連線一次（請求失敗後亦同）；若追蹤站要求更長的等待時間，AI Usage Clock 會遵從。重新啟動後會立刻再查一次。
 - 這些網站會收到你的 IP 位址，以及 `ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)` 這個 User-Agent。請求會送往 `https://codex-resets.com/api/v1/status` 與 `https://claude-resets.com/api/resets`。
-- 每個方塊會顯示最新事件與發生至今的時間，並標明類型：**Announced**（預告，重置事先宣布；只有 Codex 有這一類）、**Reset**（已重置，額度已補滿）或 **Banked**（重置額度，可自行兌換）。點 ↗ 可開啟原始貼文；點 ✕ 會隱藏該方塊，直到出現新的項目。
+- 每個方塊會顯示最新事件與發生至今的時間，並標明類型：**Announced**（預告，重置事先宣布；只有 Codex 有這一類）、**Reset**（已重置，額度已補滿）或 **Banked**（重置券，可自行兌換）。點 ↗ 可開啟原始貼文；點 ✕ 會隱藏該方塊，直到出現新的項目。
 - Codex 另外會顯示一列由 AI 預測的 **Watch**（預測等級、選填的重置機率與時間範圍）。它不是官方公告，也不會觸發通知；預測期限一過就會消失。
 - Claude 的暫定事件會在提示文字中標示；未標記為 `reset` 的 Claude 項目（包括政策公告）會被省略。
 - AI Usage Clock 僅會開啟追蹤站所提供且使用 `http` 或 `https` 的連結。
-- 請在 **Settings → Reset alerts**（重置提醒）中選擇重置通知類型：Codex 提供預告、已重置與重置額度提醒；Claude 提供已重置與重置額度提醒。程式第一次從某個追蹤站找到的事件只會被記錄，不會發出通知。若你把追蹤站關閉一陣子再開啟，程式會拿最新事件與上次記錄的比對，所以關閉期間發布的事件可能會觸發通知。
+- 請在 **Settings → Reset alerts**（重置提醒）中選擇重置通知類型：Codex 提供預告、已重置與重置券提醒；Claude 提供已重置與重置券提醒。程式第一次從某個追蹤站找到的事件只會被記錄，不會發出通知。若你把追蹤站關閉一陣子再開啟，程式會拿最新事件與上次記錄的比對，所以關閉期間發布的事件可能會觸發通知。
 
 [資料來源：Codex Resets](https://codex-resets.com) · [資料來源：Claude Resets](https://claude-resets.com)
 
