@@ -6,7 +6,7 @@
 
 本頁說明各項服務的首次設定。日常使用方式請見[使用 AI Usage Clock](usage.zh-TW.md)。
 
-首次啟動時，小工具會顯示已啟用的服務方塊。Claude、Codex 與 GitHub Copilot 預設啟用；OpenCode Go、OpenRouter、Antigravity 與兩個重置追蹤站則預設關閉，需要在 **Settings → General** 中開啟。Claude 與 Codex 使用 **Sign in**（登入）或 **Paste cookie**（貼上 Cookie）流程；OpenCode Go、GitHub Copilot 與 OpenRouter 則須在 Settings 中以 API 憑證進行設定。你可以開啟 Settings 停用不使用的服務，或新增更多 Claude、Codex 或 OpenCode Go 帳號。
+首次啟動時，小工具會顯示已啟用的服務區塊。Claude、Codex 與 GitHub Copilot 預設啟用；OpenCode Go、OpenRouter、Antigravity 與兩個重置追蹤站則預設關閉，需要在 **Settings → General** 中開啟。Claude 與 Codex 使用 **Sign in**（登入）或 **Paste cookie**（貼上 Cookie）流程；OpenCode Go、GitHub Copilot 與 OpenRouter 則須在 Settings 中以 API 憑證進行設定。你可以開啟 Settings 停用不使用的服務，或新增更多 Claude、Codex 或 OpenCode Go 帳號。
 
 ## 各服務的首次設定
 
@@ -20,7 +20,7 @@
 
 ### OpenCode Go
 
-前往 <https://opencode.ai/auth> 登入並複製 API 金鑰。在 **Settings → OpenCode** 中，將金鑰貼在訂閱名稱旁。每個訂閱都有獨立的金鑰與方塊。AI Usage Clock 會將金鑰存放於系統憑證儲存區，並透過已驗證的 Go API 讀取 Rolling、Weekly 與 Monthly 用量。應用程式內使用較短的名稱 **OpenCode**。
+前往 <https://opencode.ai/auth> 登入並複製 API 金鑰。在 **Settings → OpenCode** 中，將金鑰貼在訂閱名稱旁。每個訂閱都有獨立的金鑰與區塊。AI Usage Clock 會將金鑰存放於系統憑證儲存區，並透過已驗證的 Go API 讀取 Rolling、Weekly 與 Monthly 用量。應用程式內使用較短的名稱 **OpenCode**。
 
 ### GitHub Copilot
 
@@ -32,13 +32,13 @@
 
 ### Antigravity
 
-在 **Settings → General** 中啟用 **Antigravity**。AI Usage Clock 會執行本機 `agy` CLI 的 `/quota` 指令；無須在 AI Usage Clock 中輸入帳號或 API 金鑰。**agy CLI** 欄位留空即可自動偵測（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行選擇執行檔。若檔案不存在，或檔名不是 `agy`，系統會回報錯誤且不會執行。方塊可顯示 Gemini 與 Claude+GPT 的用量，各有 5 小時與每週上限；請在 Antigravity 分頁選擇要顯示的群組。AI Usage Clock 在自行呼叫 `agy` 時會停用其背景更新並隱藏其主控台視窗；這不會影響你自行執行 `agy` 時的更新。若回應顯示有 token 消耗，或結果無法確認未消耗，輪詢會停止，直到重新啟動 AI Usage Clock。
+在 **Settings → General** 中啟用 **Antigravity**。AI Usage Clock 會執行本機 `agy` CLI 的 `/quota` 指令；無須在 AI Usage Clock 中輸入帳號或 API 金鑰。**agy CLI** 欄位留空即可自動偵測（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行選擇執行檔。若檔案不存在，或檔名不是 `agy`，系統會回報錯誤且不會執行。區塊可顯示 Gemini 與 Claude+GPT 的用量，各有 5 小時與每週上限；請在 Antigravity 分頁選擇要顯示的群組。AI Usage Clock 在自行呼叫 `agy` 時會停用其背景更新並隱藏其主控台視窗；這不會影響你自行執行 `agy` 時的更新。若回應顯示有 token 消耗，或結果無法確認未消耗，輪詢會停止，直到重新啟動 AI Usage Clock。
 
 ## 多個 Claude / Codex / OpenCode Go 帳號
 
 Claude、Codex 與 OpenCode Go 都可以同時追蹤多個訂閱。開啟該服務的 Settings 分頁，點選 **Add another**（新增其他帳號），並為帳號取一個簡短的名稱。每個 Claude 或 Codex 項目請使用 **Sign in** 或 **Paste cookie**；每個 OpenCode 項目則貼上對應的 API 金鑰。預設帳號顯示為 `Claude`、`Codex` 或 `OpenCode`；具名帳號則顯示為 `Claude (Work)`、`Codex (Account 2)`、`OpenCode (Team)` 等。Claude 與 Codex 帳號各自保有獨立的瀏覽器工作階段，OpenCode 帳號則各自使用獨立的系統鑰匙圈項目。
 
-**General**（一般）分頁負責控制服務群組。啟用 Claude、Codex 或 OpenCode 後，會顯示該系列中所有已設定的帳號。任何帳號（包括最初的帳號）都可以從其分頁中移除；當尚未設定任何帳號時，**Add another** 按鈕仍然可用。每個帳號都有各自獨立的憑證、小工具方塊狀態與歷史紀錄。
+**General**（一般）分頁負責控制服務群組。啟用 Claude、Codex 或 OpenCode 後，會顯示該系列中所有已設定的帳號。任何帳號（包括最初的帳號）都可以從其分頁中移除；當尚未設定任何帳號時，**Add another** 按鈕仍然可用。每個帳號都有各自獨立的憑證、小工具區塊狀態與歷史紀錄。
 
 使用帳號旁的 **Clear sign-in**（清除登入）可從 AI Usage Clock 移除該帳號的工作階段。這會同時清除受作業系統保護的已儲存 Cookie，以及該帳號內嵌瀏覽器中的即時 Cookie。它不會撤銷其他瀏覽器或裝置上的工作階段；若需要在所有地方登出，請使用服務供應商的安全性設定。
 
@@ -50,11 +50,11 @@ Claude、Codex 與 OpenCode Go 都可以同時追蹤多個訂閱。開啟該服�
 
 ## 選用：重置公告
 
-兩個重置方塊預設皆為關閉。請在 **Settings → General** 中啟用 **Codex Resets** 或 **Claude Resets**。這些第三方追蹤站獨立於 OpenAI 與 Anthropic，其 AI 分類可能會將意思不明確的貼文誤判為已完成的重置；請開啟所附的原始貼文加以確認。
+兩個重置區塊預設皆為關閉。請在 **Settings → General** 中啟用 **Codex Resets** 或 **Claude Resets**。這些第三方追蹤站獨立於 OpenAI 與 Anthropic，其 AI 分類可能會將意思不明確的貼文誤判為已完成的重置；請開啟所附的原始貼文加以確認。
 
 - AI Usage Clock 執行期間，對每個追蹤站最多每 15 分鐘連線一次（請求失敗後亦同）；若追蹤站要求更長的等待時間，AI Usage Clock 會遵從。重新啟動後會立刻再查一次。
 - 這些網站會收到你的 IP 位址，以及 `ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)` 這個 User-Agent。請求會送往 `https://codex-resets.com/api/v1/status` 與 `https://claude-resets.com/api/resets`。
-- 每個方塊會顯示最新事件與發生至今的時間，並標明類型：**Announced**（預告，重置事先宣布；只有 Codex 有這一類）、**Reset**（已重置，額度已補滿）或 **Banked**（重置券，可自行兌換）。點 ↗ 可開啟原始貼文；點 ✕ 會隱藏該方塊，直到出現新的項目。
+- 每個區塊會顯示最新事件與發生至今的時間，並標明類型：**Announced**（預告，重置事先宣布；只有 Codex 有這一類）、**Reset**（已重置，額度已補滿）或 **Banked**（重置券，可自行兌換）。點 ↗ 可開啟原始貼文；點 ✕ 會隱藏該區塊，直到出現新的項目。
 - Codex 另外會顯示一列由 AI 預測的 **Watch**（預測等級、選填的重置機率與時間範圍）。它不是官方公告，也不會觸發通知；預測期限一過就會消失。
 - Claude 的暫定事件會在提示文字中標示；未標記為 `reset` 的 Claude 項目（包括政策公告）會被省略。
 - AI Usage Clock 僅會開啟追蹤站所提供且使用 `http` 或 `https` 的連結。
