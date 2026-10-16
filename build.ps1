@@ -90,7 +90,7 @@ function Invoke-PyInstaller([string[]]$Arguments) {
             $systemRoot
         ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique
 
-        # The Codex Windows runner can expose both Path and PATH in the same
+        # Some Windows runners can expose both Path and PATH in the same
         # process environment. Updating $env:PATH changes only one entry, and
         # CreateProcess may pass the other one to Python. Build a fresh child
         # environment so PyInstaller receives exactly one controlled PATH.

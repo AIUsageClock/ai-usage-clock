@@ -17,9 +17,12 @@ the project's runtime ``Requires-Dist`` entries (plus the extras it ships, see
 SHIPPED_EXTRAS), followed recursively, plus the build tools whose code is
 embedded in the executables (see EMBEDDED_BUILD_TOOLS). The Python runtime that
 PyInstaller bundles is listed first, with the license file found in the Python
-installation the virtualenv was created from. The output is UTF-8 with LF line
-endings and carries no timestamp, so the same environment always yields the
-same bytes.
+installation the virtualenv was created from. Between the introduction and the
+component index the file carries the notice of the code AI Usage Clock builds
+on, read from docs/legal/UPSTREAM-LICENSE.txt; the script stops before it
+collects anything when that file cannot be read. The output is UTF-8 with LF
+line endings and carries no timestamp, so the same environment always yields
+the same bytes.
 
 That list is derived from metadata, not from what PyInstaller really packed, so
 the two can drift apart: an optional import can drag in a package that is only
@@ -106,6 +109,23 @@ text it ships. The source code of AI Usage Clock is available at
 {REPO_URL}
 """
 
+# The copyright and permission notice of the code AI Usage Clock builds on.
+# The MIT License requires it to be included in all copies or substantial
+# portions of the software, so the repository keeps it word for word in
+# docs/legal/UPSTREAM-LICENSE.txt and render() writes it into every notices
+# file, between the introduction and the component index. It is read from that
+# file at run time, never copied into this script.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+UPSTREAM_LICENSE_RELATIVE_PATH = "docs/legal/UPSTREAM-LICENSE.txt"
+UPSTREAM_LICENSE_PATH = REPO_ROOT / UPSTREAM_LICENSE_RELATIVE_PATH
+UPSTREAM_NOTICE_TITLE = "Notice for the code AI Usage Clock builds on"
+UPSTREAM_NOTICE_NOTE = (
+    "AI Usage Clock builds on earlier code that is also licensed under the MIT\n"
+    "License. The MIT License requires this notice to be included in all copies\n"
+    "or substantial portions of the software, so it is reproduced here word for\n"
+    "word."
+)
+
 # Notes for packages whose wheel bundles a large body of code that carries
 # further notices of its own, which the wheel does not reproduce.
 _QT_THIRD_PARTY = "https://doc.qt.io/qt-6/licenses-used-in-qt.html"
@@ -189,6 +209,46 @@ def _normalise_text(raw: bytes) -> str:
     text = raw.decode("utf-8-sig", errors="replace")
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     return text.strip("\n")
+
+
+class UpstreamNoticeError(Exception):
+    """The archived notice of the code AI Usage Clock is based on cannot be used."""
+
+
+def read_upstream_notice(path: Path | None = None) -> str:
+    """The text of the archived upstream notice, normalised like every license text here.
+
+    Fails loudly when the file is missing, unreadable, empty, or not clean
+    UTF-8: a notices file without that notice, or with a garbled one, would
+    leave the MIT License's condition unmet. Unlike the license texts of the
+    dependencies, which are decoded leniently, nothing is replaced here.
+    """
+    path = UPSTREAM_LICENSE_PATH if path is None else path
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        message = f"cannot read the upstream license notice {path}: {exc}"
+        raise UpstreamNoticeError(message) from exc
+    try:
+        raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        message = f"the upstream license notice {path} is not valid UTF-8 ({exc.reason})"
+        raise UpstreamNoticeError(message) from exc
+    text = _normalise_text(raw)
+    if "\0" in text:
+        # UTF-16 text without a byte order mark still decodes as UTF-8, with NULs in it.
+        raise UpstreamNoticeError(
+            f"the upstream license notice {path} contains NUL characters (UTF-16?); "
+            "save it as UTF-8"
+        )
+    return _require_text(text, f"the upstream license notice {path}")
+
+
+def _require_text(text: str, what: str) -> str:
+    """*text* itself; raises UpstreamNoticeError when it is empty or only whitespace."""
+    if not text.strip():
+        raise UpstreamNoticeError(f"{what} is empty")
+    return text
 
 
 def collect_distributions(
@@ -818,8 +878,31 @@ def listed_system_library_names(text: str) -> list[str] | None:
     return names
 
 
-def render(packages: list[Package], system_libraries: SystemLibraries | None = None) -> str:
-    lines = [INTRO, f"Components ({len(packages)})", _THIN_RULE]
+def render(
+    packages: list[Package],
+    system_libraries: SystemLibraries | None = None,
+    upstream_notice: str | None = None,
+) -> str:
+    """The notices text. *upstream_notice* defaults to read_upstream_notice().
+
+    A notice that is given must not be empty or only whitespace either.
+    """
+    if upstream_notice is None:
+        upstream_notice = read_upstream_notice()
+    else:
+        _require_text(upstream_notice, "the upstream license notice passed to render()")
+    lines = [
+        INTRO,
+        _RULE,
+        UPSTREAM_NOTICE_TITLE,
+        _RULE,
+        UPSTREAM_NOTICE_NOTE,
+        "",
+        upstream_notice,
+        "",
+        f"Components ({len(packages)})",
+        _THIN_RULE,
+    ]
     lines.extend(f"{package.title} - {package.declaration}" for package in packages)
 
     printed: dict[str, str] = {}
@@ -900,13 +983,15 @@ def build_notices(
     build_tools: tuple[str, ...] = EMBEDDED_BUILD_TOOLS,
     python_dirs: list[Path] | None = None,
     system_libraries: SystemLibraries | None = None,
+    upstream_notice: str | None = None,
 ) -> tuple[str, list[Package]]:
     """The notices text and every component in it: Python first, then the packages.
 
     *system_libraries* adds the Linux section (see collect_system_libraries()).
+    *upstream_notice* defaults to the archived file (see render()).
     """
     components = [collect_python(python_dirs), *collect_packages(project, extras, build_tools)]
-    return render(components, system_libraries), components
+    return render(components, system_libraries, upstream_notice), components
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -920,6 +1005,14 @@ def main(argv: list[str] | None = None) -> int:
         "list the system libraries packed into the build (ignored elsewhere)",
     )
     args = parser.parse_args(argv)
+
+    # Read the archived upstream notice first: a missing or damaged file stops the
+    # build before anything else is collected.
+    try:
+        upstream_notice = read_upstream_notice()
+    except UpstreamNoticeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
     system_libraries = None
     if args.analysis and is_linux():
@@ -937,7 +1030,9 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     try:
-        text, packages = build_notices(system_libraries=system_libraries)
+        text, packages = build_notices(
+            system_libraries=system_libraries, upstream_notice=upstream_notice
+        )
     except metadata.PackageNotFoundError:
         print(f"{PROJECT} is not installed in this environment.", file=sys.stderr)
         return 1

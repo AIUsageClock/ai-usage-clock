@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Licensing
+
+- `LICENSE` now names AI Usage Clock contributors. The MIT notice of the earlier code that AI Usage Clock builds on is kept word for word in [docs/legal/UPSTREAM-LICENSE.txt](docs/legal/UPSTREAM-LICENSE.txt), and every release archive reproduces it in `THIRD_PARTY_NOTICES.txt`.
+
 ## 1.0.0 - 2026-10-15
 
 ### Renamed
@@ -85,7 +91,7 @@ Nothing is migrated automatically, and nothing of the old version is removed.
 
 ### Added
 
-- Optional local usage tracking reads Claude Code and Codex logs on this computer to show API-equivalent cost next to the quota percentages. It is off by default and turned on in the new **Local usage** Settings tab. Design: [docs/local-usage-cost-plan.md](docs/local-usage-cost-plan.md).
+- Optional local usage tracking reads Claude Code and Codex logs on this computer to show API-equivalent cost next to the quota percentages. It is off by default and turned on in the new **Local usage** Settings tab.
 - **Import history** in that tab brings in the usage the logs still hold, without closing Settings. The import runs in the background, can be cancelled, and resumes where it stopped.
 - The usage details dialog gains a **Usage and cost** tab with cards for the current session, week and Fable limit (cost, allowance used, cost per 1%), and views by model, by day and over time.
 - A **Trend** view answers whether your allowance is going as far as usual: a plain-language verdict based on the median of the last five sessions (or the latest week), a chart of cost per 1% over time, and a note when a different model or cache mix explains a change. Windows it can't compare fold into one line with their reasons. **Limits changed…** marks the date a provider changed its limits, so the comparison starts fresh from there.

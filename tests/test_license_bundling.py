@@ -13,6 +13,7 @@ has a deliberately broken counterpart further down.
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -141,6 +142,18 @@ def test_the_inputs_of_those_steps_exist():
     assert _read("LICENSE").startswith("MIT License")
     assert (REPO_ROOT / "tools" / "write_third_party_notices.py").is_file()
     assert (REPO_ROOT / "tools" / "check_bundled_notices.py").is_file()
+
+
+def test_the_wheel_and_sdist_metadata_ship_both_license_files():
+    # The wheel and the sdist carry the files that pyproject.toml lists under
+    # license-files, so the archived upstream notice travels with every copy.
+    project = tomllib.loads(_read("pyproject.toml"))["project"]
+
+    assert project["license"] == "MIT"
+    patterns = project["license-files"]
+    assert {"LICENSE", "docs/legal/UPSTREAM-LICENSE.txt"} <= set(patterns)
+    for pattern in patterns:
+        assert sorted(REPO_ROOT.glob(pattern)), f"no file matches license-files entry {pattern!r}"
 
 
 def test_notices_are_written_after_pruning_and_checked_before_the_build_is_declared_done():

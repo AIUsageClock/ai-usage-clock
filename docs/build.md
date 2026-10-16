@@ -45,9 +45,9 @@ binary does **not** require Python or PowerShell on the target machine.
 Tagged commits matching `v*` run [the release workflow](../.github/workflows/release.yml),
 which builds all three platforms and prepares a draft GitHub Release with SHA256
 files. A separate maintainer-triggered test build uploads artifacts without
-creating a release. The maintainer checks the draft artifacts and isolated
-GUI/MCP smoke results before publishing; see [RELEASING.md](../RELEASING.md). CI
-does not validate live provider accounts.
+creating a release. Before publishing, the maintainer checks the draft artifacts
+and the isolated GUI/MCP smoke results. CI does not validate live provider
+accounts.
 
 Bundles are large (several hundred MB unpacked) because the Chromium runtime
 ships inside. User data still lives outside the bundle, under the per-OS app-data
@@ -78,5 +78,3 @@ app:
   beside the app; clear its quarantine separately (see [MCP usage guard](mcp.md)).
 - **Linux:** there is no signing layer. Just make `ai-usage-clock` executable if
   it isn't already (`chmod +x ai-usage-clock/ai-usage-clock`).
-
-See [RELEASING.md](../RELEASING.md) for maintainer release steps.

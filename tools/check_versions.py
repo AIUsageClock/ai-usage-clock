@@ -5,7 +5,7 @@ Run from the repo root:
     python tools/check_versions.py
 
 Exits non-zero if any tracked file disagrees. Used both by CI (test.yml) and
-the release checklist in RELEASING.md.
+the maintainer's release checklist.
 """
 from __future__ import annotations
 

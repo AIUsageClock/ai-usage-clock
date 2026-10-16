@@ -105,6 +105,9 @@ def expectations() -> dict[str, list[Expectation]]:
             _lit("project distribution name", f'PROJECT = "{slug}"'),
             _lit("repository URL", f'REPO_URL = "{identity.REPO_URL}"'),
         ],
+        "LICENSE": [
+            _lit("copyright holder", f"Copyright (c) 2026 {identity.PUBLISHER}\n"),
+        ],
     }
 
 
@@ -193,6 +196,7 @@ def test_a_longer_name_does_not_satisfy_a_shorter_one():
         ("PRODUCT_NAME", "tools/write_pyinstaller_version_info.py"),
         ("PUBLISHER", "tools/write_pyinstaller_version_info.py"),
         ("PUBLISHER", "tools/wdsi_submission.py"),
+        ("PUBLISHER", "LICENSE"),
         ("SLUG", "tools/write_third_party_notices.py"),
         ("REPO_URL", "tools/write_third_party_notices.py"),
     ],

@@ -8,12 +8,15 @@ GPL text, and nothing from the dev extras may leak in.
 
 from __future__ import annotations
 
+import hashlib
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+from aiusageclock import identity
 from tests.dist_info_factory import make_dist, site  # noqa: F401  (site is a fixture)
 from tools import pyinstaller_analysis as analysis
 from tools import write_third_party_notices as notices
@@ -247,6 +250,164 @@ def test_the_introduction_points_to_the_project_license(site):
     assert text.startswith("THIRD-PARTY NOTICES\n")
     assert "MIT License; see the LICENSE file" in text
     assert notices.REPO_URL in text
+
+
+# --- the notice of the code the project is based on --------------------------
+
+ARCHIVED_NOTICE = Path(__file__).resolve().parents[1] / "docs" / "legal" / "UPSTREAM-LICENSE.txt"
+PROJECT_LICENSE = Path(__file__).resolve().parents[1] / "LICENSE"
+
+
+def notice_section(text: str) -> str:
+    """The upstream notice as written between its explanatory note and the component index."""
+    start = text.index(notices.UPSTREAM_NOTICE_NOTE) + len(notices.UPSTREAM_NOTICE_NOTE)
+    end = text.index("\nComponents (")
+    return text[start:end].strip("\n")
+
+
+def test_the_upstream_notice_sits_between_the_introduction_and_the_component_index(site):
+    make_dist(site, "noticetest-app")
+
+    text, _ = build("noticetest-app")
+
+    lines = text.split("\n")
+    title = lines.index(notices.UPSTREAM_NOTICE_TITLE)
+    assert lines[title - 1] == lines[title + 1] == notices._RULE
+    assert (
+        text.index(notices.REPO_URL)
+        < text.index(notices.UPSTREAM_NOTICE_TITLE + "\n")
+        < text.index(notices.UPSTREAM_NOTICE_NOTE)
+        < text.index("\nComponents (")
+    )
+    assert "MIT License" in notices.UPSTREAM_NOTICE_NOTE
+
+
+def test_the_upstream_notice_is_the_archived_file_word_for_word(site):
+    make_dist(site, "noticetest-app")
+    expected = notices._normalise_text(ARCHIVED_NOTICE.read_bytes())
+
+    text, _ = build("noticetest-app")
+
+    assert notices.UPSTREAM_LICENSE_PATH == ARCHIVED_NOTICE
+    assert expected.startswith("MIT License\n")
+    assert "Permission is hereby granted, free of charge" in expected
+    assert notice_section(text) == expected
+
+
+def test_the_upstream_notice_is_read_from_the_file_not_copied_into_the_script(
+    site, tmp_path, monkeypatch
+):
+    make_dist(site, "noticetest-app")
+    archived = tmp_path / "notice.txt"
+    archived.write_bytes("Sentinel notice ©\r\nsecond line\r\n".encode())
+    monkeypatch.setattr(notices, "UPSTREAM_LICENSE_PATH", archived)
+
+    text, _ = build("noticetest-app")
+
+    assert notice_section(text) == "Sentinel notice ©\nsecond line"
+    assert "\r" not in text
+
+
+@pytest.mark.parametrize(
+    ("file_name", "content"),
+    [
+        ("absent-notice.txt", None),
+        ("empty-notice.txt", b""),
+        ("blank-notice.txt", b"\r\n\r\n"),
+        ("utf16-notice.txt", "MIT License\n".encode("utf-16")),
+        ("utf16-without-bom-notice.txt", "MIT License\n".encode("utf-16-le")),
+        ("latin1-notice.txt", b"MIT Licen\xe9se\n"),
+    ],
+    ids=["missing", "empty", "blank", "utf-16", "utf-16-no-bom", "not-utf-8"],
+)
+def test_an_unusable_upstream_notice_fails_loudly_with_its_path(
+    site, tmp_path, monkeypatch, capsys, file_name, content
+):
+    make_dist(site, "noticetest-app")
+    archived = tmp_path / file_name
+    if content is not None:
+        archived.write_bytes(content)
+    monkeypatch.setattr(notices, "UPSTREAM_LICENSE_PATH", archived)
+    named = re.escape(file_name)
+
+    with pytest.raises(notices.UpstreamNoticeError, match=named):
+        build("noticetest-app")
+    with pytest.raises(notices.UpstreamNoticeError, match=named):
+        notices.render([])
+
+    # main() reads the archive before it collects any package, so it fails early
+    # without looking at the environment.
+    def collected_anyway(**_options):
+        raise AssertionError("packages were collected before the notice was read")
+
+    monkeypatch.setattr(notices, "build_notices", collected_anyway)
+    output = tmp_path / "out" / "THIRD_PARTY_NOTICES.txt"
+    assert notices.main([str(output)]) == 1
+    assert file_name in capsys.readouterr().err
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("given", ["", "  \n\n", "\t\r\n"], ids=["empty", "spaces", "tab"])
+def test_a_notice_handed_to_render_must_not_be_empty_either(given):
+    with pytest.raises(notices.UpstreamNoticeError, match="empty"):
+        notices.render([], upstream_notice=given)
+
+
+def test_the_upstream_notice_is_decoded_strictly_not_with_replacement_characters(tmp_path):
+    garbled = tmp_path / "utf16.txt"
+    garbled.write_bytes("MIT License\n".encode("utf-16"))
+    with pytest.raises(notices.UpstreamNoticeError, match="utf16.txt"):
+        notices.read_upstream_notice(garbled)
+
+    # A byte order mark in front of clean UTF-8 is fine and is dropped.
+    clean = tmp_path / "utf8.txt"
+    clean.write_bytes("\ufeffMIT License ©\r\n".encode())
+    assert notices.read_upstream_notice(clean) == "MIT License ©"
+
+
+# SHA-256 of the archived notice with LF line endings: the LICENSE file of the v1.0.0
+# release, kept word for word because the MIT License requires the notice to travel
+# with the software. Change it only together with the archived file, on purpose.
+ARCHIVED_NOTICE_SHA256 = "e984396279a8ec685d67e6eeb16db6e2f4ddd06930e70138975d34bc5e24d74b"
+
+
+def test_the_archived_notice_text_is_pinned():
+    normalised = ARCHIVED_NOTICE.read_bytes().replace(b"\r\n", b"\n")
+
+    assert hashlib.sha256(normalised).hexdigest() == ARCHIVED_NOTICE_SHA256
+
+
+def test_the_archived_notice_matches_the_license_except_for_the_copyright_line():
+    ours = notices._normalise_text(PROJECT_LICENSE.read_bytes()).split("\n")
+    archived = notices._normalise_text(ARCHIVED_NOTICE.read_bytes()).split("\n")
+
+    assert len(ours) == len(archived)
+    for number, (ours_line, archived_line) in enumerate(zip(ours, archived), start=1):
+        if ours_line.startswith("Copyright (c)"):
+            assert archived_line.startswith("Copyright (c)"), f"line {number}"
+        else:
+            assert ours_line == archived_line, f"line {number} differs"
+    ours_copyright = [line for line in ours if line.startswith("Copyright (c)")]
+    archived_copyright = [line for line in archived if line.startswith("Copyright (c)")]
+    assert len(ours_copyright) == len(archived_copyright) == 1
+    assert ours_copyright != archived_copyright
+    assert ours_copyright == [f"Copyright (c) 2026 {identity.PUBLISHER}"]
+
+
+def test_the_upstream_notice_is_not_mistaken_for_a_component(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-lib",))
+    make_dist(site, "noticetest-lib")
+    package = notices.Package(name="odd", version="1.0", declaration="MIT")
+    # A notice whose lines look like index entries must not leak into the index.
+    lookalike = "Looks Like A 1.0 - MIT\nAnother Entry 2.0 - MIT"
+
+    text, packages = build("noticetest-app")
+    assert notices.listed_component_names(text) == ["python", "noticetest-lib"]
+    assert len(notices.listed_component_names(text)) == len(packages)
+
+    with_lookalike = notices.render([package], upstream_notice=lookalike)
+    assert lookalike in with_lookalike
+    assert notices.listed_component_names(with_lookalike) == ["odd"]
 
 
 # --- the bundled Python runtime --------------------------------------------
@@ -1363,6 +1524,13 @@ def test_asking_for_the_dev_extra_would_be_noticed():
 
     assert "pytest" in with_dev
     assert "dev" not in notices.SHIPPED_EXTRAS
+
+
+def test_the_real_notices_text_has_no_entry_for_the_project_and_has_the_upstream_notice():
+    text, _ = notices.build_notices()
+
+    assert notices.PROJECT not in notices.listed_component_names(text)
+    assert notices.UPSTREAM_NOTICE_TITLE in text
 
 
 def test_main_writes_utf8_lf_and_the_same_bytes_twice(tmp_path):

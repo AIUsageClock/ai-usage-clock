@@ -18,5 +18,4 @@ dist/
 .vscode/
 .idea/
 .claude/
-RELEASE_TODO.local.md
 .DS_Store
