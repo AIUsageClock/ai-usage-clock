@@ -25,6 +25,7 @@
 
 <p align="center">
   <a href="https://github.com/AIUsageClock/ai-usage-clock/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2ea44f?style=for-the-badge" alt="Descargar la versión más reciente" /></a>
+  <a href="https://aiusageclock.com/es/"><img src="https://img.shields.io/badge/Website-aiusageclock.com-c2410c?style=for-the-badge" alt="Visitar el sitio web" /></a>
 </p>
 
 <p align="center">
