@@ -1,13 +1,13 @@
 [project]
 name = "ai-usage-clock"
 version = "1.0.0"
-description = "Compact cross-platform desktop monitor for Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, and OpenRouter usage, with quota reset alerts."
+description = "Compact cross-platform desktop monitor for Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, OpenRouter, and Linear usage, with quota reset alerts."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE", "docs/legal/UPSTREAM-LICENSE.txt"]
 authors = [{ name = "AI Usage Clock contributors" }]
-keywords = ["ai", "desktop", "usage-monitor", "claude", "codex", "copilot"]
+keywords = ["ai", "desktop", "usage-monitor", "claude", "codex", "copilot", "linear"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: X11 Applications :: Qt",

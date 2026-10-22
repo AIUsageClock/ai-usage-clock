@@ -8,6 +8,7 @@
 
 ### Added
 
+- Linear: a new provider that shows how close your workspace is to the Free plan's issue limit (250 non-archived issues by default) as an **Issues** bar, using a personal API key; paid workspaces show "no limit".
 - Antigravity: the Gemini 4 Argon weekly quota now has its own **Argon weekly** row. It is shown or hidden together with Gemini by the **Gemini models** switch in Settings.
 
 ### Fixed

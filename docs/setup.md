@@ -9,10 +9,10 @@ This page covers first-time setup for each service. For everyday use, see
 
 On first launch the widget appears with the enabled service tiles. Claude,
 Codex, and GitHub Copilot are on by default; OpenCode Go, OpenRouter,
-Antigravity, and the two reset trackers are off until you enable them in
+Linear, Antigravity, and the two reset trackers are off until you enable them in
 **Settings → General**. Claude and Codex use a **Sign in** or **Paste cookie**
-flow; OpenCode Go, GitHub Copilot, and OpenRouter are configured from Settings
-with API credentials. Open Settings to disable services you don't use or to add
+flow; OpenCode Go, GitHub Copilot, OpenRouter, and Linear are configured from
+Settings with API credentials. Open Settings to disable services you don't use or to add
 more Claude, Codex, or OpenCode Go accounts.
 
 ## First-time setup per service
@@ -56,6 +56,22 @@ Settings. To show account balance and model activity, also create a management
 key at <https://openrouter.ai/settings/provisioning-keys>. Management keys cannot
 be used for inference; AI Usage Clock stores it separately and only uses it for
 OpenRouter management endpoints. Daily spend budget is optional.
+
+### Linear
+
+The Linear tile shows how close your workspace is to the Free plan's issue
+limit: 250 non-archived issues per workspace. In **Settings → General**, enable
+**Linear**. In Linear, open **Settings → Account → Security & Access → Personal
+API keys** and create a key. A read-only key is enough and recommended. The key
+must be able to access all teams in the workspace; a key limited to some teams
+undercounts issues. Paste it into the **Linear** tab in Settings.
+
+The tile shows one **Issues** bar, used / limit, with no reset time. **Issue
+limit** defaults to 250; change it if Linear changes the limit. On a paid plan,
+which has no issue limit, the row shows "no limit" instead of a bar. AI Usage
+Clock stores the key in the system credential store, not in `config.json`, and
+sends only the key and one query (each team's issue count and the workspace's
+plan) to `https://api.linear.app/graphql`.
 
 ### Antigravity
 
@@ -184,7 +200,7 @@ Sessions and settings persist between runs under the per-OS app-data directory:
 
 | OS      | App data                                        | Secrets backend                           |
 | ------- | ----------------------------------------------- | ----------------------------------------- |
-| Windows | `%APPDATA%/ai-usage-clock/`                     | Credential Manager (GitHub PAT, OpenRouter keys, and OpenCode Go keys) + DPAPI-encrypted `secrets.dat` (cookies, since the Credential Manager blob limit is too small for ChatGPT JWTs) |
+| Windows | `%APPDATA%/ai-usage-clock/`                     | Credential Manager (GitHub PAT, OpenRouter keys, OpenCode Go keys, and the Linear key) + DPAPI-encrypted `secrets.dat` (cookies, since the Credential Manager blob limit is too small for ChatGPT JWTs) |
 | macOS   | `~/Library/Application Support/ai-usage-clock/` | Login Keychain                            |
 | Linux   | `~/.config/ai-usage-clock/`                     | Secret Service (GNOME Keyring / KWallet)  |
 

@@ -2,12 +2,12 @@
 
 AI Usage Clock is an independent open-source local desktop utility for Windows,
 macOS, and Linux. It is not affiliated with Anthropic, OpenAI, GitHub,
-Microsoft, OpenCode, OpenRouter, or any other provider.
+Microsoft, OpenCode, OpenRouter, Linear, or any other provider.
 
 ## Reporting a Vulnerability
 
 Please do not open a public issue for a vulnerability that exposes session
-cookies, GitHub tokens, OpenCode/OpenRouter keys, or other secrets.
+cookies, GitHub tokens, OpenCode/OpenRouter/Linear keys, or other secrets.
 
 Preferred channel: open a private security advisory at
 <https://github.com/AIUsageClock/ai-usage-clock/security/advisories/new>.
@@ -40,7 +40,7 @@ Embedded browser profiles live under `<app-data>/profiles/{account-id}/` on
 every OS. The default Claude and Codex account IDs are `claude` and `codex`;
 additional Claude/Codex accounts get their own generated IDs and profiles.
 OpenCode uses per-account API keys in the system keychain and does not require a
-browser profile.
+browser profile. The Linear API key is also kept in the system keychain.
 
 ### MCP usage cache
 
@@ -63,7 +63,7 @@ the credential store, and it exposes no network transport (stdio only).
 ### Why the split on Windows?
 
 Windows Credential Manager caps each blob at ~2.5 KB, which is fine for a
-GitHub PAT, OpenCode key, or OpenRouter key but smaller than some browser session cookies,
+GitHub PAT, OpenCode key, OpenRouter key, or Linear key but smaller than some browser session cookies,
 especially ChatGPT's `__Secure-next-auth.session-token` JWT.
 On Windows we therefore keep cookies in `secrets.dat`, encrypted with DPAPI
 (`CryptProtectData`), and keep API keys and the GitHub PAT in
@@ -87,7 +87,7 @@ account**, not to AI Usage Clock specifically:
 The secrets stored here are session tokens and API keys, not just passwords.
 Recovery of a Claude or ChatGPT session cookie is functionally equivalent to
 taking over the account in a browser until the cookie expires. Recovery of a
-GitHub PAT, OpenCode key, or OpenRouter key can allow API access within that
+GitHub PAT, OpenCode key, OpenRouter key, or Linear key can allow API access within that
 token's scope.
 Treat your OS user profile accordingly.
 
@@ -129,8 +129,9 @@ provider sending the embedded browser to an arbitrary URL.
 ## Privacy
 
 AI Usage Clock does not include telemetry or a backend service. Provider requests
-are made from the local app to Claude.ai, ChatGPT, OpenCode, GitHub, and OpenRouter
-endpoints needed to read usage information. Antigravity usage comes from running
+are made from the local app to Claude.ai, ChatGPT, OpenCode, GitHub, OpenRouter, and Linear
+endpoints needed to read usage information. The Linear request carries only
+your API key and one issue-count query to `api.linear.app`. Antigravity usage comes from running
 your local `agy` command, which makes its own connections.
 
 The optional Codex Resets and Claude Resets announcements are off by default. Only
@@ -141,7 +142,7 @@ sites can see your IP address and the User-Agent
 
 Diagnostic logs are written locally to `<app-data>/ai-usage-clock.log`. Logs
 are intended to avoid recording
-raw cookies, personal access tokens, OpenCode/OpenRouter keys, and sensitive response
+raw cookies, personal access tokens, OpenCode/OpenRouter/Linear keys, and sensitive response
 bodies. Review logs before sharing them in an issue.
 
 ## Scope and Limitations

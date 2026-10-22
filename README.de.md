@@ -42,7 +42,7 @@
 
 ## Was das Tool kann
 
-- **Deine KI-Limits an einem Ort.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot und OpenRouter nebeneinander, jeder Dienst mit eigenem Verbrauchsbalken. Bei laufenden Limits steht neben dem Balken außerdem die verbleibende Zeit.
+- **Deine KI-Limits an einem Ort.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, OpenRouter und Linear nebeneinander, jeder Dienst mit eigenem Verbrauchsbalken. Bei laufenden Limits steht neben dem Balken außerdem die verbleibende Zeit.
 - **Angekündigte Resets vorher sehen, überraschende hinterher nachprüfen.** Schalte die Reset-Ankündigungen ein, dann greift AI Usage Clock die Ankündigungen von Codex und Claude auf. Manche Resets werden vorab angekündigt (die Ankündigungen von Codex, dazu eine KI-Prognose in der Zeile **Watch**), sodass du dich darauf einstellen kannst. Andere kommen aus heiterem Himmel: Die Kachel zeigt immer die neueste Ankündigung. Steht dein Verbrauch plötzlich auf null, siehst du dort, ob gerade ein Reset stattgefunden hat, und kommst mit einem Klick zum Originalbeitrag.
 - **Benachrichtigung bei neuen Ankündigungen.** Auf Wunsch bekommst du eine Benachrichtigung, sobald eine neue Ankündigung auftaucht (unter Windows über die systemeigenen Benachrichtigungen); für jeden Typ gibt es einen eigenen Schalter. Die Ankündigungen stammen von unabhängigen Trackern Dritter und können verspätet oder falsch sein; maßgeblich ist deshalb der Originalbeitrag. Die Funktion ist standardmäßig deaktiviert.
 - **Läuft auf deinem Rechner.** Es gibt weder ein Konto noch einen Server von AI Usage Clock, und auch keine Telemetrie. API-Schlüssel liegen im sicheren Speicher deines Betriebssystems. Dort liegen auch die Anmeldesitzungen für Claude und ChatGPT, außerdem im eigenen Browserprofil-Ordner der App.
@@ -68,6 +68,7 @@ Die Builds sind nicht signiert, deshalb kann Windows oder macOS beim ersten Star
 | **OpenCode Go** | Verbrauch für Rolling, Weekly und Monthly (gleitend, wöchentlich, monatlich) | API-Schlüssel von OpenCode |
 | **GitHub Copilot** | Verbrauchte KI-Credits im Monat, gemessen am Kontingent deines Tarifs; Reset am Monatsersten | Fine-grained personal access token von GitHub |
 | **OpenRouter** | Ausgaben heute und im laufenden Monat, optional ein Tagesbudget; mit einem Management-Schlüssel auch Guthaben und Aktivität pro Modell | API-Schlüssel von OpenRouter |
+| **Linear** | Anzahl der Issues im Verhältnis zum Limit von 250 im Gratis-Tarif (bezahlte Tarife zeigen „no limit“) | Persönlicher API-Schlüssel von Linear |
 
 Claude, Codex und GitHub Copilot sind von Anfang an aktiv. Die übrigen Dienste und die Reset-Ankündigungen schaltest du unter **Settings** ein. Von Claude, Codex und OpenCode Go kannst du jeweils auch mehrere Konten im Blick behalten.
 
@@ -106,7 +107,7 @@ Nein. AI Usage Clock ist ein unabhängiges Open-Source-Projekt und ein inoffizie
 
 Einstellungen, Nutzungsverlauf und Anmeldesitzungen bleiben auf deinem Rechner. Sitzungen und API-Schlüssel werden mit den Bordmitteln deines Betriebssystems für Zugangsdaten gespeichert: unter Windows in der Anmeldeinformationsverwaltung und mit DPAPI, unter macOS im Schlüsselbund, unter Linux im Secret Service. Die Sitzungen für Claude und ChatGPT liegen außerdem im eigenen Browserprofil-Ordner der App.
 
-Es gibt keine Telemetrie und keinen Server von AI Usage Clock. Die App verbindet sich direkt mit den Diensten, die du einschaltest: mit den Nutzungsseiten von Claude und ChatGPT (geladen in einem eingebauten Browser) sowie mit den APIs von GitHub, OpenCode und OpenRouter. Die Werte für Antigravity kommen vom Tool `agy` auf deinem Rechner, das die App für dich aufruft; um seine eigenen Verbindungen kümmert sich `agy` selbst.
+Es gibt keine Telemetrie und keinen Server von AI Usage Clock. Die App verbindet sich direkt mit den Diensten, die du einschaltest: mit den Nutzungsseiten von Claude und ChatGPT (geladen in einem eingebauten Browser) sowie mit den APIs von GitHub, OpenCode, OpenRouter und Linear. An Linear (api.linear.app) gehen nur dein API-Schlüssel und eine einzige Abfrage der Issue-Anzahl. Die Werte für Antigravity kommen vom Tool `agy` auf deinem Rechner, das die App für dich aufruft; um seine eigenen Verbindungen kümmert sich `agy` selbst.
 
 Wenn du die Reset-Ankündigungen einschaltest, kontaktiert die App außerdem codex-resets.com und claude-resets.com; diese Seiten sehen deine IP-Adresse sowie Namen und Version der App. Die optionale lokale Kostenerfassung liest die Logs von Claude Code und Codex auf deinem Rechner aus und lädt nichts hoch. Mehr dazu in [SECURITY.md](SECURITY.md) (englisch).
 

@@ -41,7 +41,7 @@
 
 ## 主要功能
 
-- **各家额度，一处看完**：Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter 并排显示，每家单独一条进度条。已经开始计时的额度，进度条旁边还会显示剩余时间。
+- **各家额度，一处看完**：Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter、Linear 并排显示，每家单独一条进度条。已经开始计时的额度，进度条旁边还会显示剩余时间。
 - **有预告早知道，突然清零查得到**：开启重置公告后，程序就会去抓 Codex 和 Claude 发的公告。有的重置会提前预告（Codex 的预告公告，外加一行由 AI 预测重置可能性的 **Watch**），可以早做准备；有的说来就来，卡片会一直显示最新一条公告，用量突然清零时可以看看是不是刚重置过，一键就能打开原帖。
 - **新公告出来就通知**：可以设置在新公告出现时发通知（Windows 上是系统原生通知），每种类型单独开关。公告来自独立的第三方追踪网站，可能延迟，也可能判断错，请以原帖为准。这个功能默认关闭。
 - **在本机运行**：没有 AI Usage Clock 账号，没有服务器，也没有遥测。API 密钥存在操作系统的安全存储里；Claude 和 ChatGPT 的登录会话也存在那里，程序专用的浏览器配置目录里另有一份。
@@ -67,6 +67,7 @@
 | **OpenCode Go** | 滚动窗口、每周、每月用量 | OpenCode API 密钥 |
 | **GitHub Copilot** | 本月已用的 AI 积分，对照套餐内含的额度，每月 1 日重置 | GitHub 细粒度个人访问令牌（fine-grained PAT） |
 | **OpenRouter** | 今天和本月的花费，可设每日预算；填了管理密钥，还能看余额和各模型用量 | OpenRouter API 密钥 |
+| **Linear** | 免费方案的 issue 数量，对照 250 个的上限（付费方案显示“no limit”） | Linear 个人 API 密钥 |
 
 Claude、Codex 和 GitHub Copilot 默认开启；其他服务和重置公告要到 **Settings** 里手动开启。Claude、Codex 和 OpenCode Go 都支持添加多个账号。
 
@@ -113,7 +114,7 @@ Codex 的卡片还多一行 **Watch**（预测），是 AI 对重置可能性的
 
 - 会话和 API 密钥交给操作系统的凭据存储保管：Windows 用凭据管理器和 DPAPI，macOS 用钥匙串，Linux 用 Secret Service。Claude 和 ChatGPT 的会话另外还存在程序专用的浏览器配置目录里。
 - 没有遥测，也没有 AI Usage Clock 服务器。
-- 程序直接连接你开启的服务：Claude 和 ChatGPT 的用量页面（在内置浏览器里加载），以及 GitHub、OpenCode、OpenRouter 的 API。
+- 程序直接连接你开启的服务：Claude 和 ChatGPT 的用量页面（在内置浏览器里加载），以及 GitHub、OpenCode、OpenRouter、Linear 的 API；发给 Linear（api.linear.app）的只有你的 API 密钥和一个查询 issue 数量的请求。
 - Antigravity 的用量来自本机的 `agy` 工具，由程序代为运行；`agy` 的网络连接由它自己处理。
 - 开启重置公告后，还会访问 codex-resets.com 和 claude-resets.com，这两个网站能看到你的 IP 地址，以及程序的名称和版本号。
 - 可选的本地费用统计会读取本机的 Claude Code 和 Codex 日志，不上传任何内容。

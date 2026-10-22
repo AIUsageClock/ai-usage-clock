@@ -41,7 +41,7 @@
 
 ## Why AI Usage Clock
 
-- **Your AI limits in one place.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, and OpenRouter, side by side, each with its own usage bar. Active limits also show the time left next to the bar.
+- **Your AI limits in one place.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, OpenRouter, and Linear, side by side, each with its own usage bar. Active limits also show the time left next to the bar.
 - **A heads-up before some resets, a place to check after the sudden ones.** Turn on reset announcements and AI Usage Clock picks up Codex and Claude reset announcements. Some resets are announced ahead of time (Codex announcements, plus an AI-predicted Watch row), so you can get ready. Others come out of nowhere: the tile keeps the latest announcement in view, so when your usage suddenly drops to zero you can check whether a reset just happened, with one click to the original post.
 - **Get notified when one appears.** Optionally get a notification when a new announcement shows up (native notifications on Windows), with a separate switch for each type. The announcements come from independent third-party trackers and can be late or wrong, so check the original post. This feature is off by default.
 - **It runs on your computer.** There is no AI Usage Clock account, server, or telemetry. API keys are kept in your operating system's secure storage. Claude and ChatGPT sign-in sessions are kept there too, plus in the app's own browser profile folder.
@@ -67,6 +67,7 @@ The builds are unsigned, so Windows or macOS may warn the first time you start t
 | **OpenCode Go** | Rolling, weekly, and monthly usage | OpenCode API key |
 | **GitHub Copilot** | Monthly AI credits used against your plan's allowance, resetting on the 1st | Fine-grained GitHub personal access token |
 | **OpenRouter** | Spend today and this month, an optional daily budget; balance and model activity with a management key | OpenRouter API key |
+| **Linear** | Issue count against the Free plan's 250-issue limit (paid plans show "no limit") | Linear personal API key |
 
 Claude, Codex, and GitHub Copilot are on by default. The other services, and the reset announcements, are switched on in **Settings**. You can track more than one Claude, Codex, or OpenCode Go account.
 
@@ -98,7 +99,7 @@ No. AI Usage Clock is an independent open-source project and an unofficial local
 
 ### Where does my data go?
 
-Your settings, usage history, and sign-in sessions stay on your computer. Sessions and API keys are stored with your operating system's credential facilities: Credential Manager and DPAPI on Windows, Keychain on macOS, Secret Service on Linux. Claude and ChatGPT sessions are also kept in the app's own browser profile folder. There is no telemetry and no AI Usage Clock server. The app connects directly to the services you turn on: the Claude and ChatGPT usage pages (loaded in a built-in browser), and the GitHub, OpenCode, and OpenRouter APIs. Antigravity usage comes from the `agy` tool on your computer, which the app runs for you; `agy` handles its own connections. If you enable reset announcements, it also contacts codex-resets.com and claude-resets.com; those sites see your IP address and the app's name and version. Optional local cost tracking reads your Claude Code and Codex logs on your computer and uploads nothing. More in [SECURITY.md](SECURITY.md).
+Your settings, usage history, and sign-in sessions stay on your computer. Sessions and API keys are stored with your operating system's credential facilities: Credential Manager and DPAPI on Windows, Keychain on macOS, Secret Service on Linux. Claude and ChatGPT sessions are also kept in the app's own browser profile folder. There is no telemetry and no AI Usage Clock server. The app connects directly to the services you turn on: the Claude and ChatGPT usage pages (loaded in a built-in browser), and the GitHub, OpenCode, OpenRouter, and Linear APIs. Linear (api.linear.app) receives only your API key and one query for issue counts. Antigravity usage comes from the `agy` tool on your computer, which the app runs for you; `agy` handles its own connections. If you enable reset announcements, it also contacts codex-resets.com and claude-resets.com; those sites see your IP address and the app's name and version. Optional local cost tracking reads your Claude Code and Codex logs on your computer and uploads nothing. More in [SECURITY.md](SECURITY.md).
 
 ### Windows SmartScreen or macOS Gatekeeper warns on first launch
 

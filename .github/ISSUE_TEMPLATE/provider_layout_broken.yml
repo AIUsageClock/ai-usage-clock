@@ -10,7 +10,7 @@ body:
         the corresponding page extractor under `src/aiusageclock/providers/`
         needs adjusting. These reports are very welcome.
 
-        OpenCode Go, GitHub Copilot, and OpenRouter are read through their APIs
+        OpenCode Go, GitHub Copilot, OpenRouter, and Linear are read through their APIs
         with your credentials, not from a page. Report problems with those
         tiles with the **Bug report** template instead.
 

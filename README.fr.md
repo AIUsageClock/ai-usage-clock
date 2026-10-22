@@ -42,7 +42,7 @@
 
 ## Ce que fait AI Usage Clock
 
-- **Tous vos quotas d’IA au même endroit.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot et OpenRouter, côte à côte, chacun avec sa propre jauge. Pour les limites en cours, le temps restant s’affiche à côté de la jauge.
+- **Tous vos quotas d’IA au même endroit.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, OpenRouter et Linear, côte à côte, chacun avec sa propre jauge. Pour les limites en cours, le temps restant s’affiche à côté de la jauge.
 - **Un préavis pour certaines réinitialisations, un repère pour les autres.** Activez les annonces de réinitialisation, et AI Usage Clock relève celles de Codex et de Claude. Certaines réinitialisations sont annoncées à l’avance (les annonces Codex, plus une ligne Watch prédite par une IA) : vous avez le temps de vous organiser. D’autres tombent sans prévenir : la vignette garde la dernière annonce sous les yeux, si bien que lorsque votre consommation retombe brusquement à zéro, vous pouvez vérifier si une réinitialisation vient d’avoir lieu, et ouvrir la publication d’origine en un clic.
 - **Une notification quand une annonce tombe.** Si vous le souhaitez, recevez une notification à chaque nouvelle annonce (notifications natives sous Windows), avec un réglage distinct pour chaque type. Les annonces proviennent de sites de suivi tiers et indépendants : elles peuvent arriver en retard ou se tromper, alors vérifiez la publication d’origine. Cette fonction est désactivée par défaut.
 - **Tout se passe sur votre ordinateur.** Pas de compte AI Usage Clock, pas de serveur, pas de télémétrie. Les clés d’API sont conservées dans le stockage sécurisé de votre système d’exploitation, tout comme les sessions de connexion Claude et ChatGPT, également enregistrées dans le dossier de profil de navigateur propre à l’application.
@@ -68,6 +68,7 @@ Les versions ne sont pas signées : Windows ou macOS peut donc afficher un aver
 | **OpenCode Go** | Consommation Rolling, Weekly et Monthly (fenêtre glissante, semaine, mois) | Clé d’API OpenCode |
 | **GitHub Copilot** | Crédits IA consommés dans le mois, comparés à l’enveloppe de votre forfait ; compteur remis à zéro le premier du mois | Jeton d’accès personnel GitHub de type *fine-grained* |
 | **OpenRouter** | Dépenses du jour et du mois, budget quotidien facultatif ; solde et activité par modèle avec une clé de gestion | Clé d’API OpenRouter |
+| **Linear** | Nombre d’issues par rapport à la limite de 250 du forfait gratuit (les forfaits payants affichent « no limit ») | Clé d’API personnelle Linear |
 
 Claude, Codex et GitHub Copilot sont activés par défaut. Les autres services, ainsi que les annonces de réinitialisation, s’activent dans **Settings**. Vous pouvez suivre plusieurs comptes Claude, Codex ou OpenCode Go.
 
@@ -106,7 +107,7 @@ Non. AI Usage Clock est un projet open source indépendant, un utilitaire de bur
 
 Vos réglages, votre historique de consommation et vos sessions de connexion restent sur votre ordinateur. Sessions et clés d’API sont confiées aux mécanismes d’identification de votre système : le Gestionnaire d’identification (Credential Manager) et DPAPI sous Windows, le trousseau (Keychain) sous macOS, Secret Service sous Linux. Les sessions Claude et ChatGPT sont aussi conservées dans le dossier de profil de navigateur propre à l’application.
 
-Aucune télémétrie, aucun serveur AI Usage Clock. L’application se connecte directement aux services que vous activez : les pages de consommation de Claude et de ChatGPT (chargées dans un navigateur intégré), et les API de GitHub, d’OpenCode et d’OpenRouter. Pour Antigravity, la consommation vient de l’outil `agy` installé sur votre ordinateur, que l’application lance pour vous ; `agy` gère lui-même ses connexions.
+Aucune télémétrie, aucun serveur AI Usage Clock. L’application se connecte directement aux services que vous activez : les pages de consommation de Claude et de ChatGPT (chargées dans un navigateur intégré), et les API de GitHub, d’OpenCode, d’OpenRouter et de Linear. Linear (api.linear.app) reçoit uniquement votre clé d’API et une seule requête sur le nombre d’issues. Pour Antigravity, la consommation vient de l’outil `agy` installé sur votre ordinateur, que l’application lance pour vous ; `agy` gère lui-même ses connexions.
 
 Si vous activez les annonces de réinitialisation, l’application contacte aussi codex-resets.com et claude-resets.com ; ces sites voient votre adresse IP ainsi que le nom et la version de l’application. Le suivi local des coûts, facultatif, lit les journaux de Claude Code et de Codex sur votre ordinateur et n’envoie rien. Plus de détails dans [SECURITY.md](SECURITY.md) (en anglais).
 

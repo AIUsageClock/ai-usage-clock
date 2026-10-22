@@ -42,7 +42,7 @@
 
 ## 它能幫你做什麼
 
-- **各家 AI 額度，一個視窗看完。** Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter 並排顯示，每個服務都有自己的用量條；使用中的額度，旁邊還會標出剩餘時間。
+- **各家 AI 額度，一個視窗看完。** Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter、Linear 並排顯示，每個服務都有自己的用量條；使用中的額度，旁邊還會標出剩餘時間。
 - **有預告的先知道，沒預告的查得到。** 打開重置公告功能後，AI Usage Clock 會幫你抓 Codex 和 Claude 的重置公告。有些重置會事先預告（Codex 的公告，再加上 AI 預測的 Watch 列），讓你有時間準備；有些則是突然就來了，所以區塊會一直留著最新一則公告，等你發現用量突然歸零，就能看看是不是剛重置，點一下還能直接打開原始貼文。
 - **有新公告時通知你。** 想要的話，可以在新公告出現時跳通知（Windows 用系統原生通知），每種公告類型都有自己的開關。這些公告來自獨立的第三方追蹤站，可能會晚到或判斷錯誤，請以原始貼文為準。這個功能預設關閉。
 - **全部在你的電腦上跑。** 不必註冊 AI Usage Clock 帳號，沒有伺服器，也沒有遙測。API 金鑰交給作業系統的安全儲存區保管；Claude 和 ChatGPT 的登入工作階段也存在那裡，程式自己的瀏覽器設定檔資料夾裡另外還有一份。
@@ -68,6 +68,7 @@
 | **OpenCode Go** | Rolling、Weekly、Monthly（滾動、每週、每月）三種用量 | OpenCode API 金鑰 |
 | **GitHub Copilot** | 本月用掉多少 AI 點數，對照方案內含的額度；每月 1 號重置 | GitHub 細粒度個人存取權杖（fine-grained PAT） |
 | **OpenRouter** | 今天和本月的花費，可另設每日預算；有管理金鑰的話，還看得到餘額和各模型的使用情形 | OpenRouter API 金鑰 |
+| **Linear** | 免費方案的 issue 數量，對照 250 個的上限（付費方案顯示「no limit」） | Linear 個人 API 金鑰 |
 
 預設開啟的是 Claude、Codex 和 GitHub Copilot；其他服務和重置公告，要到 **Settings** 自己打開。Claude、Codex、OpenCode Go 都可以同時追蹤好幾個帳號。
 
@@ -106,7 +107,7 @@ Codex 的區塊還多一列 **Watch**（觀察），是 AI 預測重置的機率
 
 設定、用量歷史和登入工作階段，都留在你自己的電腦上。工作階段和 API 金鑰交給作業系統的憑證機制保管：Windows 是認證管理員和 DPAPI，macOS 是鑰匙圈，Linux 是 Secret Service。Claude 和 ChatGPT 的工作階段，另外也存在程式自己的瀏覽器設定檔資料夾。
 
-沒有遙測，也沒有 AI Usage Clock 伺服器。程式會直接連到你打開的服務：Claude 和 ChatGPT 的用量頁面（在內建瀏覽器裡載入），還有 GitHub、OpenCode、OpenRouter 的 API。Antigravity 的用量是程式幫你執行電腦上的 `agy` 工具拿到的；至於 `agy` 本身要連到哪裡，由它自己處理。
+沒有遙測，也沒有 AI Usage Clock 伺服器。程式會直接連到你打開的服務：Claude 和 ChatGPT 的用量頁面（在內建瀏覽器裡載入），還有 GitHub、OpenCode、OpenRouter、Linear 的 API；送往 Linear（api.linear.app）的只有你的 API 金鑰和一個查詢 issue 數量的請求。Antigravity 的用量是程式幫你執行電腦上的 `agy` 工具拿到的；至於 `agy` 本身要連到哪裡，由它自己處理。
 
 如果打開重置公告，程式還會連到 codex-resets.com 和 claude-resets.com，這兩個網站看得到你的 IP 位址，還有程式名稱和版本。選用的本機費用追蹤會讀取電腦上的 Claude Code 和 Codex 記錄檔，不會上傳任何東西。詳情見 [SECURITY.md](SECURITY.md)（英文）。
 

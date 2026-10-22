@@ -43,7 +43,7 @@
 
 ## できること
 
-- **AI の上限を一か所に**：Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter を並べて表示し、サービスごとに使用量バーが付きます。期間が始まっている上限には、バーの横に残り時間も表示されます。
+- **AI の上限を一か所に**：Claude、Codex、Antigravity、OpenCode Go、GitHub Copilot、OpenRouter、Linear を並べて表示し、サービスごとに使用量バーが付きます。期間が始まっている上限には、バーの横に残り時間も表示されます。
 - **予告があれば事前に、なくてもあとから確認**：リセット告知をオンにすると、AI Usage Clock が Codex と Claude のリセット告知を拾います。前もって予告されるリセット（Codex の告知と、AI が予測する Watch 行）なら、準備をしておけます。一方で、何の前触れもなく来るリセットもあります。タイルには最新の告知が表示され続けるので、使用量が急にゼロに戻ったとき、リセットがあったのかどうかを確かめられます。元の投稿もワンクリックで開けます。
 - **新しい告知が出たら通知**：希望すれば、新しい告知が出たときに通知を受け取れます（Windows ではシステム標準の通知）。通知は種類ごとに個別にオン・オフできます。告知の出どころは独立したサードパーティのトラッカーなので、遅れたり間違っていたりすることがあります。必ず元の投稿で確認してください。この機能は初期設定ではオフです。
 - **手元のコンピューターで動作**：AI Usage Clock のアカウントも、サーバーも、テレメトリもありません。API キーは OS の安全な保管場所に保存します。Claude と ChatGPT のログインセッションも同じ場所に保存し、加えてアプリ専用のブラウザープロファイルフォルダーにも保存します。
@@ -69,6 +69,7 @@
 | **OpenCode Go** | Rolling、Weekly、Monthly（ローリング・週・月）の使用量 | OpenCode の API キー |
 | **GitHub Copilot** | 当月に使った AI クレジットを、プランの利用枠と比べて表示。毎月 1 日にリセット | GitHub の fine-grained personal access token |
 | **OpenRouter** | 今日と今月の利用額、任意で 1 日の予算。管理キーがあれば残高とモデル別のアクティビティも | OpenRouter の API キー |
+| **Linear** | 無料プランの上限 250 件に対する issue 数（有料プランは「no limit」と表示） | Linear の個人用 API キー |
 
 初期状態で有効なのは Claude、Codex、GitHub Copilot です。ほかのサービスとリセット告知は、**Settings** でオンにします。Claude、Codex、OpenCode Go は、複数のアカウントを登録して追跡できます。
 
@@ -107,7 +108,7 @@ Codex のタイルには **Watch**（予測）行もあります。これは AI 
 
 設定、使用量の履歴、ログインセッションは、お使いのコンピューターの中に保存されます。セッションと API キーの保存には、OS の資格情報の仕組みを使います。Windows では資格情報マネージャーと DPAPI、macOS ではキーチェーン、Linux では Secret Service です。Claude と ChatGPT のセッションは、アプリ専用のブラウザープロファイルフォルダーにも保存されます。
 
-テレメトリはなく、AI Usage Clock のサーバーもありません。アプリは、オンにしたサービスに直接接続します。具体的には、Claude と ChatGPT の使用量ページ（内蔵ブラウザーで読み込みます）と、GitHub、OpenCode、OpenRouter の API です。Antigravity の使用量は、手元の `agy` ツールをアプリが代わりに実行して取得します。`agy` 自体の通信は `agy` が独自に行います。
+テレメトリはなく、AI Usage Clock のサーバーもありません。アプリは、オンにしたサービスに直接接続します。具体的には、Claude と ChatGPT の使用量ページ（内蔵ブラウザーで読み込みます）と、GitHub、OpenCode、OpenRouter、Linear の API です。Linear（api.linear.app）に送るのは、API キーと issue 数を尋ねる 1 回のクエリだけです。Antigravity の使用量は、手元の `agy` ツールをアプリが代わりに実行して取得します。`agy` 自体の通信は `agy` が独自に行います。
 
 リセット告知をオンにした場合は、codex-resets.com と claude-resets.com にも接続します。これらのサイトからは、IP アドレスと、アプリの名前・バージョンが見えます。任意で使えるローカルのコスト集計は、手元の Claude Code と Codex のログを読むだけで、何もアップロードしません。詳しくは [SECURITY.md](SECURITY.md)（英語）をご覧ください。
 

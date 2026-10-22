@@ -42,7 +42,7 @@
 
 ## Qué hace por ti
 
-- **Tus límites de IA en un solo lugar.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot y OpenRouter, uno al lado del otro, cada uno con su propia barra de uso. En los límites que están en curso también verás, junto a la barra, cuánto tiempo queda.
+- **Tus límites de IA en un solo lugar.** Claude, Codex, Antigravity, OpenCode Go, GitHub Copilot, OpenRouter y Linear, uno al lado del otro, cada uno con su propia barra de uso. En los límites que están en curso también verás, junto a la barra, cuánto tiempo queda.
 - **Si hay aviso, te enteras antes; si no, sabes dónde revisar.** Activa los anuncios de reinicio y AI Usage Clock recogerá los anuncios de Codex y Claude. Algunos reinicios se anuncian por adelantado (los anuncios de Codex, más una fila **Watch** con un pronóstico hecho por IA), así que puedes prepararte. Otros llegan sin aviso: la tarjeta deja a la vista el último anuncio, así que cuando tu uso cae a cero de repente puedes comprobar si acaba de haber un reinicio, y abrir la publicación original con un clic.
 - **Notificaciones cuando hay un anuncio nuevo.** Si quieres, puedes recibir una notificación cada vez que aparece un anuncio nuevo (en Windows, con las notificaciones nativas del sistema) y activarlas por separado para cada tipo. Los anuncios vienen de sitios independientes, de terceros, y pueden llegar tarde o estar equivocados, así que confirma siempre en la publicación original. Esta función viene desactivada de forma predeterminada.
 - **Se ejecuta en tu computadora.** No hay cuenta de AI Usage Clock, ni servidor, ni telemetría. Las claves de API se guardan en el almacenamiento seguro de tu sistema operativo. Las sesiones iniciadas en Claude y ChatGPT también se guardan ahí y, además, en la carpeta de perfil del navegador propio de la app.
@@ -68,6 +68,7 @@ Las versiones publicadas no tienen firma de código, así que Windows o macOS pu
 | **OpenCode Go** | Uso Rolling, Weekly y Monthly (ventana móvil, semanal y mensual) | Clave de API de OpenCode |
 | **GitHub Copilot** | Créditos de IA usados en el mes frente a lo que incluye tu plan; el conteo se reinicia el día 1 de cada mes | *Fine-grained personal access token* de GitHub (token de acceso personal) |
 | **OpenRouter** | Gasto de hoy y del mes, con un presupuesto diario opcional; saldo y actividad por modelo si usas una clave de administración | Clave de API de OpenRouter |
+| **Linear** | Número de issues frente al límite de 250 del plan gratuito (los planes de pago muestran «no limit») | Clave de API personal de Linear |
 
 Claude, Codex y GitHub Copilot vienen activados de forma predeterminada. Los demás servicios, y los anuncios de reinicio, se activan en **Settings**. Puedes monitorear más de una cuenta de Claude, Codex u OpenCode Go.
 
@@ -106,7 +107,7 @@ No. AI Usage Clock es un proyecto independiente de código abierto y una utilida
 
 Tu configuración, tu historial de uso y tus sesiones iniciadas se quedan en tu computadora. Las sesiones y las claves de API se guardan con los mecanismos de credenciales de tu sistema operativo: el Administrador de credenciales y DPAPI en Windows, el llavero en macOS y Secret Service en Linux. Las sesiones de Claude y ChatGPT también se guardan en la carpeta de perfil del navegador propio de la app.
 
-No hay telemetría ni servidor de AI Usage Clock. La app se conecta directamente a los servicios que actives: las páginas de uso de Claude y ChatGPT (que se cargan en un navegador integrado) y las API de GitHub, OpenCode y OpenRouter. El uso de Antigravity sale de la herramienta `agy` de tu computadora, que la app ejecuta por ti; `agy` se encarga de sus propias conexiones.
+No hay telemetría ni servidor de AI Usage Clock. La app se conecta directamente a los servicios que actives: las páginas de uso de Claude y ChatGPT (que se cargan en un navegador integrado) y las API de GitHub, OpenCode, OpenRouter y Linear. A Linear (api.linear.app) solo se envían tu clave de API y una única consulta con el número de issues. El uso de Antigravity sale de la herramienta `agy` de tu computadora, que la app ejecuta por ti; `agy` se encarga de sus propias conexiones.
 
 Si activas los anuncios de reinicio, la app también se conecta a codex-resets.com y claude-resets.com; esos sitios ven tu dirección IP y el nombre y la versión de la app. El seguimiento de costos local, que es opcional, lee los registros de Claude Code y Codex en tu computadora y no sube nada. Más detalles en [SECURITY.md](SECURITY.md) (en inglés).
 

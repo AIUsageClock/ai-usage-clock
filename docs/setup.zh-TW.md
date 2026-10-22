@@ -6,7 +6,7 @@
 
 本頁說明各項服務的首次設定。日常使用方式請見[使用 AI Usage Clock](usage.zh-TW.md)。
 
-首次啟動時，小工具會顯示已啟用的服務區塊。Claude、Codex 與 GitHub Copilot 預設啟用；OpenCode Go、OpenRouter、Antigravity 與兩個重置追蹤站則預設關閉，需要在 **Settings → General** 中開啟。Claude 與 Codex 使用 **Sign in**（登入）或 **Paste cookie**（貼上 Cookie）流程；OpenCode Go、GitHub Copilot 與 OpenRouter 則須在 Settings 中以 API 憑證進行設定。你可以開啟 Settings 停用不使用的服務，或新增更多 Claude、Codex 或 OpenCode Go 帳號。
+首次啟動時，小工具會顯示已啟用的服務區塊。Claude、Codex 與 GitHub Copilot 預設啟用；OpenCode Go、OpenRouter、Linear、Antigravity 與兩個重置追蹤站則預設關閉，需要在 **Settings → General** 中開啟。Claude 與 Codex 使用 **Sign in**（登入）或 **Paste cookie**（貼上 Cookie）流程；OpenCode Go、GitHub Copilot、OpenRouter 與 Linear 則須在 Settings 中以 API 憑證進行設定。你可以開啟 Settings 停用不使用的服務，或新增更多 Claude、Codex 或 OpenCode Go 帳號。
 
 ## 各服務的首次設定
 
@@ -29,6 +29,12 @@
 ### OpenRouter
 
 至 <https://openrouter.ai/keys> 建立推論用（inference）API 金鑰，並貼入 Settings。若要顯示帳戶餘額與模型活動，另請至 <https://openrouter.ai/settings/provisioning-keys> 建立管理金鑰（management key）。管理金鑰無法用於推論；AI Usage Clock 會將其另外儲存，且僅用於 OpenRouter 的管理端點。每日花費預算為選填。
+
+### Linear
+
+Linear 區塊會顯示你的工作區離免費方案的 issue 上限還有多遠：每個工作區最多 250 個未封存的 issue。請先在 **Settings → General** 中啟用 **Linear**。接著在 Linear 開啟 **Settings → Account → Security & Access → Personal API keys**，建立一把 API 金鑰；唯讀金鑰就夠用，也建議這麼做。這把金鑰必須能存取工作區的所有 team，只開放部分 team 的金鑰會少算 issue。把金鑰貼進 Settings 的 **Linear** 分頁即可。
+
+區塊會顯示一條 **Issues** 進度條，內容為「已用 / 上限」，沒有重置時間。**Issue limit** 預設為 250，Linear 若調整上限，可以在這裡修改。付費方案沒有 issue 上限，該列會顯示「no limit」而不是進度條。AI Usage Clock 把金鑰存放在系統的憑證儲存區，不會寫進 `config.json`，並且只會把金鑰和一個查詢（各 team 的 issue 數量與工作區的方案）送到 `https://api.linear.app/graphql`。
 
 ### Antigravity
 
@@ -84,7 +90,7 @@ Google 不允許在內嵌瀏覽器控制項內進行 OAuth 登入，因此 AI Us
 
 | 作業系統 | 應用程式資料                                    | 機密儲存後端                              |
 | ------- | ----------------------------------------------- | ----------------------------------------- |
-| Windows | `%APPDATA%/ai-usage-clock/`                     | 認證管理員（GitHub PAT、OpenRouter 金鑰與 OpenCode Go 金鑰）＋以 DPAPI 加密的 `secrets.dat`（用於 Cookie，因為認證管理員的資料大小上限對 ChatGPT 的 JWT 而言太小） |
+| Windows | `%APPDATA%/ai-usage-clock/`                     | 認證管理員（GitHub PAT、OpenRouter 金鑰、OpenCode Go 金鑰與 Linear 金鑰）＋以 DPAPI 加密的 `secrets.dat`（用於 Cookie，因為認證管理員的資料大小上限對 ChatGPT 的 JWT 而言太小） |
 | macOS   | `~/Library/Application Support/ai-usage-clock/` | 登入鑰匙圈                                |
 | Linux   | `~/.config/ai-usage-clock/`                     | Secret Service（GNOME Keyring / KWallet） |
 
