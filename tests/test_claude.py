@@ -1,7 +1,12 @@
+import logging
 from datetime import timedelta
 
+import pytest
+
 from aiusageclock.models import SnapshotStatus
+from aiusageclock.providers import claude as claude_module
 from aiusageclock.providers.claude import CLAUDE_USAGE_URL, _build_snapshot
+from aiusageclock.providers.claude import EXTRACTOR_JS, ClaudeProvider, extractor_js
 
 
 def test_claude_cloudflare_payload_is_auth_required():
@@ -341,3 +346,69 @@ def test_claude_fable_enabled_on_plan_without_the_row_is_not_an_error():
 
     assert snapshot.status == SnapshotStatus.OK
     assert [metric.label for metric in snapshot.metrics] == ["Session", "Weekly"]
+
+
+# --- Fable row expansion flag and diagnostics ---------------------------------
+
+def test_extractor_js_true_is_the_unmodified_script():
+    assert extractor_js(True) == EXTRACTOR_JS
+    assert "const SHOW_FABLE = true;" in extractor_js(True)
+
+
+def test_extractor_js_false_only_flips_the_fable_flag():
+    script = extractor_js(False)
+
+    assert "const SHOW_FABLE = false;" in script
+    assert "const SHOW_FABLE = true;" not in script
+    assert script.replace("const SHOW_FABLE = false;", "const SHOW_FABLE = true;") == EXTRACTOR_JS
+
+
+@pytest.mark.parametrize("show_fable", [True, False])
+def test_refresh_passes_the_matching_extractor_to_the_scraper(monkeypatch, show_fable):
+    captured: dict = {}
+
+    class FakeRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run(self, on_done):
+            captured["ran"] = True
+
+    monkeypatch.setattr(claude_module, "ScrapeRunner", FakeRunner)
+
+    ClaudeProvider(show_fable=show_fable).refresh(lambda snapshot: None)
+
+    assert captured["ran"] is True
+    assert captured["extractor_js"] == extractor_js(show_fable)
+    assert ("const SHOW_FABLE = true;" in captured["extractor_js"]) is show_fable
+
+
+def test_missing_fable_row_is_logged_with_the_expand_outcome(caplog):
+    payload = _max_plan_payload()
+    payload["weekly_fable"] = None
+    payload["fable_expand"] = "gave_up"
+    payload["fable_probe"] = [{"tag": "button", "expanded": "false", "text": "This week"}]
+    payload["fable_error"] = "boom"
+
+    with caplog.at_level(logging.INFO, logger="aiusageclock.providers.claude"):
+        snapshot = _build_snapshot(payload, show_fable=True)
+
+    assert snapshot.status == SnapshotStatus.OK
+    messages = [record.getMessage() for record in caplog.records]
+    assert any(
+        "fable row missing" in message
+        and "expand=gave_up" in message
+        and "This week" in message
+        and message.endswith("error=boom")
+        for message in messages
+    )
+
+
+def test_fable_row_present_or_not_tracked_does_not_log_missing(caplog):
+    with caplog.at_level(logging.INFO, logger="aiusageclock.providers.claude"):
+        _build_snapshot(_max_plan_payload(), show_fable=True)
+        payload = _max_plan_payload()
+        payload["weekly_fable"] = None
+        _build_snapshot(payload, show_fable=False)
+
+    assert not [r for r in caplog.records if "fable row missing" in r.getMessage()]

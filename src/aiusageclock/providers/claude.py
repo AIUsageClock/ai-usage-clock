@@ -35,8 +35,26 @@ log = logging.getLogger("aiusageclock.providers.claude")
 # hydrated, the extractor asks the scraper to poll again in-page rather than
 # failing on sidebar/chat text. It waits for the Session/Weekly rows, not just
 # any percent text elsewhere in the shell.
+#
+# Max plans only show the separate Fable row after the "This week" row has been
+# expanded. When SHOW_FABLE is on and no Fable row is visible, the extractor
+# clicks that expander once and asks the scraper to poll again in the same
+# document. extractor_js(False) flips the flag so accounts that do not track
+# Fable never have the page touched.
 EXTRACTOR_JS = r"""
 (() => {
+  const SHOW_FABLE = true;
+  const RETRY_DELAY_MS = 1200;
+  // webview/scraper.py re-runs this script in the same document at most 5
+  // times per attempt (a 6th re-run makes the whole provider fail). Every
+  // retry is counted in document.__aiusageclockRetries. A Fable click or wait
+  // is still allowed while at most FABLE_MAX_SPENT_RETRIES retries are already
+  // spent, so it brings the total to 4 at most and leaves 1 re-run spare for a
+  // route redirect: that navigation creates a new document whose counter
+  // restarts at 0 and therefore undercounts.
+  const FABLE_MAX_SPENT_RETRIES = 3;
+  // After the click, wait this many extra polls for the Fable row to render.
+  const FABLE_MAX_WAITS = 1;
   const ROW_LABEL_GROUPS = [
     ['Current session'],
     // Claude renamed these rows in September 2026. Keep the old labels for
@@ -45,6 +63,8 @@ EXTRACTOR_JS = r"""
     ['Fable this week', 'Fable'],
     ['Daily included routine runs']
   ];
+  // The weekly row's labels, lower-cased, for finding its expander.
+  const WEEKLY_LABELS = ROW_LABEL_GROUPS[1].map(label => label.toLowerCase());
 
   function norm(el) {
     return (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -189,6 +209,130 @@ EXTRACTOR_JS = r"""
     };
   }
 
+  // See FABLE_MAX_SPENT_RETRIES: every retry goes through retryResult(), which
+  // counts it here.
+  function retriesSoFar() {
+    return Number(document.__aiusageclockRetries) || 0;
+  }
+
+  function noteRetry() {
+    document.__aiusageclockRetries = retriesSoFar() + 1;
+  }
+
+  // The weekly row's container: the smallest row-sized element whose text
+  // heads the "This week" / "All models" row. It matches even while the row
+  // is collapsed and shows only idle copy. "Fable this week" does not count.
+  function headsWeeklyRow(text) {
+    const lower = text.toLowerCase();
+    for (const label of WEEKLY_LABELS) {
+      const needle = label;
+      let i = lower.indexOf(needle);
+      while (i !== -1) {
+        if (!isEmbeddedLabel(text, i, label)) {
+          const after = text.slice(i + needle.length).trim();
+          if (isIdleRowTail(after) || hasUsageValue(withoutVersion(after))) return true;
+        }
+        i = lower.indexOf(needle, i + 1);
+      }
+    }
+    return false;
+  }
+
+  function findWeeklyContainer() {
+    let best = null;
+    let bestLen = Infinity;
+    for (const el of Array.from(document.querySelectorAll('div, section, li'))) {
+      const t = norm(el);
+      if (t.length >= 400 || /Current session/i.test(t)) continue;
+      if (el.getBoundingClientRect().height > 140) continue;
+      if (!headsWeeklyRow(t)) continue;
+      if (t.length < bestLen) {
+        best = el;
+        bestLen = t.length;
+      }
+    }
+    return best;
+  }
+
+  function tagOf(el) {
+    return String(el.tagName || '').toLowerCase();
+  }
+
+  function isControl(el) {
+    return el.hasAttribute('aria-expanded') ||
+      tagOf(el) === 'button' ||
+      el.getAttribute('role') === 'button';
+  }
+
+  // Controls that must never be clicked: links, upsell/settings buttons, the
+  // Fable row itself, and anything already expanded (we never collapse).
+  function isForbiddenControl(el) {
+    if (tagOf(el) === 'a') return true;
+    if (el.closest('a[href]')) return true;
+    if (el.getAttribute('aria-expanded') === 'true') return true;
+    // Popover/tooltip/menu triggers open overlays, not the row.
+    if (el.hasAttribute('aria-haspopup')) return true;
+    const text = norm(el) + ' ' + (el.getAttribute('aria-label') || '');
+    if (/\b(?:upgrade|buy|add|purchase|manage|credits|settings|try|get)\b/i.test(text)) return true;
+    return /fable/i.test(text);
+  }
+
+  // Returns {el, probe, hasRow}. el is the control to click, or null when
+  // there is nothing safe to click (no weekly row, no expander, or already
+  // expanded). probe lists the controls inside the weekly row for diagnostics.
+  // hasRow is false when no weekly row container was found at all.
+  function findWeeklyExpander() {
+    const found = { el: null, probe: [], hasRow: false };
+    const container = findWeeklyContainer();
+    if (!container) return found;
+    found.hasRow = true;
+    // The container itself counts: some layouts make the whole row the button.
+    const pool = [container].concat(Array.from(container.querySelectorAll('*')));
+    const controls = pool.filter(isControl);
+    found.probe = controls.slice(0, 8).map(el => ({
+      tag: tagOf(el),
+      expanded: el.getAttribute('aria-expanded'),
+      text: norm(el).slice(0, 40),
+    }));
+    if (pool.some(el => el.getAttribute('aria-expanded') === 'true')) return found;
+
+    const usable = pool.filter(el => !isForbiddenControl(el));
+    const labelOf = el => norm(el).toLowerCase();
+    const isWeeklyLabel = text => WEEKLY_LABELS.includes(text);
+    const startsWithWeeklyLabel = text => WEEKLY_LABELS.some(label => text.startsWith(label));
+    // 1. A collapsed disclosure labelled with the weekly label. An icon-only
+    //    toggle (no text) is accepted with no aria-label at all; when it does
+    //    have one, the label must describe expanding (or name the weekly row),
+    //    so a "More info" tooltip trigger cannot take the single click.
+    found.el = usable.find(el => {
+      if (el.getAttribute('aria-expanded') !== 'false') return false;
+      const text = labelOf(el);
+      if (startsWithWeeklyLabel(text)) return true;
+      if (text !== '') return false;
+      const aria = (el.getAttribute('aria-label') || '').trim().toLowerCase();
+      return aria === '' ||
+        startsWithWeeklyLabel(aria) ||
+        /\b(expand|collapse|show|details|breakdown)\b/i.test(aria);
+    }) || null;
+    // 2. A button whose whole text is the weekly label.
+    if (!found.el) {
+      found.el = usable.find(el =>
+        (tagOf(el) === 'button' || el.getAttribute('role') === 'button') &&
+        isWeeklyLabel(labelOf(el))) || null;
+    }
+    // 3. Fallback, riskier: a non-link element whose whole text is the label.
+    //    It must look interactive (tabindex or aria-controls). A plain
+    //    <span>This week</span> is just the heading of a row that cannot be
+    //    expanded (Pro plans); clicking it would cost a retry cycle for
+    //    nothing. Only used when neither of the above exists.
+    if (!found.el) {
+      found.el = usable.find(el =>
+        isWeeklyLabel(labelOf(el)) &&
+        (el.hasAttribute('tabindex') || el.hasAttribute('aria-controls'))) || null;
+    }
+    return found;
+  }
+
   const bodyText = (document.body.textContent || '').replace(/\s+/g, ' ').trim();
   const isLoggedOut =
     (location.hostname === 'claude.ai' &&
@@ -197,8 +341,29 @@ EXTRACTOR_JS = r"""
     (!!document.querySelector('a[href*="/login"]') &&
       !/Plan usage limits|Your usage/i.test(bodyText));
 
-  const session = readRow(ROW_LABEL_GROUPS[0]);
-  const weeklyAll = readRow(ROW_LABEL_GROUPS[1]);
+  // Every "poll me again" exit goes through here so it is always counted.
+  // Callers that already hold readings override the null defaults via extra.
+  function retryResult(reason, extra) {
+    noteRetry();
+    return Object.assign({
+      __retry_after_ms: RETRY_DELAY_MS,
+      __retry_reason: reason,
+      logged_out: false,
+      session: null,
+      weekly_all: null,
+      weekly_fable: null,
+      url: location.href,
+      title: document.title,
+      body_text: bodyText.slice(0, 8000),
+    }, extra || {});
+  }
+
+  // After the weekly row is expanded, its container may absorb child rows
+  // (for example "Opus 9% used") and readRow() takes the last percentage in
+  // the container. Session/All-models values captured at click time win.
+  const pinned = document.__aiusageclockPinned || null;
+  const session = pinned ? pinned.session : readRow(ROW_LABEL_GROUPS[0]);
+  const weeklyAll = pinned ? pinned.weekly_all : readRow(ROW_LABEL_GROUPS[1]);
   // Max-plan accounts only. Never gate readiness on this row — Pro/Free
   // accounts have no Fable row and would retry until timeout.
   const weeklyFable = readRow(ROW_LABEL_GROUPS[2]);
@@ -217,19 +382,7 @@ EXTRACTOR_JS = r"""
   }
 
   const routeReason = !isLoggedOut ? ensureUsageRoute() : null;
-  if (routeReason) {
-    return {
-      __retry_after_ms: 1200,
-      __retry_reason: routeReason,
-      logged_out: false,
-      session: null,
-      weekly_all: null,
-      weekly_fable: null,
-      url: location.href,
-      title: document.title,
-      body_text: bodyText.slice(0, 8000),
-    };
-  }
+  if (routeReason) return retryResult(routeReason);
 
   // The current Claude UI opens usage as a shell/dialog route. Percent text
   // elsewhere in the shell is not enough; wait for the Session/Weekly rows
@@ -240,21 +393,61 @@ EXTRACTOR_JS = r"""
     /All models|This week/i.test(bodyText) &&
     !/%/.test(bodyText);
   const requiredRowsReady = !!session && !!weeklyAll;
-  if (!isLoggedOut && (onUsageRoute() || usagePanelSignals) && !requiredRowsReady && !idleUsagePanel) {
-    return {
-      __retry_after_ms: 1200,
-      __retry_reason: 'usage dialog not ready',
-      logged_out: false,
-      session: null,
-      weekly_all: null,
-      weekly_fable: null,
-      url: location.href,
-      title: document.title,
-      body_text: bodyText.slice(0, 8000),
-    };
+  // Once the weekly row was expanded, the Fable row appearing can flip the
+  // idle-panel signal (it brings a "0% used" with it) while a pinned row stays
+  // unresolved; never fall back into this retry loop after our own click.
+  if (!isLoggedOut && (onUsageRoute() || usagePanelSignals) && !requiredRowsReady && !idleUsagePanel &&
+      !document.__aiusageclockFableExpanded) {
+    return retryResult('usage dialog not ready');
   }
 
-  return {
+  function fableRetry(reason, state) {
+    return retryResult(reason, {
+      fable_expand: state,
+      session: session,
+      weekly_all: weeklyAll,
+      weekly_fable: weeklyFable,
+    });
+  }
+
+  // Max plans hide the Fable row until the weekly row is expanded. Click the
+  // expander at most once per document, then re-read. Clicks and waits are
+  // bounded by FABLE_MAX_SPENT_RETRIES / FABLE_MAX_WAITS (see their comments).
+  let fableExpand = null;
+  let fableProbe = null;
+  let fableError = null;
+  if (SHOW_FABLE && !isLoggedOut && (requiredRowsReady || idleUsagePanel) && weeklyFable === null) {
+    try {
+      const budgetOpen = retriesSoFar() <= FABLE_MAX_SPENT_RETRIES;
+      if (!document.__aiusageclockFableExpanded) {
+        const found = findWeeklyExpander();
+        if (found.el && budgetOpen) {
+          found.el.click();
+          document.__aiusageclockFableExpanded = true;
+          document.__aiusageclockPinned = { session: session, weekly_all: weeklyAll };
+          return fableRetry('expanded weekly row', 'clicked');
+        }
+        fableExpand = found.el ? 'budget' : (found.hasRow ? 'none' : 'no_row');
+        fableProbe = found.probe;
+      } else {
+        const waits = Number(document.__aiusageclockFableWaits) || 0;
+        if (waits < FABLE_MAX_WAITS && budgetOpen) {
+          document.__aiusageclockFableWaits = waits + 1;
+          return fableRetry('waiting for fable row', 'waiting');
+        }
+        fableExpand = 'gave_up';
+        fableProbe = findWeeklyExpander().probe;
+      }
+    } catch (err) {
+      // Never let the expansion heuristics break the normal reading.
+      fableExpand = 'error';
+      fableError = String((err && err.message) || err).slice(0, 120);
+    }
+  } else if (SHOW_FABLE && document.__aiusageclockFableExpanded && weeklyFable !== null) {
+    fableExpand = 'expanded';
+  }
+
+  const result = {
     logged_out: isLoggedOut,
     session: session,
     weekly_all: weeklyAll,
@@ -263,8 +456,28 @@ EXTRACTOR_JS = r"""
     title: document.title,
     body_text: bodyText.slice(0, 8000),
   };
+  if (fableExpand) result.fable_expand = fableExpand;
+  if (fableProbe && fableProbe.length > 0) result.fable_probe = fableProbe;
+  if (fableError) result.fable_error = fableError;
+  return result;
 })();
 """
+
+
+_SHOW_FABLE_ON = "const SHOW_FABLE = true;"
+_SHOW_FABLE_OFF = "const SHOW_FABLE = false;"
+
+
+def extractor_js(show_fable: bool) -> str:
+    """Return the extractor script, with Fable row expansion on or off.
+
+    With ``show_fable`` False the script never clicks anything on the page.
+    """
+    if show_fable:
+        return EXTRACTOR_JS
+    if EXTRACTOR_JS.count(_SHOW_FABLE_ON) != 1:
+        raise RuntimeError("SHOW_FABLE flag missing from the Claude extractor script")
+    return EXTRACTOR_JS.replace(_SHOW_FABLE_ON, _SHOW_FABLE_OFF, 1)
 
 
 def _is_claude_usage_url(url: str) -> bool:
@@ -419,6 +632,14 @@ def _build_snapshot(
                 raw=payload,
             )
 
+    if show_fable and not any(metric.label == "Fable" for metric in metrics):
+        log.info(
+            "claude fable row missing expand=%s probe=%s error=%s",
+            payload.get("fable_expand"),
+            payload.get("fable_probe"),
+            payload.get("fable_error"),
+        )
+
     return UsageSnapshot(
         provider=account_id,
         status=SnapshotStatus.OK,
@@ -453,7 +674,7 @@ class ClaudeProvider(Provider):
         self._runner = ScrapeRunner(
             account_id=self._account_id,
             url=CLAUDE_USAGE_URL,
-            extractor_js=EXTRACTOR_JS,
+            extractor_js=extractor_js(self._show_fable),
             build=_build,
             log=log,
             wait_ms=7000,
