@@ -64,8 +64,10 @@ In **Settings → General**, enable **Antigravity**. AI Usage Clock runs the loc
 Leave **agy CLI** blank for auto-detection (`agy` on `PATH`, then
 `%LOCALAPPDATA%\agy\bin\agy.exe` on Windows), or select the executable. A missing
 file or a file not named `agy` is reported and not run. The tile can show Gemini
-and Claude+GPT usage, each with 5-hour and weekly limits; choose which groups to
-display in the Antigravity tab. AI Usage Clock disables `agy` background updates
+and Claude+GPT usage, each with 5-hour and weekly limits, plus a separate Argon
+weekly row for the Gemini 4 Argon quota (the **Gemini models** switch controls both
+Gemini and Argon); choose which groups to display in the Antigravity tab. AI Usage
+Clock disables `agy` background updates
 for its own calls and hides its console window; this does not affect updates when
 you run `agy` yourself. If a response indicates token use, or the result cannot
 confirm no use, polling stops until AI Usage Clock is restarted.

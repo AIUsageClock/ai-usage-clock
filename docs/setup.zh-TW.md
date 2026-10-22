@@ -32,7 +32,7 @@
 
 ### Antigravity
 
-在 **Settings → General** 中啟用 **Antigravity**。AI Usage Clock 會執行本機 `agy` CLI 的 `/quota` 指令；無須在 AI Usage Clock 中輸入帳號或 API 金鑰。**agy CLI** 欄位留空即可自動偵測（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行選擇執行檔。若檔案不存在，或檔名不是 `agy`，系統會回報錯誤且不會執行。區塊可顯示 Gemini 與 Claude+GPT 的用量，各有 5 小時與每週上限；請在 Antigravity 分頁選擇要顯示的群組。AI Usage Clock 在自行呼叫 `agy` 時會停用其背景更新並隱藏其主控台視窗；這不會影響你自行執行 `agy` 時的更新。若回應顯示有 token 消耗，或結果無法確認未消耗，輪詢會停止，直到重新啟動 AI Usage Clock。
+在 **Settings → General** 中啟用 **Antigravity**。AI Usage Clock 會執行本機 `agy` CLI 的 `/quota` 指令；無須在 AI Usage Clock 中輸入帳號或 API 金鑰。**agy CLI** 欄位留空即可自動偵測（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行選擇執行檔。若檔案不存在，或檔名不是 `agy`，系統會回報錯誤且不會執行。區塊可顯示 Gemini 與 Claude+GPT 的用量，各有 5 小時與每週上限，另有獨立的「Argon weekly」一列顯示 Gemini 4 Argon 的每週額度（「Gemini models」開關會同時控制 Gemini 與 Argon）；請在 Antigravity 分頁選擇要顯示的群組。AI Usage Clock 在自行呼叫 `agy` 時會停用其背景更新並隱藏其主控台視窗；這不會影響你自行執行 `agy` 時的更新。若回應顯示有 token 消耗，或結果無法確認未消耗，輪詢會停止，直到重新啟動 AI Usage Clock。
 
 ## 多個 Claude / Codex / OpenCode Go 帳號
 

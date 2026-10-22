@@ -6,6 +6,15 @@
 
 - `LICENSE` now names AI Usage Clock contributors. The MIT notice of the earlier code that AI Usage Clock builds on is kept word for word in [docs/legal/UPSTREAM-LICENSE.txt](docs/legal/UPSTREAM-LICENSE.txt), and every release archive reproduces it in `THIRD_PARTY_NOTICES.txt`.
 
+### Added
+
+- Antigravity: the Gemini 4 Argon weekly quota now has its own **Argon weekly** row. It is shown or hidden together with Gemini by the **Gemini models** switch in Settings.
+
+### Fixed
+
+- Antigravity: the Argon quota was shown as "Gemini weekly" and shared its usage history with the real Gemini weekly quota, so every refresh recorded a bogus reset. The two are now tracked separately.
+- Claude: the "Fable this week" row was not read after claude.ai moved it under a collapsed "This week" row. The extractor now expands that row once when the Fable row is missing.
+
 ## 1.0.0 - 2026-10-15
 
 ### Renamed
