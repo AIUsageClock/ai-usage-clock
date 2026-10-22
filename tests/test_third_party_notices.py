@@ -1168,6 +1168,44 @@ def test_a_referenced_license_text_that_is_not_there_is_reported_not_invented(tm
     assert "Full GPL 3 text" in text  # the one that exists is unaffected
 
 
+def test_a_dot_zero_reference_falls_back_to_the_file_without_it(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "GPL-2", "Full GPL 2 text")
+    write_common_license(licenses, "GPL-3", "Full GPL 3 text")
+    write_common_license(licenses, "LGPL-2.1", "Full LGPL 2.1 text")
+    system = glib_and_alsa(
+        tmp_path,
+        "Pango: /usr/share/common-licenses/GPL-2.0 and /usr/share/common-licenses/GPL-3.0",
+        "ALSA: /usr/share/common-licenses/LGPL-2.1",
+        licenses,
+    )
+
+    text = notices.render([], system)
+
+    assert {lic.name: lic.text for lic in system.licenses} == {
+        "GPL-2.0": "Full GPL 2 text",
+        "GPL-3.0": "Full GPL 3 text",
+        "LGPL-2.1": "Full LGPL 2.1 text",
+    }
+    base = licenses.as_posix()
+    assert f"--- {base}/GPL-2 ---" in text and f"--- {base}/GPL-3 ---" in text
+    assert "Not found" not in text
+
+
+def test_the_dot_zero_fallback_prefers_the_exact_name_and_does_not_hide_a_missing_text(tmp_path):
+    licenses = tmp_path / "common-licenses"
+    write_common_license(licenses, "Apache-2.0", "Apache text")
+    write_common_license(licenses, "Apache-2", "wrong file")
+    write_common_license(licenses, "LGPL-2", "must not stand in for LGPL-2.1")
+
+    assert notices.read_common_license("Apache-2.0", licenses).text == "Apache text"
+    missing = notices.read_common_license("GPL-2.0", licenses)
+    assert missing.text is None
+    assert missing.path == f"{licenses.as_posix()}/GPL-2.0"
+    # Only a trailing ".0" is dropped: LGPL-2.1 has no fallback.
+    assert notices.read_common_license("LGPL-2.1", licenses).text is None
+
+
 def test_a_reference_that_climbs_out_of_the_folder_is_ignored_even_when_the_target_exists(tmp_path):
     licenses = tmp_path / "common-licenses"
     write_common_license(licenses, "GPL-3", "Full GPL 3 text")

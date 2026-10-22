@@ -707,16 +707,24 @@ def read_common_license(name: str, licenses_root: Path) -> ReferencedLicense:
     """The standard license text called *name*; its text is None when it cannot be read.
 
     A name that is not a plain file name is never looked up, whatever the
-    caller passes.
+    caller passes. Debian's own copyright files sometimes spell the name with a
+    trailing ``.0`` that the file does not have (``GPL-2.0`` for ``GPL-2``), so
+    when *name* is missing the name without that ``.0`` is tried; the result
+    then points at the file that was read.
     """
-    shown = f"{licenses_root.as_posix().rstrip('/')}/{name}"
+    root = licenses_root.as_posix().rstrip("/")
     if not _COMMON_LICENSE_FULL_NAME.fullmatch(name):
-        return ReferencedLicense(name, shown, None)
-    try:
-        text = _normalise_text((licenses_root / name).read_bytes())
-    except OSError:
-        return ReferencedLicense(name, shown, None)
-    return ReferencedLicense(name, shown, text or None)
+        return ReferencedLicense(name, f"{root}/{name}", None)
+    candidates = [name]
+    if name.endswith(".0") and len(name) > 2:
+        candidates.append(name[:-2])
+    for candidate in candidates:
+        try:
+            text = _normalise_text((licenses_root / candidate).read_bytes())
+        except OSError:
+            continue
+        return ReferencedLicense(name, f"{root}/{candidate}", text or None)
+    return ReferencedLicense(name, f"{root}/{name}", None)
 
 
 def collect_system_libraries(
