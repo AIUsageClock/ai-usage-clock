@@ -12,6 +12,7 @@ from aiusageclock.providers import antigravity
 from aiusageclock.providers.antigravity import (
     AntigravityProvider,
     _build_snapshot,
+    _classify_bucket,
     _decode_output,
     _invoke_cli,
     resolve_cli,
@@ -53,14 +54,22 @@ def test_fixture_maps_metrics_in_group_and_window_order():
         "Gemini weekly",
         "Claude+GPT 5h",
         "Claude+GPT weekly",
+        "Argon weekly",
     ]
     assert [metric.percent_used for metric in snapshot.metrics] == pytest.approx(
-        [14.962172508239746, 13.184946775436401, 0.0, 88.507279753684998]
+        [
+            14.962172508239746,
+            13.184946775436401,
+            0.0,
+            88.507279753684998,
+            38.73084187507629,
+        ]
     )
     assert [metric.window for metric in snapshot.metrics] == [
         timedelta(hours=5),
         timedelta(days=7),
         timedelta(hours=5),
+        timedelta(days=7),
         timedelta(days=7),
     ]
     assert snapshot.metrics[2].resets_at is None
@@ -71,7 +80,7 @@ def test_fixture_maps_metrics_in_group_and_window_order():
     )
     assert snapshot.metrics[0].resets_at.tzinfo is None
     assert all(metric.tag is None for metric in snapshot.metrics)
-    assert len(snapshot.raw["buckets"]) == 4
+    assert len(snapshot.raw["buckets"]) == 5
 
 
 def test_bucket_without_description_is_parsed_and_integer_one_is_idle():
@@ -261,7 +270,7 @@ def test_cli_start_and_timeout_errors(monkeypatch, exception, expected):
     ("show_gemini", "show_third_party", "labels"),
     [
         (False, True, ["Claude+GPT 5h", "Claude+GPT weekly"]),
-        (True, False, ["Gemini 5h", "Gemini weekly"]),
+        (True, False, ["Gemini 5h", "Gemini weekly", "Argon weekly"]),
         (False, False, []),
     ],
 )
@@ -273,6 +282,67 @@ def test_group_visibility_filters(show_gemini, show_third_party, labels):
     )
 
     assert [metric.label for metric in snapshot.metrics] == labels
+
+
+def test_argon_group_before_gemini_group_keeps_distinct_labels():
+    payload = _payload()
+    groups = payload["command"]["data"]["groups"]
+    payload["command"]["data"]["groups"] = [groups[2], groups[0], groups[1]]
+
+    snapshot = _build_snapshot(payload)
+
+    assert [metric.label for metric in snapshot.metrics] == [
+        "Argon weekly",
+        "Gemini 5h",
+        "Gemini weekly",
+        "Claude+GPT 5h",
+        "Claude+GPT weekly",
+    ]
+
+
+def test_unknown_gemini_subfamily_uses_capitalized_segment_and_gemini_filter():
+    payload = _payload()
+    payload["command"]["data"]["groups"] = [
+        {
+            "name": "Gemini Experimental",
+            "buckets": [
+                {
+                    "id": "gemini-foo-5h",
+                    "window": "5h",
+                    "remaining_fraction": 0.5,
+                    "reset_time": "2026-10-28T06:20:10Z",
+                }
+            ],
+        }
+    ]
+
+    shown = _build_snapshot(payload, show_gemini=True)
+    hidden = _build_snapshot(payload, show_gemini=False)
+
+    assert [metric.label for metric in shown.metrics] == ["Foo 5h"]
+    assert hidden.metrics == []
+
+
+@pytest.mark.parametrize(
+    ("bucket_id", "group_name", "window_value", "expected"),
+    [
+        ("gemini-argon-wtu-weekly", "Gemini 4 Argon", "weekly", ("Argon", "gemini")),
+        ("GEMINI-ARGON-WTU-WEEKLY", "Gemini 4 Argon", None, ("Argon", "gemini")),
+        ("gemini-foo-5h", "Gemini Foo", None, ("Foo", "gemini")),
+        ("gemini-weekly", "Gemini Models", None, ("Gemini", "gemini")),
+        ("gemini-5h", "Gemini Models", None, ("Gemini", "gemini")),
+        ("gemini-daily", "Gemini Models", "daily", ("Gemini", "gemini")),
+        ("gemini--weekly", "Gemini Models", None, ("Gemini", "gemini")),
+        ("gemini-", "Gemini Models", None, ("Gemini", "gemini")),
+        ("gemini-weekly-x", "Gemini Models", None, ("Gemini", "gemini")),
+        ("3p-weekly", "Claude and GPT models", None, ("Claude+GPT", "third_party")),
+        ("3p-5h", "Claude and GPT models", None, ("Claude+GPT", "third_party")),
+        ("other-special", "Other Provider", None, ("Other Provider", None)),
+        ("", "Fallback Group", None, ("Fallback Group", None)),
+    ],
+)
+def test_classify_bucket_branches(bucket_id, group_name, window_value, expected):
+    assert _classify_bucket(bucket_id, group_name, window_value) == expected
 
 
 def test_resolve_cli_prefers_explicit_path_then_which(monkeypatch, tmp_path):

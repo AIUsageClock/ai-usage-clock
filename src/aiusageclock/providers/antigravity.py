@@ -9,7 +9,7 @@ import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
@@ -117,6 +117,44 @@ def _parse_reset_at(value: object) -> datetime | None:
         return None
 
 
+# Fallback for recognizing gemini-<window> bucket IDs when the bucket's window
+# field is missing or does not match the ID segment.
+_KNOWN_WINDOW_SEGMENTS = ("5h", "weekly")
+
+
+def _classify_bucket(
+    bucket_id: str,
+    group_name: str,
+    window_value: object,
+) -> tuple[str, Literal["gemini", "third_party"] | None]:
+    """Classify a bucket into (group_label, family) using case-insensitive ID prefixes (.lower()).
+
+    Inferred from gemini-argon-wtu-weekly, gemini-<subfamily>-... takes its label
+    from the capitalized first segment (not group_name) and stays in family "gemini"
+    so show_gemini controls it ("Argon weekly"), while window_value and
+    _KNOWN_WINDOW_SEGMENTS keep plain gemini-<window> IDs on "Gemini". The label
+    feeds the persisted history.py key, so changing derivation splits active cycles.
+    Known accepted limits (unobserved in agy): shared first segments
+    (gemini-argon-pro-weekly) collide, and numeric segments (gemini-2-flash-weekly) yield "2".
+    """
+    lower_id = bucket_id.lower()
+    if lower_id.startswith("gemini-"):
+        segment = lower_id[len("gemini-") :].split("-", 1)[0]
+        window_token = (
+            str(window_value).lower() if window_value is not None else None
+        )
+        if (
+            segment
+            and segment not in _KNOWN_WINDOW_SEGMENTS
+            and segment != window_token
+        ):
+            return segment.capitalize(), "gemini"
+        return "Gemini", "gemini"
+    if lower_id.startswith("3p-"):
+        return "Claude+GPT", "third_party"
+    return group_name, None
+
+
 def _build_snapshot(
     payload: dict[str, Any],
     *,
@@ -174,18 +212,15 @@ def _build_snapshot(
                 raise ValueError("unexpected agy output: bucket is not an object")
             bucket_id = bucket.get("id")
             bucket_id = bucket_id if isinstance(bucket_id, str) else ""
-            if bucket_id.startswith("gemini-"):
-                group_label = "Gemini"
-                if not show_gemini:
-                    continue
-            elif bucket_id.startswith("3p-"):
-                group_label = "Claude+GPT"
-                if not show_third_party:
-                    continue
-            else:
-                group_label = str(group.get("name") or "")
-
             window_value = bucket.get("window")
+            group_label, family = _classify_bucket(
+                bucket_id, str(group.get("name") or ""), window_value
+            )
+            if family == "gemini" and not show_gemini:
+                continue
+            if family == "third_party" and not show_third_party:
+                continue
+
             window_text = str(window_value) if window_value is not None else ""
             if window_value == "5h":
                 window = timedelta(hours=5)

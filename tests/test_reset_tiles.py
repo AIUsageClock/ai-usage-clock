@@ -79,6 +79,41 @@ def test_antigravity_compact_groups_and_saved_state(qtbot, monkeypatch):
     widget.update_snapshot(ag_snapshot(()), "Antigravity")
     assert tile._compact_summary.isHidden()
 
+
+def test_antigravity_compact_three_groups_with_argon_weekly(qtbot):
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    snapshot = UsageSnapshot(
+        provider="antigravity",
+        status=SnapshotStatus.OK,
+        metrics=[
+            UsageMetric("Gemini 5h", 0.0, None, reset_label="idle"),
+            UsageMetric("Gemini weekly", 14.0, None, reset_label="2.8d"),
+            UsageMetric("Claude+GPT 5h", 0.0, None, reset_label="idle"),
+            UsageMetric("Claude+GPT weekly", 88.5, None, reset_label="1.0d"),
+            UsageMetric("Argon weekly", 38.7, None, reset_label="6.0d"),
+        ],
+    )
+    widget.update_snapshot(snapshot, "Antigravity")
+    tile = widget._tiles["antigravity"]
+    tile.expand_btn.click()
+    assert [row.layout().itemAt(0).widget().text() for row in tile._compact_group_rows] == [
+        "Gemini",
+        "Claude+GPT",
+        "Argon",
+    ]
+    assert [item.code.text() for item in tile._compact_metrics] == [
+        "5",
+        "W",
+        "5",
+        "W",
+        "W",
+    ]
+    assert [row.layout().count() for row in tile._compact_group_rows] == [3, 3, 2]
+    argon_metric = tile._compact_group_rows[2].layout().itemAt(1).widget()
+    assert argon_metric.pct.text() == "39%"
+    assert argon_metric.reset.text() == "6.0d"
+
 @pytest.mark.parametrize("name,codes", [
     ("claude", ["S", "W"]), ("codex", ["S", "W"]),
     ("opencode_go", ["R", "M"]),
