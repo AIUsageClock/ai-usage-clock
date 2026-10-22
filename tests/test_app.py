@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
@@ -13,10 +15,12 @@ from aiusageclock.app import (
     _preserve_error_metrics,
     _refresh_provider_order,
     _raw_summary,
+    _tray_tooltip,
+    _truncate_utf16,
 )
 from aiusageclock.config import BrowserAccount, Config
 from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
-from aiusageclock.widget import UsageWidget
+from aiusageclock.widget import UsageWidget, _compact_metric_code, tray_metric_code
 
 
 class _Timer:
@@ -560,6 +564,253 @@ def test_tile_expanded_changed_persists_browser_tile_collapsed_state():
     app._on_tile_expanded_changed("claude", True)  # noqa: SLF001
 
     assert app._config.collapsed_tiles == []
+
+
+def test_tile_expanded_changed_persists_linear_tile_collapsed_state():
+    app = App.__new__(App)
+    app._config = Config()  # noqa: SLF001
+
+    app._on_tile_expanded_changed("linear", False)  # noqa: SLF001
+
+    assert app._config.collapsed_tiles == ["linear"]
+    assert app._config.expanded_tiles == []
+
+    app._on_tile_expanded_changed("linear", True)  # noqa: SLF001
+
+    assert app._config.collapsed_tiles == []
+
+
+def _tray_snapshots(pct: float = 12.0) -> dict[str, UsageSnapshot]:
+    def snap(provider, labels):
+        return UsageSnapshot(
+            provider=provider,
+            status=SnapshotStatus.OK,
+            metrics=[UsageMetric(label, pct, None) for label in labels],
+        )
+
+    return {
+        "claude": snap("claude", ["Session", "Weekly", "Fable"]),
+        "codex": snap("codex", ["Session"]),
+        "antigravity": snap(
+            "antigravity",
+            [
+                "Gemini 5h",
+                "Gemini weekly",
+                "Claude+GPT 5h",
+                "Claude+GPT weekly",
+                "Argon weekly",
+            ],
+        ),
+        "linear": snap("linear", ["Issues"]),
+    }
+
+
+_TRAY_PROVIDERS = ("claude", "codex", "antigravity", "linear")
+
+
+def test_tray_tooltip_common_setup_fits_and_has_every_provider_code():
+    tooltip = _tray_tooltip(Config(), _tray_snapshots(), _TRAY_PROVIDERS)
+
+    assert len(tooltip) <= 127
+    assert tooltip.splitlines() == [
+        f"{app_module.PRODUCT_NAME} {app_module.__version__}",
+        "Claude S12% W12% F12%",
+        "Codex S12%",
+        "Antigravity G5 12% GW12% C5 12% CW12% AW12%",
+        "Linear I12%",
+    ]
+
+
+def test_tray_tooltip_status_lines_are_short():
+    snapshots = _tray_snapshots()
+    snapshots["claude"] = UsageSnapshot(
+        provider="claude", status=SnapshotStatus.AUTH_REQUIRED
+    )
+    snapshots["codex"] = UsageSnapshot(provider="codex", status=SnapshotStatus.ERROR)
+
+    lines = _tray_tooltip(Config(), snapshots, _TRAY_PROVIDERS).splitlines()
+
+    assert "Claude !setup" in lines
+    assert "Codex !error" in lines
+
+
+def test_tray_tooltip_shows_no_limit_for_paid_linear_plan():
+    snapshots = _tray_snapshots()
+    snapshots["linear"] = UsageSnapshot(
+        provider="linear",
+        status=SnapshotStatus.OK,
+        metrics=[UsageMetric("Issues", None, None, reset_label="no limit")],
+    )
+
+    lines = _tray_tooltip(Config(), snapshots, _TRAY_PROVIDERS).splitlines()
+
+    assert lines[-1] == "Linear no limit"
+
+
+def test_tray_tooltip_drops_version_before_dropping_providers():
+    snapshots = _tray_snapshots(100.0)
+    full = _tray_tooltip(Config(), snapshots, _TRAY_PROVIDERS, limit=10_000)
+    assert "\n…" not in full
+    # Exactly the full text minus the version: only the version has to go.
+    limit = len(full) - len(f" {app_module.__version__}")
+
+    tooltip = _tray_tooltip(Config(), snapshots, _TRAY_PROVIDERS, limit=limit)
+
+    assert len(tooltip) <= limit
+    assert app_module.__version__ not in tooltip
+    assert not tooltip.endswith("…")
+    assert tooltip.splitlines()[-1].startswith("Linear")
+
+
+def test_tray_tooltip_truncates_from_the_end_with_ellipsis():
+    snapshots = _tray_snapshots(100.0)
+
+    tooltip = _tray_tooltip(Config(), snapshots, _TRAY_PROVIDERS, limit=60)
+
+    assert len(tooltip) <= 60
+    assert tooltip.endswith("…")
+    assert tooltip.splitlines()[0] == app_module.PRODUCT_NAME
+    assert "Claude S100%" in tooltip
+    assert "Linear" not in tooltip
+
+
+def test_tray_tooltip_very_long_account_name_keeps_later_providers():
+    config = Config()
+    snapshots = _tray_snapshots()
+    config.browser_accounts.append(
+        BrowserAccount(id="claude-long", kind="claude", name="X" * 300)
+    )
+    snapshots["claude-long"] = snapshots["claude"]
+    providers = ("claude-long", "codex", "antigravity", "linear")
+
+    tooltip = _tray_tooltip(config, snapshots, providers)
+
+    lines = tooltip.splitlines()
+    assert app_module._utf16_len(tooltip) <= 127  # noqa: SLF001
+    assert lines[0].startswith(app_module.PRODUCT_NAME)
+    assert lines[1].startswith("Claude (XXXXX")
+    assert "…" in lines[1].split(" S")[0]
+    assert [line.split(" ")[0] for line in lines[2:]] == [
+        "Codex",
+        "Antigravity",
+        "Linear",
+    ]
+    assert not tooltip.endswith("…")
+
+
+def test_tray_tooltip_multi_account_setup_keeps_every_provider():
+    # Two Claude + two Codex accounts (default name "Account 2") with
+    # Antigravity and Linear. Uncapped names ("Claude (Account 2)") push Linear
+    # out of 127 units; capped names keep all six.
+    config = Config()
+    config.browser_accounts += [
+        BrowserAccount(id="claude-2", kind="claude", name="Account 2"),
+        BrowserAccount(id="codex-2", kind="codex", name="Account 2"),
+    ]
+
+    def snap(provider, labels):
+        return UsageSnapshot(
+            provider=provider,
+            status=SnapshotStatus.OK,
+            metrics=[UsageMetric(label, 12.0, None) for label in labels],
+        )
+
+    snapshots = {
+        "claude": snap("claude", ["Session", "Weekly"]),
+        "claude-2": snap("claude", ["Session", "Weekly"]),
+        "codex": snap("codex", ["Session"]),
+        "codex-2": snap("codex", ["Session"]),
+        "antigravity": snap("antigravity", ["Gemini 5h", "Gemini weekly"]),
+        "linear": snap("linear", ["Issues"]),
+    }
+    providers = tuple(snapshots)
+
+    tooltip = _tray_tooltip(config, snapshots, providers)
+
+    lines = tooltip.splitlines()
+    assert app_module._utf16_len(tooltip) <= 127  # noqa: SLF001
+    assert not tooltip.endswith("…")
+    assert len(lines) == 1 + len(providers)
+    assert [line.split(" ")[0] for line in lines[1:]] == [
+        "Claude",
+        "Claude",
+        "Codex",
+        "Codex",
+        "Antigravity",
+        "Linear",
+    ]
+
+
+def test_tray_tooltip_drops_whole_lines_down_to_the_minimum_limit():
+    # Every line is short, so dropping lines always reaches "name + …".
+    tooltip = _tray_tooltip(
+        Config(), _tray_snapshots(100.0), _TRAY_PROVIDERS, limit=16
+    )
+
+    assert tooltip == f"{app_module.PRODUCT_NAME}\n…"
+
+
+def test_tray_tooltip_antigravity_duplicate_labels_keep_higher_usage():
+    snapshots = _tray_snapshots()
+    snapshots["antigravity"] = UsageSnapshot(
+        provider="antigravity",
+        status=SnapshotStatus.OK,
+        metrics=[
+            UsageMetric("Gemini weekly", 10.0, None),
+            UsageMetric("Gemini weekly", 40.0, None),
+            UsageMetric("Gemini weekly", 25.0, None),
+        ],
+    )
+
+    lines = _tray_tooltip(Config(), snapshots, _TRAY_PROVIDERS).splitlines()
+
+    assert "Antigravity GW40%" in lines
+
+
+@pytest.mark.parametrize(
+    ("text", "limit", "expected"),
+    [
+        ("Claude", 14, "Claude"),
+        ("Claude (Account 2)", 14, "Claude (Accou…"),
+        ("X" * 300, 14, "X" * 13 + "…"),
+        # An astral character is 2 UTF-16 units and is never split.
+        ("a" + "\U0001f600" * 10, 6, "a\U0001f600\U0001f600…"),
+    ],
+)
+def test_truncate_utf16(text, limit, expected):
+    result = _truncate_utf16(text, limit)
+
+    assert result == expected
+    assert app_module._utf16_len(result) <= limit  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("Session", "S"),
+        ("Weekly", "W"),
+        ("Fable", "F"),
+        ("Rolling", "R"),
+        ("Monthly", "M"),
+        ("Issues", "I"),
+        ("Premium requests", "P"),
+        ("", "?"),
+        ("Gemini 5h", "G5"),
+        ("Gemini weekly", "GW"),
+        ("Claude+GPT 5h", "C5"),
+        ("Claude+GPT weekly", "CW"),
+        ("Argon weekly", "AW"),
+    ],
+)
+def test_tray_metric_code(label, expected):
+    assert tray_metric_code(label) == expected
+
+
+@pytest.mark.parametrize(
+    "label", ["Gemini 5h", "Gemini weekly", "Argon weekly", "Plan weekly"]
+)
+def test_compact_metric_code_stays_single_character(label):
+    assert len(_compact_metric_code(label)) == 1
 
 
 def test_tile_expanded_changed_keeps_openrouter_model_expansion_state():

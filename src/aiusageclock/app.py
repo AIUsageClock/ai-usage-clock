@@ -45,7 +45,7 @@ from .identity import (
 )
 from .logging_setup import LOGGER_NAME, setup_logging
 from .menubar import render_menubar_pixmap
-from .models import SnapshotStatus, UsageSnapshot
+from .models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .platforms import autostart_command, get_platform
 from .providers.base import Provider, ProviderSignals
 from .providers.claude import ClaudeProvider
@@ -63,7 +63,7 @@ from .ratio_dialog import RatioHistoryDialog
 from .settings_dialog import SettingsDialog
 from .webview import runtime as webengine
 from .webview.cookies import clear_browser_session, hydrate_all_from_keyring
-from .widget import UsageWidget
+from .widget import UsageWidget, tray_metric_code
 from .usage_cache import invalidate_usage_cache, write_usage_cache
 
 # Resolved when the user first opens a sign-in window rather than imported at
@@ -126,6 +126,112 @@ def _enabled_providers(config: Config) -> tuple[str, ...]:
     if getattr(config.providers, "claude_resets", False):
         out.append("claude_resets")
     return tuple(out)
+
+
+# Windows tray tooltip limit. Qt 6's Windows tray backend
+# (qwindowssystemtrayicon.cpp) copies the tooltip into NOTIFYICONDATA.szTip,
+# which holds 128 wchar_t, through qStringToLimitedWCharArray(), which
+# truncates to maxLength - 1 = 127 UTF-16 code units. Anything longer is cut
+# silently, so build a tooltip that fits instead (checked 2026-10-22). macOS
+# and Linux have no such limit, but they deliberately share the same string.
+_TRAY_TOOLTIP_LIMIT = 127
+
+# A service or account name is cut to this many UTF-16 units (ellipsis
+# included) so a long account name cannot push the services after it out of
+# the tooltip.
+_TRAY_NAME_LIMIT = 14
+
+
+def _utf16_len(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _truncate_utf16(text: str, limit: int) -> str:
+    """Cut ``text`` to at most ``limit`` UTF-16 units, ending in "…" if cut."""
+    if _utf16_len(text) <= limit:
+        return text
+    out: list[str] = []
+    used = 0
+    for char in text:
+        width = _utf16_len(char)
+        if used + width > limit - 1:
+            break
+        out.append(char)
+        used += width
+    return "".join(out).rstrip() + "…"
+
+
+def _tray_provider_line(
+    config: Config, name: str, snap: UsageSnapshot
+) -> str | None:
+    display_name = _truncate_utf16(
+        display_name_for_account(config, name), _TRAY_NAME_LIMIT
+    )
+    if snap.status == SnapshotStatus.AUTH_REQUIRED:
+        return f"{display_name} !setup"
+    if snap.status == SnapshotStatus.ERROR:
+        return f"{display_name} !error"
+    # Same label twice (Antigravity buckets can collide onto one group/window
+    # label): keep the higher usage, first-seen on a tie, like the compact row.
+    by_label: dict[str, UsageMetric] = {}
+    for m in snap.metrics:
+        if m.tag:
+            continue
+        if m.percent_used is None:
+            continue
+        existing = by_label.get(m.label)
+        if existing is None or m.percent_used > existing.percent_used:
+            by_label[m.label] = m
+    parts: list[str] = []
+    for m in by_label.values():
+        code = tray_metric_code(m.label)
+        # "G5 12%" rather than "G512%": a code ending in a digit needs a gap.
+        gap = " " if code[-1].isdigit() else ""
+        parts.append(f"{code}{gap}{m.percent_used:.0f}%")
+    if parts:
+        return f"{display_name} " + " ".join(parts)
+    # Linear's paid plan has no percent; show its "no limit" label instead.
+    if name == "linear":
+        label = next((m.reset_label for m in snap.metrics if m.reset_label), None)
+        if label:
+            return f"{display_name} {label}"
+    return None
+
+
+def _tray_tooltip(
+    config: Config,
+    snapshots: dict[str, UsageSnapshot],
+    providers,
+    limit: int = _TRAY_TOOLTIP_LIMIT,
+) -> str:
+    """Compact tray tooltip: one line per provider, never longer than ``limit``.
+
+    Too long: drop the version, then whole provider lines from the end, and
+    finish with a "…" line so the cut is visible.
+    """
+    lines: list[str] = []
+    for name in providers:
+        snap = snapshots.get(name)
+        if not snap:
+            continue
+        line = _tray_provider_line(config, name, snap)
+        if line:
+            lines.append(line)
+
+    def fits(parts: list[str]) -> bool:
+        return _utf16_len("\n".join(parts)) <= limit
+
+    header = f"{PRODUCT_NAME} {__version__}"
+    if fits([header, *lines]):
+        return "\n".join([header, *lines])
+    if fits([PRODUCT_NAME, *lines]):
+        return "\n".join([PRODUCT_NAME, *lines])
+    kept = list(lines)
+    while kept and not fits([PRODUCT_NAME, *kept, "…"]):
+        kept.pop()
+    # Every line is short (names are capped), so dropping whole lines always
+    # ends at [PRODUCT_NAME, "…"], which fits any limit >= 16.
+    return "\n".join([PRODUCT_NAME, *kept, "…"])
 
 
 def _refresh_provider_order(providers: dict[str, Provider]) -> list[str]:
@@ -957,28 +1063,8 @@ class App(QObject):
         return self._cycle_signatures != self._last_cycle_signatures
 
     def _update_tray(self) -> None:
-        lines: list[str] = []
-        for name in _enabled_providers(self._config):
-            snap = self._snapshots.get(name)
-            if not snap:
-                continue
-            display_name = display_name_for_account(self._config, name)
-            if snap.status == SnapshotStatus.AUTH_REQUIRED:
-                lines.append(f"{display_name}: setup needed")
-                continue
-            if snap.status == SnapshotStatus.ERROR:
-                lines.append(f"{display_name}: error")
-                continue
-            for m in snap.metrics:
-                if m.percent_used is None:
-                    continue
-                if m.tag:
-                    continue
-                lines.append(f"{display_name} {m.label}: {m.percent_used:.0f}%")
-        tooltip = (
-            f"{PRODUCT_NAME} {__version__}\n" + "\n".join(lines)
-            if lines
-            else f"{PRODUCT_NAME} {__version__}"
+        tooltip = _tray_tooltip(
+            self._config, self._snapshots, _enabled_providers(self._config)
         )
         if self._native_status is not None:
             self._native_status.update(
@@ -1571,6 +1657,7 @@ class App(QObject):
     def _on_tile_expanded_changed(self, provider: str, expanded: bool) -> None:
         compact_collapsible = (
             provider == "antigravity"
+            or provider == "linear"
             or provider == "opencode_go"
             or provider.startswith("opencode_go-")
             or provider == "claude"

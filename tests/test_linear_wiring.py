@@ -12,7 +12,12 @@ from aiusageclock.mcp_server import _configured_account_ids
 from aiusageclock.menubar import PROVIDER_LABELS
 from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 from aiusageclock.settings_dialog import SettingsDialog
-from aiusageclock.widget import PROVIDER_ORDER, UsageWidget
+from aiusageclock.widget import (
+    PROVIDER_ORDER,
+    UsageWidget,
+    _COMPACT_RESET_WIDTH,
+    _CompactMetric,
+)
 
 TEST_KEY = "lin_api_TESTKEY_do_not_persist_1234567890"
 
@@ -255,15 +260,7 @@ def _linear_snapshot(metric):
 def test_collapsed_chip_shows_no_limit_for_paid_plan(qtbot):
     widget = UsageWidget(Config())
     qtbot.addWidget(widget)
-    metric = UsageMetric(
-        label="Issues",
-        percent_used=None,
-        resets_at=None,
-        window=None,
-        reset_label="no limit",
-        note="Paid plan: no issue limit",
-    )
-    widget.update_snapshot(_linear_snapshot(metric), "Linear")
+    widget.update_snapshot(_linear_snapshot(_paid_issues_metric()), "Linear")
 
     chip = widget._summary_chip("linear")  # noqa: SLF001
 
@@ -284,6 +281,113 @@ def test_collapsed_chip_shows_percent_for_free_plan(qtbot):
     widget.update_snapshot(_linear_snapshot(metric), "Linear")
 
     assert widget._summary_chip("linear").text() == "Linear 49%"  # noqa: SLF001
+
+
+def _free_issues_metric():
+    return UsageMetric(
+        label="Issues",
+        percent_used=51.2,
+        resets_at=None,
+        window=None,
+        reset_label="128 / 250",
+        note="128 / 250 issues (Free plan)",
+    )
+
+
+def _paid_issues_metric():
+    return UsageMetric(
+        label="Issues",
+        percent_used=None,
+        resets_at=None,
+        window=None,
+        reset_label="no limit",
+        note="Paid plan: no issue limit",
+    )
+
+
+def test_linear_tile_supports_compact_collapse(qtbot):
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    widget.update_snapshot(_linear_snapshot(_free_issues_metric()), "Linear")
+
+    tile = widget._tiles["linear"]  # noqa: SLF001
+
+    assert tile._supports_compact_collapse()  # noqa: SLF001
+    assert not tile.expand_btn.isHidden()
+    assert [row.label.text() for row in tile._rows] == ["Issues"]  # noqa: SLF001
+
+
+def test_linear_free_plan_collapsed_tile_shows_issues_percent(qtbot):
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    widget.update_snapshot(_linear_snapshot(_free_issues_metric()), "Linear")
+    tile = widget._tiles["linear"]  # noqa: SLF001
+
+    tile.set_expanded(False)
+
+    assert tile._rows == []  # noqa: SLF001
+    assert not tile._compact_summary.isHidden()  # noqa: SLF001
+    assert [m.code.text() for m in tile._compact_metrics] == ["I"]  # noqa: SLF001
+    assert [m.pct.text() for m in tile._compact_metrics] == ["51%"]  # noqa: SLF001
+    assert tile._compact_metrics[0].bar.value() == 51  # noqa: SLF001
+    assert tile._compact_metrics[0].reset.text() == "128 / 250"  # noqa: SLF001
+
+
+def test_linear_paid_plan_collapsed_tile_is_not_blank(qtbot):
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    widget.update_snapshot(_linear_snapshot(_paid_issues_metric()), "Linear")
+    tile = widget._tiles["linear"]  # noqa: SLF001
+
+    assert not tile.expand_btn.isHidden()
+    tile.set_expanded(False)
+
+    assert not tile._compact_summary.isHidden()  # noqa: SLF001
+    assert len(tile._compact_metrics) == 1  # noqa: SLF001
+    item = tile._compact_metrics[0]  # noqa: SLF001
+    assert item.code.text() == "I"
+    assert item.pct.text() == "--"
+    assert item.reset.text() == "no limit"
+    assert item.reset.minimumWidth() >= item.reset.fontMetrics().horizontalAdvance("no limit")
+
+
+def test_compact_metric_fit_reset_widens_then_restores_default_width(qtbot):
+    item = _CompactMetric()
+    qtbot.addWidget(item)
+
+    item.set_metric(_paid_issues_metric(), fit_reset=True)
+    widened = item.reset.minimumWidth()
+    item.set_metric(_paid_issues_metric(), fit_reset=False)
+
+    assert widened > _COMPACT_RESET_WIDTH
+    assert item.reset.minimumWidth() == item.reset.maximumWidth()
+    assert item.reset.minimumWidth() == _COMPACT_RESET_WIDTH
+
+
+def test_linear_tile_reexpands_to_full_row(qtbot):
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    widget.update_snapshot(_linear_snapshot(_free_issues_metric()), "Linear")
+    tile = widget._tiles["linear"]  # noqa: SLF001
+    tile.set_expanded(False)
+
+    tile.set_expanded(True)
+
+    assert tile._compact_summary.isHidden()  # noqa: SLF001
+    assert [row.label.text() for row in tile._rows] == ["Issues"]  # noqa: SLF001
+
+
+def test_configured_collapsed_linear_tile_starts_compact(qtbot):
+    config = Config()
+    config.collapsed_tiles = ["linear"]
+    widget = UsageWidget(config)
+    qtbot.addWidget(widget)
+
+    widget.update_snapshot(_linear_snapshot(_free_issues_metric()), "Linear")
+
+    tile = widget._tiles["linear"]  # noqa: SLF001
+    assert tile._rows == []  # noqa: SLF001
+    assert not tile._compact_summary.isHidden()  # noqa: SLF001
 
 
 def test_collapsed_chip_other_providers_still_show_dashes_without_percent(qtbot):

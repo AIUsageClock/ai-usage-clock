@@ -928,6 +928,9 @@ class _MetricRow(QWidget):
 
 
 
+# Width of the reset/relative-time column in a compact metric row.
+_COMPACT_RESET_WIDTH = 38
+
 _ANTIGRAVITY_COMPACT_SLOTS = (("5h", "5"), ("weekly", "W"))
 _ANTIGRAVITY_COMPACT_WINDOWS = tuple(w for w, _ in _ANTIGRAVITY_COMPACT_SLOTS)
 
@@ -937,6 +940,7 @@ def _usage_rank(metric: UsageMetric) -> float:
 
 
 def _compact_metric_code(label: str) -> str:
+    """Single-character code for a metric label in a compact tile row."""
     key = label.strip().lower()
     return {
         "session": "S",
@@ -945,6 +949,22 @@ def _compact_metric_code(label: str) -> str:
         "rolling": "R",
         "monthly": "M",
     }.get(key, (label.strip()[:1] or "?").upper())
+
+
+def tray_metric_code(label: str) -> str:
+    """Short code for a metric label in the tray tooltip.
+
+    Plain labels use the compact-row code ("Session" -> S). Antigravity group
+    labels ("Gemini 5h", "Claude+GPT weekly", "Argon weekly") map to the
+    group's first letter plus the window: 5 for the 5h window, W for weekly
+    (G5, CW, AW). Known limitation: groups whose names share a first letter
+    (for example a future C-group next to Claude+GPT) produce the same code.
+    """
+    group, _, window = label.strip().rpartition(" ")
+    window_code = dict(_ANTIGRAVITY_COMPACT_SLOTS).get(window)
+    if group and window_code is not None:
+        return group[0].upper() + window_code
+    return _compact_metric_code(label)
 
 
 class _CompactMetric(QWidget):
@@ -972,7 +992,7 @@ class _CompactMetric(QWidget):
 
         self.reset = QLabel("")
         self.reset.setStyleSheet("color:#9ca3af; font-size:10px;")
-        self.reset.setFixedWidth(38)
+        self.reset.setFixedWidth(_COMPACT_RESET_WIDTH)
         self.reset.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         layout = QHBoxLayout(self)
@@ -1002,12 +1022,31 @@ class _CompactMetric(QWidget):
             )
         self.updateGeometry()
 
-    def set_metric(self, metric, *, show_reset: bool = True) -> None:
+    def set_metric(
+        self, metric, *, show_reset: bool = True, fit_reset: bool = False
+    ) -> None:
+        """Show ``metric`` in this row.
+
+        ``show_reset`` shows the reset column. ``fit_reset`` widens that column
+        to fit a long static label such as "123 / 250" or "no limit"; without
+        it (or with an empty label) the column returns to the default
+        ``_COMPACT_RESET_WIDTH``.
+        """
         percent = metric.percent_used
         reset = metric.reset_label if metric.reset_label is not None else _format_relative(metric.resets_at)
         self.code.setText(_compact_metric_code(metric.label))
         self.pct.setText(_format_summary_percent(percent))
         self.reset.setText(reset if show_reset else "")
+        width = _COMPACT_RESET_WIDTH
+        if fit_reset and show_reset and reset:
+            # Static labels such as "123 / 250" or "no limit" are wider than
+            # the relative-time column; widen it so they are not clipped.
+            self.reset.ensurePolished()
+            width = max(
+                width, self.reset.fontMetrics().horizontalAdvance(reset) + 2
+            )
+        # Always set the width so a later fit_reset=False call restores it.
+        self.reset.setFixedWidth(width)
         self.reset.setVisible(show_reset and bool(reset))
         self.bar.setValue(0 if percent is None else int(round(percent)))
         color = color_for_percent(percent)
@@ -1322,7 +1361,7 @@ class _ProviderTile(QFrame):
 
     def _supports_compact_collapse(self) -> bool:
         return _provider_family(self.provider) in (
-            "claude", "codex", "opencode_go", "antigravity"
+            "claude", "codex", "opencode_go", "antigravity", "linear"
         )
 
     def _compact_metrics_from(self, snapshot: UsageSnapshot) -> list:
@@ -1330,7 +1369,12 @@ class _ProviderTile(QFrame):
             metric
             for metric in snapshot.metrics
             if metric.tag is None
-            and (metric.percent_used is not None or self.provider == "antigravity")
+            # Antigravity keeps empty slots; Linear's paid plan has no percent
+            # but still shows its "no limit" label when collapsed.
+            and (
+                metric.percent_used is not None
+                or self.provider in ("antigravity", "linear")
+            )
         ]
         if self.provider == "antigravity":
             return [
@@ -1360,7 +1404,11 @@ class _ProviderTile(QFrame):
             item.setParent(None)
             item.deleteLater()
         for item, metric in zip(self._compact_metrics, metrics):
-            item.set_metric(metric, show_reset=show_reset)
+            item.set_metric(
+                metric,
+                show_reset=show_reset,
+                fit_reset=self.provider == "linear",
+            )
             item.show()
         self._compact_summary.setVisible(bool(metrics))
         self.set_available_width(self._available_width)
@@ -1403,7 +1451,7 @@ class _ProviderTile(QFrame):
                 if metric is not None:
                     item.set_metric(metric, show_reset=show_reset)
                     item.code.setText(code)
-                    # Keep the 38px reset column even when reset text is empty so
+                    # Keep the fixed-width reset column even when reset text is empty so
                     # code/bar/pct inside this slot do not shift relative to other rows.
                     item.reset.setVisible(show_reset)
                 else:
