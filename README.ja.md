@@ -140,4 +140,4 @@ macOS の MCP ヘルパーを含む詳しい説明は、[docs/build.md](docs/bui
 
 現在のバージョン：**1.0.0** · [変更履歴](CHANGELOG.md)（英語）
 
-AI Usage Clock は、Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter をはじめ、どのサービス提供元とも提携関係にありません。各製品名は、それぞれの権利者に帰属します。
+AI Usage Clock は、Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter、Linear をはじめ、どのサービス提供元とも提携関係にありません。各製品名は、それぞれの権利者に帰属します。

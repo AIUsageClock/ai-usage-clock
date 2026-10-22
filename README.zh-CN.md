@@ -149,4 +149,4 @@ Codex 的卡片还多一行 **Watch**（预测），是 AI 对重置可能性的
 
 当前版本：**1.0.0** · [更新日志](CHANGELOG.md)
 
-AI Usage Clock 与 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter 以及其他任何服务商都没有关联。文中的产品名称归各自的所有者。
+AI Usage Clock 与 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter、Linear 以及其他任何服务商都没有关联。文中的产品名称归各自的所有者。

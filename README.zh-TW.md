@@ -139,4 +139,4 @@ Codex 的區塊還多一列 **Watch**（觀察），是 AI 預測重置的機率
 
 目前版本：**1.0.0** · [更新紀錄](CHANGELOG.md)
 
-AI Usage Clock 和 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter 或其他任何服務商都沒有隸屬關係。各產品名稱屬於各自的所有者。
+AI Usage Clock 和 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter、Linear 或其他任何服務商都沒有隸屬關係。各產品名稱屬於各自的所有者。

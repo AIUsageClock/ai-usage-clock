@@ -139,4 +139,4 @@ Oui. C’est un logiciel gratuit et open source, sous licence MIT. Les services 
 
 Version actuelle : **1.0.0** · [Journal des modifications](CHANGELOG.md) (en anglais)
 
-AI Usage Clock n’est affilié ni à Anthropic, ni à OpenAI, ni à Google, ni à GitHub, ni à Microsoft, ni à OpenCode, ni à OpenRouter, ni à aucun autre fournisseur. Les noms de produits appartiennent à leurs propriétaires respectifs.
+AI Usage Clock n’est affilié ni à Anthropic, ni à OpenAI, ni à Google, ni à GitHub, ni à Microsoft, ni à OpenCode, ni à OpenRouter, ni à Linear, ni à aucun autre fournisseur. Les noms de produits appartiennent à leurs propriétaires respectifs.

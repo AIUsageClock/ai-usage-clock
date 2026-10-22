@@ -129,4 +129,4 @@ Yes. It is free and open source under the MIT license. The services it shows nee
 
 Current version: **1.0.0** · [Changelog](CHANGELOG.md)
 
-AI Usage Clock is not affiliated with Anthropic, OpenAI, Google, GitHub, Microsoft, OpenCode, OpenRouter, or any other provider. Product names belong to their owners.
+AI Usage Clock is not affiliated with Anthropic, OpenAI, Google, GitHub, Microsoft, OpenCode, OpenRouter, Linear, or any other provider. Product names belong to their owners.
