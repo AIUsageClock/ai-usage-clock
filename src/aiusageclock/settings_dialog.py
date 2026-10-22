@@ -50,11 +50,13 @@ from .config import (
     app_data_dir,
     browser_accounts,
     get_github_pat,
+    get_linear_key,
     get_opencode_go_key,
     get_openrouter_key,
     get_openrouter_mgmt_key,
     provider_base_name,
     set_github_pat,
+    set_linear_key,
     set_opencode_go_key,
     set_openrouter_key,
     set_openrouter_mgmt_key,
@@ -814,6 +816,12 @@ class SettingsDialog(QDialog):
         self.antigravity_cb.setToolTip("Show the Antigravity usage tile in the panel.")
         self.antigravity_cb.setChecked(config.providers.antigravity)
         providers_layout.addWidget(self.antigravity_cb)
+        self.linear_cb = QCheckBox("Linear")
+        self.linear_cb.setToolTip(
+            "Show the Linear issue-limit tile in the panel."
+        )
+        self.linear_cb.setChecked(config.providers.linear)
+        providers_layout.addWidget(self.linear_cb)
         self.codex_resets_cb = QCheckBox("Codex Resets")
         self.codex_resets_cb.setChecked(config.providers.codex_resets)
         providers_layout.addWidget(self.codex_resets_cb)
@@ -1146,6 +1154,65 @@ class SettingsDialog(QDialog):
         openrouter_tab_layout.addWidget(openrouter)
         openrouter_tab_layout.addStretch(1)
 
+        # ----- Linear details -----
+        linear = QGroupBox("Linear")
+        linear_form = QFormLayout(linear)
+        linear_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        linear_form.setHorizontalSpacing(12)
+        linear_form.setVerticalSpacing(8)
+        linear_form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
+        )
+
+        self.linear_key_edit = QLineEdit()
+        self.linear_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        existing_linear_key = get_linear_key()
+        self._had_existing_linear_key = bool(existing_linear_key)
+        if existing_linear_key:
+            self.linear_key_edit.setPlaceholderText(
+                "•••••••••• (saved — leave blank to keep)"
+            )
+        else:
+            self.linear_key_edit.setPlaceholderText("lin_api_...")
+        linear_form.addRow("API key:", self.linear_key_edit)
+
+        self.clear_linear_key_cb = QCheckBox("Clear saved Linear key")
+        self.clear_linear_key_cb.setToolTip(
+            "Remove the Linear API key from the system keychain."
+        )
+        self.clear_linear_key_cb.setVisible(self._had_existing_linear_key)
+        if self._had_existing_linear_key:
+            linear_form.addRow("", self.clear_linear_key_cb)
+
+        linear_key_help = _hint_label(
+            "Create a personal API key in <b>Linear → Settings → Account "
+            "→ Security &amp; Access → Personal API keys</b>. A read-only "
+            "key with access to all teams is enough and recommended; a key "
+            "limited to some teams undercounts issues."
+        )
+        linear_form.addRow("", linear_key_help)
+
+        self.linear_issue_limit = QSpinBox()
+        self.linear_issue_limit.setRange(1, 100000)
+        self.linear_issue_limit.setValue(config.linear.issue_limit)
+        self.linear_issue_limit.setMinimumWidth(110)
+        linear_form.addRow("Issue limit:", self.linear_issue_limit)
+
+        linear_limit_hint = _hint_label(
+            "250 is the Free plan limit; adjust if Linear changes it."
+        )
+        linear_form.addRow("", linear_limit_hint)
+
+        self.linear_colors = _ColorThresholdLauncher(config.linear.colors)
+        linear_form.addRow("Gauge colors:", self.linear_colors)
+
+        linear_tab = QWidget()
+        linear_tab_layout = QVBoxLayout(linear_tab)
+        linear_tab_layout.setContentsMargins(10, 10, 10, 10)
+        linear_tab_layout.setSpacing(10)
+        linear_tab_layout.addWidget(linear)
+        linear_tab_layout.addStretch(1)
+
         antigravity_tab = QWidget()
         antigravity_tab_layout = QVBoxLayout(antigravity_tab)
         antigravity_tab_layout.setContentsMargins(10, 10, 10, 10)
@@ -1247,6 +1314,8 @@ class SettingsDialog(QDialog):
             mcp_accounts.append(("openrouter", "OpenRouter"))
         if config.providers.antigravity:
             mcp_accounts.append(("antigravity", "Antigravity"))
+        # Linear is intentionally omitted: its issue count is not an AI usage
+        # limit, so it never pauses AI tools.
         for account_id, label in mcp_accounts:
             enabled = QCheckBox("Pause at")
             threshold = QSpinBox()
@@ -1286,6 +1355,7 @@ class SettingsDialog(QDialog):
         tabs.addTab(copilot_tab, "GitHub Copilot")
         tabs.addTab(openrouter_tab, "OpenRouter")
         tabs.addTab(antigravity_tab, "Antigravity")
+        tabs.addTab(linear_tab, "Linear")
         tabs.addTab(resets_tab, "Reset alerts")
         tabs.addTab(mcp_tab, "MCP")
         self.local_usage_panel = LocalUsagePanel(
@@ -1367,8 +1437,9 @@ class SettingsDialog(QDialog):
             "copilot": 4,
             "openrouter": 5,
             "antigravity": 6,
-            "codex_resets": 7,
-            "claude_resets": 7,
+            "linear": 7,
+            "codex_resets": 8,
+            "claude_resets": 8,
         }.get(kind)
         if tab_index is not None:
             self.tabs.setCurrentIndex(tab_index)
@@ -1625,6 +1696,37 @@ class SettingsDialog(QDialog):
                 return
             log.info("Saved OpenRouter management key to system keychain.")
 
+        new_linear_key = self.linear_key_edit.text().strip()
+        if self.clear_linear_key_cb.isChecked() and not new_linear_key:
+            if not self._write_secret(
+                None,
+                setter=set_linear_key,
+                getter=get_linear_key,
+                title="Linear API key was not cleared",
+                write_error="The saved key could not be cleared",
+                verify_error=(
+                    "The key still appears to be available after clearing. "
+                    f"Remove the '{KEYRING_SERVICE}' / 'linear-key' credential from "
+                    "your system keychain."
+                ),
+            ):
+                return
+        if new_linear_key:
+            if not self._write_secret(
+                new_linear_key,
+                setter=set_linear_key,
+                getter=get_linear_key,
+                title="Linear API key was not saved",
+                write_error="The system keychain rejected the key",
+                verify_error=(
+                    "The key could not be read back from the system "
+                    "keychain. Try running the app normally rather than as a "
+                    "different user/elevated account."
+                ),
+            ):
+                return
+            log.info("Saved Linear API key to system keychain.")
+
         for account_id, kind in self._removed_browser_accounts.items():
             if kind != "opencode_go":
                 continue
@@ -1789,6 +1891,7 @@ class SettingsDialog(QDialog):
         config.providers.copilot = self.copilot_cb.isChecked()
         config.providers.openrouter = self.openrouter_cb.isChecked()
         config.providers.antigravity = self.antigravity_cb.isChecked()
+        config.providers.linear = self.linear_cb.isChecked()
         config.providers.codex_resets = self.codex_resets_cb.isChecked()
         config.providers.claude_resets = self.claude_resets_cb.isChecked()
         config.providers.opencode_go = self.opencode_go_cb.isChecked()
@@ -1823,6 +1926,8 @@ class SettingsDialog(QDialog):
             self.antigravity_cli_path_edit.text()
         )
         config.antigravity.colors = self.antigravity_colors.value()
+        config.linear.issue_limit = self.linear_issue_limit.value()
+        config.linear.colors = self.linear_colors.value()
         config.codex_resets.notify_announced = (
             self.codex_notify_announced_cb.isChecked()
         )

@@ -51,6 +51,7 @@ from .providers.base import Provider, ProviderSignals
 from .providers.claude import ClaudeProvider
 from .providers.codex import CodexProvider
 from .providers.copilot import CopilotProvider
+from .providers.linear import LinearProvider
 from .providers.openrouter import OpenRouterProvider
 from .providers.antigravity import AntigravityProvider
 from .providers.claude_resets import ClaudeResetsProvider
@@ -118,6 +119,8 @@ def _enabled_providers(config: Config) -> tuple[str, ...]:
         out.append("openrouter")
     if getattr(config.providers, "antigravity", False):
         out.append("antigravity")
+    if getattr(config.providers, "linear", False):
+        out.append("linear")
     if getattr(config.providers, "codex_resets", False):
         out.append("codex_resets")
     if getattr(config.providers, "claude_resets", False):
@@ -529,6 +532,10 @@ class App(QObject):
             )
             desired_tiles.add("antigravity")
             self._widget.ensure_tile("antigravity", "Antigravity")
+        if getattr(self._config.providers, "linear", False):
+            self._providers["linear"] = LinearProvider(self._config)
+            desired_tiles.add("linear")
+            self._widget.ensure_tile("linear", "Linear")
         for name, provider_class in (
             ("codex_resets", CodexResetsProvider),
             ("claude_resets", ClaudeResetsProvider),

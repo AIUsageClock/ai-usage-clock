@@ -77,6 +77,8 @@ def thresholds_for_provider(
         return config.antigravity.colors
     if provider == "opencode_go":
         return config.opencode_go.colors
+    if provider == "linear":
+        return config.linear.colors
     return ColorThresholds()
 
 

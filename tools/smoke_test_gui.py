@@ -85,6 +85,7 @@ def isolated_config() -> dict[str, object]:
             "copilot": False,
             "openrouter": False,
             "antigravity": False,
+            "linear": False,
             "codex_resets": False,
             "claude_resets": False,
             "opencode_go": False,

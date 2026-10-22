@@ -36,6 +36,7 @@ PROVIDER_LABELS = {
     "copilot": "Cp",
     "openrouter": "OR",
     "antigravity": "Ag",
+    "linear": "Ln",
 }
 
 OK_COLORS = {

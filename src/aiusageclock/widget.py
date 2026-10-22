@@ -92,6 +92,7 @@ PROVIDER_ORDER = (
     "copilot",
     "openrouter",
     "antigravity",
+    "linear",
     "codex_resets",
     "claude_resets",
 )
@@ -2704,6 +2705,14 @@ class UsageWidget(QWidget):
                 metric.window if metric else None,
             )
             text = f"{display} {_format_summary_percent(percent)}"
+            if (
+                provider == "linear"
+                and percent is None
+                and metric is not None
+                and metric.reset_label
+            ):
+                # Paid plans have no issue limit: show "no limit", not "--".
+                text = f"{display} {metric.reset_label}"
             tooltip = metric.note if metric and metric.note else ""
             if metric:
                 pace_line = _pace_tooltip_line(metric.resets_at, metric.window)

@@ -61,6 +61,8 @@ def _configured_account_ids(config: Config) -> set[str]:
         account_ids.add("openrouter")
     if config.providers.antigravity:
         account_ids.add("antigravity")
+    if getattr(config.providers, "linear", False):
+        account_ids.add("linear")
     return account_ids
 
 

@@ -18,6 +18,7 @@ log = logging.getLogger("aiusageclock.config")
 KEYRING_GITHUB_PAT = "github-pat"
 KEYRING_OPENROUTER_KEY = "openrouter-key"
 KEYRING_OPENROUTER_MGMT_KEY = "openrouter-mgmt-key"
+KEYRING_LINEAR_KEY = "linear-key"
 WINDOW_WIDTH = 340
 WINDOW_MIN_WIDTH = 240
 WINDOW_MAX_WIDTH = 900
@@ -119,6 +120,7 @@ class ProviderToggles(BaseModel):
     codex_resets: bool = False
     claude_resets: bool = False
     opencode_go: bool = False
+    linear: bool = False
 
 
 class ColorThresholds(BaseModel):
@@ -177,6 +179,12 @@ class ResetsConfig(BaseModel):
 
 
 class OpenCodeGoConfig(BaseModel):
+    colors: ColorThresholds = Field(default_factory=ColorThresholds)
+
+
+class LinearConfig(BaseModel):
+    # Linear's Free plan allows 250 issues (excluding archived ones).
+    issue_limit: int = Field(default=250, ge=1)
     colors: ColorThresholds = Field(default_factory=ColorThresholds)
 
 
@@ -240,6 +248,7 @@ class Config(BaseModel):
     codex_resets: ResetsConfig = Field(default_factory=ResetsConfig)
     claude_resets: ResetsConfig = Field(default_factory=ResetsConfig)
     opencode_go: OpenCodeGoConfig = Field(default_factory=OpenCodeGoConfig)
+    linear: LinearConfig = Field(default_factory=LinearConfig)
     expanded_tiles: list[str] = Field(default_factory=list)
     collapsed_tiles: list[str] = Field(default_factory=list)
     # Disabled by default so normal GUI usage publishes no MCP cache.
@@ -390,6 +399,7 @@ def provider_base_name(kind: str) -> str:
         "antigravity": "Antigravity",
         "codex_resets": "Codex Resets",
         "claude_resets": "Claude Resets",
+        "linear": "Linear",
     }.get(kind, kind.title())
 
 
@@ -452,6 +462,7 @@ def display_name_for_account(config: Config, account_id: str) -> str:
         "codex_resets": "Codex Resets",
         "claude_resets": "Claude Resets",
         "opencode_go": "OpenCode",
+        "linear": "Linear",
     }.get(account_id, account_id)
 
 
@@ -528,6 +539,26 @@ def set_openrouter_key(key: str | None) -> None:
     else:
         try:
             keyring.delete_password(KEYRING_SERVICE, KEYRING_OPENROUTER_KEY)
+        except keyring.errors.KeyringError:
+            pass
+
+
+def get_linear_key() -> str | None:
+    try:
+        key = keyring.get_password(KEYRING_SERVICE, KEYRING_LINEAR_KEY)
+        if key:
+            return key
+    except keyring.errors.KeyringError:
+        pass
+    return None
+
+
+def set_linear_key(key: str | None) -> None:
+    if key:
+        keyring.set_password(KEYRING_SERVICE, KEYRING_LINEAR_KEY, key)
+    else:
+        try:
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_LINEAR_KEY)
         except keyring.errors.KeyringError:
             pass
 
