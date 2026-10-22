@@ -328,6 +328,32 @@ def test_claude_fable_row_is_read_when_enabled():
     assert fable.window == timedelta(days=7)
 
 
+def test_claude_fable_row_with_a_read_percentage_is_shown():
+    payload = _max_plan_payload()
+    payload["weekly_fable"] = {
+        "percent": 18,
+        "kind": "used",
+        "reset_text": "Tuesday 9:00 AM",
+    }
+
+    snapshot = _build_snapshot(payload, show_fable=True)
+
+    fable = next(metric for metric in snapshot.metrics if metric.label == "Fable")
+    assert fable.percent_used == 18
+
+
+def test_claude_fable_row_of_unknown_kind_is_not_shown_as_usage():
+    """A number the extractor could not label used/remaining (for example the
+    "Up to 50% of your weekly limit" description) must not become a reading."""
+    payload = _max_plan_payload()
+    payload["weekly_fable"] = {"percent": 50, "kind": "unknown"}
+
+    snapshot = _build_snapshot(payload, show_fable=True)
+
+    assert snapshot.status == SnapshotStatus.OK
+    assert [metric.label for metric in snapshot.metrics] == ["Session", "Weekly"]
+
+
 def test_claude_fable_row_is_ignored_when_disabled():
     snapshot = _build_snapshot(_max_plan_payload())
 

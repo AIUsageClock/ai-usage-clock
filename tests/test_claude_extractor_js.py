@@ -190,6 +190,166 @@ def test_renamed_september_2026_usage_rows(tmp_path):
     assert "__retry_after_ms" not in result
 
 
+# Real usage-page text as seen in textContent: no whitespace between elements.
+# The Fable row carries a description ("Up to 50% of your weekly limit") that
+# must never be read as usage.
+CONCAT_SESSION = "Current sessionResets at 10:40 PM6% used"
+CONCAT_WEEKLY = "This weekResets Tuesday 9:00 AM19% used"
+CONCAT_FABLE_HEAD = "FableUp to 50% of your weekly limitResets Tuesday 9:00 AM"
+CONCAT_FABLE = CONCAT_FABLE_HEAD + "18% used"
+CONCAT_TAIL = "Limit resetsNo resets right now"
+
+
+def test_concatenated_fable_row_ignores_the_description_percentage(tmp_path):
+    """A child element holding only "…Up to 50%…Resets…" is shorter than the
+    full row. It used to win and report the description's 50 as usage."""
+    wrapper = CONCAT_SESSION + CONCAT_WEEKLY + CONCAT_FABLE + CONCAT_TAIL
+    result = run_extractor(
+        tmp_path,
+        [
+            (wrapper, 900),
+            (CONCAT_SESSION, 60),
+            (CONCAT_WEEKLY, 60),
+            (CONCAT_FABLE_HEAD, 40),
+            (CONCAT_FABLE, 90),
+            (CONCAT_FABLE + CONCAT_TAIL, 130),
+        ],
+    )
+
+    assert percents(result) == {"session": 6, "weekly_all": 19, "weekly_fable": 18}
+    assert result["weekly_fable"]["kind"] == "used"
+    assert result["weekly_fable"]["reset_text"] == "Tuesday 9:00 AM"
+    assert result["weekly_all"]["reset_text"] == "Tuesday 9:00 AM"
+    assert result["session"]["reset_text"] == "at 10:40 PM"
+
+
+def test_complete_fable_row_beats_the_shorter_truncated_candidate(tmp_path):
+    # Listed shortest-first on purpose: element order must not matter.
+    result = run_extractor(
+        tmp_path,
+        [
+            (CONCAT_SESSION + CONCAT_WEEKLY + CONCAT_FABLE, 900),
+            (CONCAT_SESSION, 60),
+            (CONCAT_WEEKLY, 60),
+            (CONCAT_FABLE_HEAD, 40),
+            (CONCAT_FABLE, 90),
+        ],
+    )
+
+    assert result["weekly_fable"]["raw"] == CONCAT_FABLE
+    assert result["weekly_fable"]["percent"] == 18
+
+
+def test_truncated_fable_candidate_alone_is_not_a_reading(tmp_path):
+    """No used/remaining value anywhere: report no Fable row (so the expander
+    logic still runs) rather than the description's 50."""
+    result = run_extractor(
+        tmp_path,
+        [
+            (CONCAT_SESSION + CONCAT_WEEKLY + CONCAT_FABLE_HEAD, 900),
+            (CONCAT_SESSION, 60),
+            (CONCAT_WEEKLY, 60),
+            (CONCAT_FABLE_HEAD, 40),
+        ],
+    )
+
+    assert percents(result) == {"session": 6, "weekly_all": 19, "weekly_fable": None}
+    assert result["weekly_fable"] is None
+
+
+def test_fable_row_inside_a_wrapper_is_not_affected_by_the_trailing_rows(tmp_path):
+    """Only the wrapper holds the Fable row. The text after it ("Limit
+    resets…") must not change the reading or the reset text."""
+    wrapper = CONCAT_SESSION + CONCAT_WEEKLY + CONCAT_FABLE + CONCAT_TAIL
+    result = run_extractor(
+        tmp_path,
+        [(wrapper, 900), (CONCAT_SESSION, 60), (CONCAT_WEEKLY, 60)],
+    )
+
+    assert percents(result) == {"session": 6, "weekly_all": 19, "weekly_fable": 18}
+    assert result["weekly_fable"]["reset_text"] == "Tuesday 9:00 AM"
+
+
+def test_spaced_fable_row_ignores_the_description_percentage(tmp_path):
+    head = "Fable Up to 50% of your weekly limit · Resets Tuesday 9:00 AM"
+    full = head + " 18% used"
+    result = run_extractor(
+        tmp_path,
+        [
+            (" ".join([SESSION, NEW_WEEKLY, full]), 900),
+            (SESSION, 60),
+            (NEW_WEEKLY, 60),
+            (head, 40),
+            (full, 90),
+        ],
+    )
+
+    assert percents(result)["weekly_fable"] == 18
+    assert result["weekly_fable"]["kind"] == "used"
+    assert result["weekly_fable"]["reset_text"] == "Tuesday 9:00 AM"
+
+
+@pytest.mark.parametrize(
+    ("fable_row", "percent", "kind"),
+    [
+        ("Fable Resets Tuesday 9:00 AM 82% remaining", 82, "remaining"),
+        ("Fable Resets Tuesday 9:00 AM remaining: 82%", 82, "remaining"),
+        ("Fable Resets Tuesday 9:00 AM used 7.5%", 7.5, "used"),
+    ],
+)
+def test_labelled_percentage_forms_are_all_read(tmp_path, fable_row, percent, kind):
+    result = run_extractor(
+        tmp_path,
+        [
+            (" ".join([SESSION, ALL_MODELS, fable_row]), 900),
+            (SESSION, 60),
+            (ALL_MODELS, 60),
+            (fable_row, 60),
+        ],
+    )
+
+    assert result["weekly_fable"]["percent"] == percent
+    assert result["weekly_fable"]["kind"] == kind
+
+
+@pytest.mark.parametrize(
+    ("session_row", "percent", "kind"),
+    [
+        # A trailing number after the first labelled value is not a second one.
+        ("Current session Resets in 2 hr 6% used 19%", 6, "used"),
+        ("Current sessionResets in 2 hr18% usedLimit resets", 18, "used"),
+        ("Current session Resets in 2 hr 82% remaining", 82, "remaining"),
+        ("Current session Resets in 2 hr remaining: 82%", 82, "remaining"),
+        ("Current session Resets in 2 hr used 7.5%", 7.5, "used"),
+        ("Current sessionResets in 2 hr6% usedThis week", 6, "used"),
+    ],
+)
+def test_one_labelled_value_is_read_without_phantom_matches(
+    tmp_path, session_row, percent, kind
+):
+    result = run_extractor(
+        tmp_path,
+        [
+            (" ".join([session_row, ALL_MODELS]), 900),
+            (session_row, 60),
+            (ALL_MODELS, 60),
+        ],
+    )
+
+    assert result["session"]["percent"] == percent
+    assert result["session"]["kind"] == kind
+
+
+def test_bare_percentage_in_a_session_row_is_not_a_usage_value(tmp_path):
+    row = "Current session Up to 50% of your weekly limit Resets in 2 hr"
+    result = run_extractor(
+        tmp_path,
+        [(" ".join([row, ALL_MODELS]), 900), (row, 60), (ALL_MODELS, 60)],
+    )
+
+    assert percents(result)["session"] is None
+
+
 def test_fable_banner_without_a_fable_row_is_not_read_as_a_row(tmp_path):
     """The banner names Fable but carries no usage of its own.
 

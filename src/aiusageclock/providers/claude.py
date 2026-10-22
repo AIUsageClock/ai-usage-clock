@@ -103,14 +103,37 @@ EXTRACTOR_JS = r"""
       /^you\s+haven['’]t\s+used\b.*\byet\b/i.test(tail);
   }
 
+  // A usage value is a percentage that says whether it is used or remaining,
+  // in either order ("18% used", "used: 18%"). A bare "50%" is NOT a value:
+  // the Fable row carries the description "Up to 50% of your weekly limit",
+  // and the page's textContent is concatenated without spaces between
+  // elements, so a child element holding only that description plus the reset
+  // caption ("FableUp to 50% of your weekly limitResets Tuesday 9:00 AM") must
+  // not pass for a hydrated row. There is deliberately no word boundary after
+  // "used": that same concatenation yields "18% usedLimit resets".
+  // One alternation scanned in a single pass: text consumed by one match is
+  // never re-scanned, so "6% used 19%" yields only 6 (not a phantom
+  // "used 19%" starting inside the first match).
+  const PCT_VALUE =
+    /(\d+(?:\.\d+)?)\s*%\s*(used|remaining)|\b(used|remaining)\s*:?\s*(\d+(?:\.\d+)?)\s*%/gi;
+
+  function usageValues(text) {
+    const values = [];
+    for (const m of text.matchAll(PCT_VALUE)) {
+      values.push(m[1] !== undefined
+        ? { index: m.index, percent: parseFloat(m[1]), kind: m[2].toLowerCase() }
+        : { index: m.index, percent: parseFloat(m[4]), kind: m[3].toLowerCase() });
+    }
+    return values;
+  }
+
   function hasUsageValue(after) {
     // The prose between a row label and its value changes fairly often. Treat
-    // the percentage as the stable signal instead of enumerating every status
-    // sentence (for example "Paused until your week resets"). rowText() below
-    // keeps the match inside this row, so a neighbouring percentage cannot
-    // make an otherwise unrelated label look valid.
-    return /\d+(?:\.\d+)?\s*%(?:\s*(?:used|remaining))?/i.test(after) ||
-      /\b(?:used|remaining)\s*:?\s*\d+(?:\.\d+)?\s*%/i.test(after);
+    // the labelled percentage as the stable signal instead of enumerating
+    // every status sentence (for example "Paused until your week resets").
+    // rowText() below keeps the match inside this row, so a neighbouring
+    // percentage cannot make an otherwise unrelated label look valid.
+    return usageValues(after).length > 0;
   }
 
   function headsARow(text, label) {
@@ -190,19 +213,20 @@ EXTRACTOR_JS = r"""
   function readRow(labels) {
     const text = findRowByLabels(labels);
     if (!text) return null;
-    const pctMatches = Array.from(text.matchAll(/(\d+(?:\.\d+)?)\s*%/g));
-    const pctMatch = pctMatches[pctMatches.length - 1];
+    // Only a percentage labelled used/remaining is usage; the last one wins
+    // (a container may absorb child rows). Prose such as "Up to 50% of your
+    // weekly limit" is never a reading, and there is no fallback to it.
+    const values = usageValues(text);
+    const value = values.length ? values[values.length - 1] : null;
     const idle = labels.some(label => hasIdleRowCopy(text, label));
-    const remaining = /remaining/i.test(text);
-    const used = /used/i.test(text);
     const resetMatch = text.match(/Resets?\s+(?:in\s+)?(.+?)(?=\s*$|\s+(?:Daily|Weekly|All|Current|Claude|Fable|You)\b|\s*\d+%)/i);
     const pausedMatch = text.match(/\b((?:paused|unavailable|blocked)\b.+?\b(?:resets?|renews?))(?=\s*\d+%|\s*$)/i);
     return {
       raw: text.slice(0, 400),
       // The label-specific idle copy is more authoritative than a percentage
       // or "remaining" word inherited from a larger wrapper around other rows.
-      percent: idle ? 0 : (pctMatch ? parseFloat(pctMatch[1]) : null),
-      kind: idle ? 'used' : (remaining ? 'remaining' : (used ? 'used' : 'unknown')),
+      percent: idle ? 0 : (value ? value.percent : null),
+      kind: idle ? 'used' : (value ? value.kind : 'unknown'),
       // A paused sentence can itself contain "resets"; preserve the whole
       // status instead of treating the words after that verb as a countdown.
       reset_text: pausedMatch ? pausedMatch[1].trim() : (resetMatch ? resetMatch[1].trim() : null),
@@ -585,6 +609,13 @@ def _build_snapshot(
     for key, label, reset_window in rows:
         card = payload.get(key)
         if not card:
+            continue
+        # kind == "unknown" means the extractor found a number but could not
+        # tell whether it was used or remaining (normalize_percent would pass
+        # it through as "used"). Showing a guess as usage is worse than showing
+        # nothing, so skip the row. A missing kind (older payloads) still reads
+        # as used.
+        if card.get("kind") == "unknown":
             continue
         percent = normalize_percent(card.get("percent"), card.get("kind", ""))
         if percent is None:
