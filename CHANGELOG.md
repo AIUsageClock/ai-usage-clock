@@ -15,7 +15,7 @@
 
 - Antigravity: the Argon quota was shown as "Gemini weekly" and shared its usage history with the real Gemini weekly quota, so every refresh recorded a bogus reset. The two are now tracked separately.
 - Windows: the tray tooltip was cut off by Windows after about 127 characters. It now shows one short-code line per service and ends with "…" when not everything fits.
-- Claude: the "Fable this week" row was not read after claude.ai moved it under a collapsed "This week" row. The extractor now expands that row once when the Fable row is missing.
+- Claude: the "Fable this week" row was not read after claude.ai moved it under a collapsed "This week" row. The extractor now expands that row once when the Fable row is missing, and only percentages labelled "used" or "remaining" count as a reading, so the row's "Up to 50% of your weekly limit" caption is no longer shown as usage.
 
 ## 1.0.0 - 2026-10-15
 
