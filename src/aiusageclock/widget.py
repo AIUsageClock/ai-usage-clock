@@ -65,7 +65,7 @@ from .config import (
 from .gauge import color_for_percent, thresholds_for_provider
 from .icons import app_icon
 from .identity import PRODUCT_NAME, PRODUCT_SHORT_NAME, PRODUCT_TINY_NAME, SLUG
-from .models import SnapshotStatus, UsageSnapshot
+from .models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .ratio import (
     MIN_SAMPLES,
     MIN_SESSION_DELTA,
@@ -927,6 +927,14 @@ class _MetricRow(QWidget):
 
 
 
+_ANTIGRAVITY_COMPACT_SLOTS = (("5h", "5"), ("weekly", "W"))
+_ANTIGRAVITY_COMPACT_WINDOWS = tuple(w for w, _ in _ANTIGRAVITY_COMPACT_SLOTS)
+
+
+def _usage_rank(metric: UsageMetric) -> float:
+    return metric.percent_used if metric.percent_used is not None else -1.0
+
+
 def _compact_metric_code(label: str) -> str:
     key = label.strip().lower()
     return {
@@ -1012,6 +1020,23 @@ class _CompactMetric(QWidget):
         if metric.note:
             tooltip += f"\n{metric.note}"
         self.setToolTip(tooltip)
+
+    def show_empty_slot(self, *, show_reset: bool = True) -> None:
+        """Render as an empty column slot with the same geometry as a populated metric sharing ``show_reset``."""
+        self.code.setText("")
+        self.pct.setText("")
+        self.reset.setText("")
+        self.reset.setVisible(show_reset)
+        self.bar.setValue(0)
+        # Hide the bar so assistive tools ignore the empty gauge; the two
+        # Expanding slots split the row width based on sizeHint, so retaining
+        # the hidden bar's 30px footprint keeps this slot's sizeHint equal to a
+        # populated metric's.
+        policy = self.bar.sizePolicy()
+        policy.setRetainSizeWhenHidden(True)
+        self.bar.setSizePolicy(policy)
+        self.bar.setVisible(False)
+        self.setToolTip("")
 
 
 class _ProviderTile(QFrame):
@@ -1309,7 +1334,7 @@ class _ProviderTile(QFrame):
         if self.provider == "antigravity":
             return [
                 metric for metric in metrics
-                if metric.label.rsplit(" ", 1)[-1] in ("5h", "weekly")
+                if metric.label.rsplit(" ", 1)[-1] in _ANTIGRAVITY_COMPACT_WINDOWS
             ]
         if _provider_family(self.provider) == "opencode_go":
             return [
@@ -1349,12 +1374,18 @@ class _ProviderTile(QFrame):
             row.deleteLater()
         self._compact_group_rows.clear()
         self._compact_metrics.clear()
-        groups: dict[str, list] = {}
+        groups: dict[str, dict[str, UsageMetric]] = {}
         for metric in metrics:
             group, _, window = metric.label.rpartition(" ")
-            if group and window in ("5h", "weekly"):
-                groups.setdefault(group, []).append(metric)
-        for group, group_metrics in groups.items():
+            if group and window in _ANTIGRAVITY_COMPACT_WINDOWS:
+                by_window = groups.setdefault(group, {})
+                existing = by_window.get(window)
+                # Keep the higher-usage metric when buckets collide onto the same
+                # group/window label (see antigravity._classify_bucket): None
+                # ranks lowest and ties keep the first-seen entry.
+                if existing is None or _usage_rank(metric) > _usage_rank(existing):
+                    by_window[window] = metric
+        for group, by_window in groups.items():
             row = QWidget(self._compact_summary)
             layout = QHBoxLayout(row)
             layout.setContentsMargins(0, 0, 0, 0)
@@ -1363,10 +1394,19 @@ class _ProviderTile(QFrame):
             label.setFixedWidth(76)
             label.setStyleSheet("color:#d1d5db; font-size:10px;")
             layout.addWidget(label)
-            for metric in group_metrics:
+            # Fixed two-column slots (5h then weekly) keep weekly-only groups
+            # like Argon right-aligned under the weekly column.
+            for window, code in _ANTIGRAVITY_COMPACT_SLOTS:
                 item = _CompactMetric(row)
-                item.set_metric(metric, show_reset=show_reset)
-                item.code.setText("5" if metric.label.endswith(" 5h") else "W")
+                metric = by_window.get(window)
+                if metric is not None:
+                    item.set_metric(metric, show_reset=show_reset)
+                    item.code.setText(code)
+                    # Keep the 38px reset column even when reset text is empty so
+                    # code/bar/pct inside this slot do not shift relative to other rows.
+                    item.reset.setVisible(show_reset)
+                else:
+                    item.show_empty_slot(show_reset=show_reset)
                 layout.addWidget(item)
                 self._compact_metrics.append(item)
             self._compact_layout.addWidget(row)

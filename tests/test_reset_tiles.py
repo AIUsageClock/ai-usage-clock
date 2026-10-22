@@ -4,12 +4,13 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 import pytest
+from PyQt6.QtWidgets import QApplication
 from aiusageclock.app import App
 from aiusageclock.config import Config
 from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 from aiusageclock.providers._resets_common import ResetEvent, ResetWatch, ResetsFetchError, build_snapshot
 from aiusageclock.providers.codex_resets import CodexResetsProvider, _parse_watch
-from aiusageclock.widget import UsageWidget, _SummaryChip
+from aiusageclock.widget import UsageWidget, _ProviderTile, _SummaryChip
 
 
 NOW = datetime(2026, 9, 27, 12, tzinfo=timezone.utc)
@@ -44,6 +45,20 @@ def ag_snapshot(groups=("Gemini", "Claude+GPT")):
             for window, percent in (("5h", 0.0), ("weekly", 14.0))
         ],
     )
+
+
+ARGON_METRICS = (
+    UsageMetric("Gemini 5h", 0.0, None, reset_label="idle"),
+    UsageMetric("Gemini weekly", 14.0, None, reset_label="2.8d"),
+    UsageMetric("Claude+GPT 5h", 0.0, None, reset_label="idle"),
+    UsageMetric("Claude+GPT weekly", 88.5, None, reset_label="1.0d"),
+    UsageMetric("Argon weekly", 38.7, None, reset_label="6.0d"),
+)
+
+
+def _slot(tile: _ProviderTile, row_index: int, window: str):
+    col_index = 1 if window == "5h" else 2
+    return tile._compact_group_rows[row_index].layout().itemAt(col_index).widget()
 
 def test_antigravity_compact_groups_and_saved_state(qtbot, monkeypatch):
     config = Config()
@@ -86,13 +101,7 @@ def test_antigravity_compact_three_groups_with_argon_weekly(qtbot):
     snapshot = UsageSnapshot(
         provider="antigravity",
         status=SnapshotStatus.OK,
-        metrics=[
-            UsageMetric("Gemini 5h", 0.0, None, reset_label="idle"),
-            UsageMetric("Gemini weekly", 14.0, None, reset_label="2.8d"),
-            UsageMetric("Claude+GPT 5h", 0.0, None, reset_label="idle"),
-            UsageMetric("Claude+GPT weekly", 88.5, None, reset_label="1.0d"),
-            UsageMetric("Argon weekly", 38.7, None, reset_label="6.0d"),
-        ],
+        metrics=list(ARGON_METRICS),
     )
     widget.update_snapshot(snapshot, "Antigravity")
     tile = widget._tiles["antigravity"]
@@ -107,12 +116,130 @@ def test_antigravity_compact_three_groups_with_argon_weekly(qtbot):
         "W",
         "5",
         "W",
+        "",
         "W",
     ]
-    assert [row.layout().count() for row in tile._compact_group_rows] == [3, 3, 2]
-    argon_metric = tile._compact_group_rows[2].layout().itemAt(1).widget()
+    assert [row.layout().count() for row in tile._compact_group_rows] == [3, 3, 3]
+    argon_placeholder = _slot(tile, 2, "5h")
+    assert argon_placeholder.code.text() == ""
+    assert argon_placeholder.pct.text() == ""
+    assert argon_placeholder.reset.text() == ""
+    assert argon_placeholder.bar.isHidden()
+    assert argon_placeholder.toolTip() == ""
+    argon_metric = _slot(tile, 2, "weekly")
+    assert argon_metric.code.text() == "W"
     assert argon_metric.pct.text() == "39%"
     assert argon_metric.reset.text() == "6.0d"
+
+
+def test_antigravity_compact_argon_weekly_geometry_alignment(qtbot):
+    tile = _ProviderTile("antigravity", "Antigravity")
+    qtbot.addWidget(tile)
+    snapshot = UsageSnapshot(
+        provider="antigravity",
+        status=SnapshotStatus.OK,
+        metrics=list(ARGON_METRICS),
+    )
+    tile.set_snapshot(snapshot)
+    tile.expand_btn.click()
+    tile.show()
+    qtbot.waitExposed(tile)
+
+    gemini_5 = _slot(tile, 0, "5h")
+    gemini_w = _slot(tile, 0, "weekly")
+    claude_w = _slot(tile, 1, "weekly")
+    argon_5 = _slot(tile, 2, "5h")
+    argon_w = _slot(tile, 2, "weekly")
+
+    assert argon_5.sizeHint().width() == gemini_5.sizeHint().width()
+    assert argon_5.sizeHint().width() == argon_w.sizeHint().width()
+
+    for width in (320, 500):
+        target_width = max(width, tile.minimumWidth())
+        tile.set_available_width(target_width)
+        tile.resize(target_width, tile.sizeHint().height())
+        QApplication.processEvents()
+        tile.layout().activate()
+        assert argon_w.x() == gemini_w.x() == claude_w.x()
+        assert argon_w.bar.x() == gemini_w.bar.x() == claude_w.bar.x()
+        assert argon_w.pct.x() == gemini_w.pct.x() == claude_w.pct.x()
+        assert gemini_w.x() > gemini_5.x()
+
+
+def test_antigravity_compact_empty_reset_preserves_subwidget_alignment(qtbot):
+    tile = _ProviderTile("antigravity", "Antigravity")
+    qtbot.addWidget(tile)
+    snapshot = UsageSnapshot(
+        provider="antigravity",
+        status=SnapshotStatus.OK,
+        metrics=[
+            UsageMetric("Gemini 5h", None, None),
+            UsageMetric("Gemini weekly", 14.0, None, reset_label="2.8d"),
+            UsageMetric("Claude+GPT 5h", 0.0, None, reset_label="idle"),
+            UsageMetric("Claude+GPT weekly", 88.5, None, reset_label="1.0d"),
+        ],
+    )
+    tile.set_snapshot(snapshot)
+    tile.expand_btn.click()
+    tile.show()
+    qtbot.waitExposed(tile)
+    QApplication.processEvents()
+    tile.layout().activate()
+
+    gemini_5 = _slot(tile, 0, "5h")
+    claude_5 = _slot(tile, 1, "5h")
+    assert gemini_5.reset.text() == ""
+    assert not gemini_5.reset.isHidden()
+    assert gemini_5.bar.x() == claude_5.bar.x()
+    assert gemini_5.pct.x() == claude_5.pct.x()
+
+
+def test_antigravity_compact_duplicate_slot_keeps_higher_percent(qtbot):
+    widget = UsageWidget(Config())
+    qtbot.addWidget(widget)
+    snapshot = UsageSnapshot(
+        provider="antigravity",
+        status=SnapshotStatus.OK,
+        metrics=[
+            UsageMetric("Gemini 5h", 90.0, None, reset_label="1.0h"),
+            UsageMetric("Gemini 5h", 5.0, None, reset_label="4.9h"),
+            UsageMetric("Gemini weekly", 10.0, None, reset_label="6.0d"),
+            UsageMetric("Gemini weekly", 70.0, None, reset_label="2.0d"),
+            UsageMetric("Claude+GPT 5h", None, None),
+            UsageMetric("Claude+GPT 5h", 0.0, None, reset_label="idle"),
+        ],
+    )
+    widget.update_snapshot(snapshot, "Antigravity")
+    tile = widget._tiles["antigravity"]
+    tile.expand_btn.click()
+    assert len(tile._compact_group_rows) == 2
+    assert _slot(tile, 0, "5h").pct.text() == "90%"
+    assert _slot(tile, 0, "weekly").pct.text() == "70%"
+    assert _slot(tile, 1, "5h").pct.text() == "0%"
+
+
+def test_antigravity_compact_alignment_reset_column_hidden(qtbot):
+    # Guards the show_reset=False parameter contract on _set_antigravity_compact_metrics
+    # (currently unused by production callers, which keep the default True).
+    tile = _ProviderTile("antigravity", "Antigravity")
+    qtbot.addWidget(tile)
+    tile.set_expanded(False, emit=False)
+    tile._set_antigravity_compact_metrics(list(ARGON_METRICS), show_reset=False)
+    tile.show()
+    qtbot.waitExposed(tile)
+    QApplication.processEvents()
+    tile.layout().activate()
+
+    gemini_5 = _slot(tile, 0, "5h")
+    gemini_w = _slot(tile, 0, "weekly")
+    claude_w = _slot(tile, 1, "weekly")
+    argon_w = _slot(tile, 2, "weekly")
+
+    assert all(item.reset.isHidden() for item in tile._compact_metrics)
+    assert argon_w.x() == gemini_w.x() == claude_w.x()
+    assert argon_w.bar.x() == gemini_w.bar.x() == claude_w.bar.x()
+    assert argon_w.pct.x() == gemini_w.pct.x() == claude_w.pct.x()
+    assert gemini_w.x() > gemini_5.x()
 
 @pytest.mark.parametrize("name,codes", [
     ("claude", ["S", "W"]), ("codex", ["S", "W"]),
