@@ -137,6 +137,6 @@ Oui. C’est un logiciel gratuit et open source, sous licence MIT. Les services 
 
 [Guide de configuration](docs/setup.md) (en anglais) · [Utilisation au quotidien](docs/usage.md) (en anglais) · [Garde-fou de consommation MCP](docs/mcp.md) (en anglais) · [Compiler depuis les sources](docs/build.md) (en anglais) · [Contribuer](CONTRIBUTING.md) (en anglais) · [Sécurité](SECURITY.md) (en anglais) · [Licence (MIT)](LICENSE)
 
-Version actuelle : **1.0.0** · [Journal des modifications](CHANGELOG.md) (en anglais)
+Version actuelle : **1.1.0** · [Journal des modifications](CHANGELOG.md) (en anglais)
 
 AI Usage Clock n’est affilié ni à Anthropic, ni à OpenAI, ni à Google, ni à GitHub, ni à Microsoft, ni à OpenCode, ni à OpenRouter, ni à Linear, ni à aucun autre fournisseur. Les noms de produits appartiennent à leurs propriétaires respectifs.

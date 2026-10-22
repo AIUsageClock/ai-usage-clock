@@ -147,6 +147,6 @@ Codex 的卡片还多一行 **Watch**（预测），是 AI 对重置可能性的
 
 [设置指南](docs/setup.zh-CN.md) · [日常使用](docs/usage.zh-CN.md) · [MCP 用量防护](docs/mcp.md)（英文） · [从源码构建](docs/build.md)（英文） · [参与贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [许可证（MIT）](LICENSE)
 
-当前版本：**1.0.0** · [更新日志](CHANGELOG.md)
+当前版本：**1.1.0** · [更新日志](CHANGELOG.md)
 
 AI Usage Clock 与 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter、Linear 以及其他任何服务商都没有关联。文中的产品名称归各自的所有者。

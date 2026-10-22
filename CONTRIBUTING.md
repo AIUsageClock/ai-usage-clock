@@ -82,7 +82,9 @@ other desktop content.
 - Run `python -m pytest` and `tools/check_versions.py` locally before opening the PR;
   both run in CI on push and pull request.
 - If you bump the version, update `pyproject.toml`, `src/aiusageclock/__init__.py`,
-  `README.md`, and add a `CHANGELOG.md` section. CI will fail otherwise.
+  `README.md` and the six translated READMEs (`README.*.md`), and add a `CHANGELOG.md`
+  section. The website keeps its own copy in `site/src/site.ts` (`VERSION`); update
+  it too. CI only checks `pyproject.toml`, `__init__.py`, `README.md` and the changelog.
 - Avoid logging cookies, PATs, or full provider response bodies. The logger
   is rotated under the per-OS app-data directory, and users may attach those
   logs to issues.
