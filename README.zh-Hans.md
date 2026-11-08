@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-TW.md">繁體中文</a> · <strong>简体中文</strong> · <a href="README.ja.md">日本語</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a>
+  <a href="README.md">English</a> · <a href="README.zh-Hant.md">繁體中文</a> · <strong>简体中文</strong> · <a href="README.ja.md">日本語</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 <p align="center">
   <a href="https://github.com/AIUsageClock/ai-usage-clock/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2ea44f?style=for-the-badge" alt="下载最新版" /></a>
-  <a href="https://aiusageclock.com/zh-cn/"><img src="https://img.shields.io/badge/Website-aiusageclock.com-c2410c?style=for-the-badge" alt="访问官网" /></a>
+  <a href="https://aiusageclock.com/zh-hans/"><img src="https://img.shields.io/badge/Website-aiusageclock.com-c2410c?style=for-the-badge" alt="访问官网" /></a>
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@
    - Windows：运行 `ai-usage-clock.exe`
    - macOS：把 `ai-usage-clock.app` 拖进“应用程序”文件夹，再打开
    - Linux：运行 `./ai-usage-clock/ai-usage-clock`
-3. **接入服务**：Claude 和 Codex 直接在程序里登录；用 API 密钥的服务，到 **Settings**（设置）里粘贴密钥。详见[设置指南](docs/setup.zh-CN.md)。
+3. **接入服务**：Claude 和 Codex 直接在程序里登录；用 API 密钥的服务，到 **Settings**（设置）里粘贴密钥。详见[设置指南](docs/setup.zh-Hans.md)。
 
 发行版没有做代码签名，第一次打开时 Windows 或 macOS 可能会弹出警告，[解决办法看这里](#首次启动时出现-smartscreen-或-gatekeeper-警告)。
 
@@ -156,14 +156,14 @@ AI Usage Clock 免费使用，赞不赞助都一样。如果它帮你省了些�
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="赞助地址的二维码" /></p>
 
 - 只接收 Ethereum（ERC20）和 Polygon 链上的转账。如果两条链都能用，建议用 Polygon，手续费通常更低。
-- 官方地址只有这一个，[官网](https://aiusageclock.com/zh-cn/#donate)上显示的也是同一个，不会有人要求你改转到别的地址。
+- 官方地址只有这一个，[官网](https://aiusageclock.com/zh-hans/#donate)上显示的也是同一个，不会有人要求你改转到别的地址。
 - 链上转账无法撤回，所以不能退款。
 
 在 GitHub 上给 AI Usage Clock 点个 Star，或者推荐给朋友，也是帮忙。
 
 ## 相关链接
 
-[设置指南](docs/setup.zh-CN.md) · [日常使用](docs/usage.zh-CN.md) · [MCP 用量防护](docs/mcp.md)（英文） · [从源码构建](docs/build.md)（英文） · [参与贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [许可证（MIT）](LICENSE)
+[设置指南](docs/setup.zh-Hans.md) · [日常使用](docs/usage.zh-Hans.md) · [MCP 用量防护](docs/mcp.md)（英文） · [从源码构建](docs/build.md)（英文） · [参与贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [许可证（MIT）](LICENSE)
 
 当前版本：**1.1.0** · [更新日志](CHANGELOG.md)
 

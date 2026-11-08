@@ -1,10 +1,10 @@
 # 使用 AI Usage Clock
 
-[English](usage.md) · [繁體中文](usage.zh-TW.md) · **简体中文**
+[English](usage.md) · [繁體中文](usage.zh-Hant.md) · **简体中文**
 
-[返回 README](../README.zh-CN.md)
+[返回 README](../README.zh-Hans.md)
 
-本页介绍日常使用方式和已知限制。如果还没有连接账号，请先看[设置指南](setup.zh-CN.md)。
+本页介绍日常使用方式和已知限制。如果还没有连接账号，请先看[设置指南](setup.zh-Hans.md)。
 
 ## 日常使用
 
@@ -16,7 +16,7 @@
 
 ## 重置通知
 
-重置提醒来自可选的 Codex Resets 和 Claude Resets 追踪站（见[可选：重置公告](setup.zh-CN.md#可选重置公告)）。
+重置提醒来自可选的 Codex Resets 和 Claude Resets 追踪站（见[可选：重置公告](setup.zh-Hans.md#可选重置公告)）。
 
 - 在 Windows 上，提醒会使用通知中心的原生通知；点击通知会在浏览器中打开原始帖子，即使 AI Usage Clock 已退出也一样。同时到达的提醒会同时显示。
 - 如果原生通知失败，或在非 Windows 系统上，且有可用的 Qt 系统托盘时，会改用系统托盘气泡通知。气泡通知之间至少间隔 8 秒；点击气泡会打开最后一条气泡对应的帖子。

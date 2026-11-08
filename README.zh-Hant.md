@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <strong>繁體中文</strong> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a>
+  <a href="README.md">English</a> · <strong>繁體中文</strong> · <a href="README.zh-Hans.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 <p align="center">
   <a href="https://github.com/AIUsageClock/ai-usage-clock/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2ea44f?style=for-the-badge" alt="下載最新版" /></a>
-  <a href="https://aiusageclock.com/zh-tw/"><img src="https://img.shields.io/badge/Website-aiusageclock.com-c2410c?style=for-the-badge" alt="前往官方網站" /></a>
+  <a href="https://aiusageclock.com/zh-hant/"><img src="https://img.shields.io/badge/Website-aiusageclock.com-c2410c?style=for-the-badge" alt="前往官方網站" /></a>
 </p>
 
 <p align="center">
@@ -54,7 +54,7 @@
    - Windows：執行 `ai-usage-clock.exe`
    - macOS：把 `ai-usage-clock.app` 拖進「應用程式」，再打開它
    - Linux：執行 `./ai-usage-clock/ai-usage-clock`
-3. **連上服務**：Claude 和 Codex 在程式裡直接登入；用 API 金鑰的服務，到 **Settings**（設定）貼上金鑰。詳細步驟見[設定指南](docs/setup.zh-TW.md)。
+3. **連上服務**：Claude 和 Codex 在程式裡直接登入；用 API 金鑰的服務，到 **Settings**（設定）貼上金鑰。詳細步驟見[設定指南](docs/setup.zh-Hant.md)。
 
 下載的版本沒有程式碼簽署，第一次開啟時 Windows 或 macOS 可能會跳出警告，[看這裡怎麼處理](#首次啟動時出現-smartscreen-或-gatekeeper-警告)。
 
@@ -146,14 +146,14 @@ AI Usage Clock 免費使用，贊不贊助都一樣。如果它幫你省了一�
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="贊助地址的 QR Code" /></p>
 
 - 只收 Ethereum（ERC20）和 Polygon 鏈上的轉帳。若兩者都有，建議用 Polygon，手續費通常比較低。
-- 官方地址只有這一個，[官網](https://aiusageclock.com/zh-tw/#donate)上顯示的也是同一個，不會有人要求你改轉到別的地址。
+- 官方地址只有這一個，[官網](https://aiusageclock.com/zh-hant/#donate)上顯示的也是同一個，不會有人要求你改轉到別的地址。
 - 鏈上轉帳無法撤回，所以無法退款。
 
 在 GitHub 幫 AI Usage Clock 按星星，或介紹給朋友，也是幫忙。
 
 ## 延伸閱讀
 
-[設定指南](docs/setup.zh-TW.md) · [日常使用](docs/usage.zh-TW.md) · [MCP 用量防護](docs/mcp.md)（英文） · [從原始碼建置](docs/build.md)（英文） · [參與貢獻](CONTRIBUTING.md) · [安全性](SECURITY.md) · [授權（MIT）](LICENSE)
+[設定指南](docs/setup.zh-Hant.md) · [日常使用](docs/usage.zh-Hant.md) · [MCP 用量防護](docs/mcp.md)（英文） · [從原始碼建置](docs/build.md)（英文） · [參與貢獻](CONTRIBUTING.md) · [安全性](SECURITY.md) · [授權（MIT）](LICENSE)
 
 目前版本：**1.1.0** · [更新紀錄](CHANGELOG.md)
 

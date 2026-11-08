@@ -32,9 +32,10 @@ def _read_init_version() -> str:
     return m.group(1)
 
 
-def _readme_mentions_version(version: str) -> bool:
-    text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    return version in text
+def _readmes_missing_version(version: str) -> list[str]:
+    """Names of the README files (README.md and every README.<lang>.md) that do not contain the version."""
+    paths = sorted(REPO_ROOT.glob("README*.md"))
+    return [p.name for p in paths if version not in p.read_text(encoding="utf-8")]
 
 
 def _changelog_has_section(version: str) -> bool:
@@ -53,8 +54,9 @@ def main() -> int:
             f"pyproject.toml version ({pyproject}) != src/aiusageclock/__init__.py version ({init})"
         )
 
-    if not _readme_mentions_version(pyproject):
-        failures.append(f"README.md does not mention version {pyproject}")
+    missing = _readmes_missing_version(pyproject)
+    if missing:
+        failures.append(f"{', '.join(missing)} does not mention version {pyproject}")
 
     if not _changelog_has_section(pyproject):
         failures.append(f"CHANGELOG.md has no '## {pyproject}' section")

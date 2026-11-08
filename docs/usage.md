@@ -1,6 +1,6 @@
 # Using AI Usage Clock
 
-**English** · [繁體中文](usage.zh-TW.md) · [简体中文](usage.zh-CN.md)
+**English** · [繁體中文](usage.zh-Hant.md) · [简体中文](usage.zh-Hans.md)
 
 [Back to the README](../README.md)
 

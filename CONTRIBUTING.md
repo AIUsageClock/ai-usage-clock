@@ -84,7 +84,7 @@ other desktop content.
 - If you bump the version, update `pyproject.toml`, `src/aiusageclock/__init__.py`,
   `README.md` and the six translated READMEs (`README.*.md`), and add a `CHANGELOG.md`
   section. The website keeps its own copy in `site/src/site.ts` (`VERSION`); update
-  it too. CI only checks `pyproject.toml`, `__init__.py`, `README.md` and the changelog.
+  it too. CI only checks `pyproject.toml`, `__init__.py`, the seven READMEs and the changelog.
 - The Donate section appears in `README.md` and the six translated READMEs. If you
   change it, change all seven together and keep the wallet address identical in each.
 - Avoid logging cookies, PATs, or full provider response bodies. The logger

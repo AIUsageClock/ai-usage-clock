@@ -1,10 +1,10 @@
 # 設定指南
 
-[English](setup.md) · **繁體中文** · [简体中文](setup.zh-CN.md)
+[English](setup.md) · **繁體中文** · [简体中文](setup.zh-Hans.md)
 
-[回到 README](../README.zh-TW.md)
+[回到 README](../README.zh-Hant.md)
 
-本頁說明各項服務的首次設定。日常使用方式請見[使用 AI Usage Clock](usage.zh-TW.md)。
+本頁說明各項服務的首次設定。日常使用方式請見[使用 AI Usage Clock](usage.zh-Hant.md)。
 
 首次啟動時，小工具會顯示已啟用的服務區塊。Claude、Codex 與 GitHub Copilot 預設啟用；OpenCode Go、OpenRouter、Linear、Antigravity 與兩個重置追蹤站則預設關閉，需要在 **Settings → General** 中開啟。Claude 與 Codex 使用 **Sign in**（登入）或 **Paste cookie**（貼上 Cookie）流程；OpenCode Go、GitHub Copilot、OpenRouter 與 Linear 則須在 Settings 中以 API 憑證進行設定。你可以開啟 Settings 停用不使用的服務，或新增更多 Claude、Codex 或 OpenCode Go 帳號。
 
@@ -68,7 +68,7 @@ Claude、Codex 與 OpenCode Go 都可以同時追蹤多個訂閱。開啟該服�
 
 [資料來源：Codex Resets](https://codex-resets.com) · [資料來源：Claude Resets](https://claude-resets.com)
 
-各系統如何送出這些通知，請見[使用 AI Usage Clock](usage.zh-TW.md#重置通知)。
+各系統如何送出這些通知，請見[使用 AI Usage Clock](usage.zh-Hant.md#重置通知)。
 
 ## 瀏覽器登入的運作方式
 

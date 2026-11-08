@@ -1,6 +1,6 @@
 # Setup guide
 
-**English** · [繁體中文](setup.zh-TW.md) · [简体中文](setup.zh-CN.md)
+**English** · [繁體中文](setup.zh-Hant.md) · [简体中文](setup.zh-Hans.md)
 
 [Back to the README](../README.md)
 

@@ -1,10 +1,10 @@
 # 设置指南
 
-[English](setup.md) · [繁體中文](setup.zh-TW.md) · **简体中文**
+[English](setup.md) · [繁體中文](setup.zh-Hant.md) · **简体中文**
 
-[返回 README](../README.zh-CN.md)
+[返回 README](../README.zh-Hans.md)
 
-本页介绍各项服务的首次设置。日常使用方式请见[使用 AI Usage Clock](usage.zh-CN.md)。
+本页介绍各项服务的首次设置。日常使用方式请见[使用 AI Usage Clock](usage.zh-Hans.md)。
 
 首次启动时，小组件会显示已启用的服务卡片。Claude、Codex 和 GitHub Copilot 默认启用；OpenCode Go、OpenRouter、Linear、Antigravity 和两个重置追踪站默认关闭，需要在 **Settings → General** 中开启。Claude 和 Codex 使用 **Sign in**（登录）或 **Paste cookie**（粘贴 Cookie）流程；OpenCode Go、GitHub Copilot、OpenRouter 和 Linear 则需在 Settings 中用 API 凭据进行设置。你可以打开 Settings 停用不使用的服务，或添加更多 Claude、Codex 或 OpenCode Go 账号。
 
@@ -68,7 +68,7 @@ Claude、Codex 和 OpenCode Go 都可以同时跟踪多个订阅。打开该服�
 
 [数据来源：Codex Resets](https://codex-resets.com) · [数据来源：Claude Resets](https://claude-resets.com)
 
-各系统如何发出这些通知，请见[使用 AI Usage Clock](usage.zh-CN.md#重置通知)。
+各系统如何发出这些通知，请见[使用 AI Usage Clock](usage.zh-Hans.md#重置通知)。
 
 ## 浏览器登录的工作原理
 
