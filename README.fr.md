@@ -133,6 +133,24 @@ Oui, avec une réserve. Windows est la plateforme de développement, et celle o�
 
 Oui. C’est un logiciel gratuit et open source, sous licence MIT. Les services qu’il affiche nécessitent leurs propres comptes ou abonnements.
 
+<a id="donate"></a>
+
+## Faire un don
+
+AI Usage Clock est gratuit, que vous fassiez un don ou non. Si l’application vous a fait gagner du temps et que vous souhaitez dire merci, vous pouvez envoyer des cryptomonnaies à l’adresse ci-dessous. Tout jeton sur Ethereum ou Polygon est le bienvenu : ETH, POL, USDT, USDC ou autre. L’adresse est la même sur les deux réseaux.
+
+```
+0x6c60bFCaDfb3AD63eC6D821baB0E6323361BFD4f
+```
+
+<p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="Code QR de l’adresse de don" /></p>
+
+- Envoyez uniquement sur Ethereum ou Polygon. Les frais sont généralement plus bas sur Polygon.
+- C’est la seule adresse officielle, et la même figure sur [aiusageclock.com](https://aiusageclock.com/fr/#donate). On ne vous demandera jamais d’envoyer vers une autre.
+- Les transferts sur la blockchain sont irréversibles : ils ne peuvent donc pas être remboursés.
+
+Mettre une étoile au projet sur GitHub ou en parler à un ami aide aussi.
+
 ## Pour aller plus loin
 
 [Guide de configuration](docs/setup.md) (en anglais) · [Utilisation au quotidien](docs/usage.md) (en anglais) · [Garde-fou de consommation MCP](docs/mcp.md) (en anglais) · [Compiler depuis les sources](docs/build.md) (en anglais) · [Contribuer](CONTRIBUTING.md) (en anglais) · [Sécurité](SECURITY.md) (en anglais) · [Licence (MIT)](LICENSE)

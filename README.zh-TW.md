@@ -133,6 +133,24 @@ Codex 的區塊還多一列 **Watch**（觀察），是 AI 預測重置的機率
 
 免費，以 MIT 授權開源。不過畫面上那些服務，本身還是要有帳號或訂閱。
 
+<a id="donate"></a>
+
+## 贊助
+
+AI Usage Clock 免費使用，贊不贊助都一樣。如果它幫你省了一些時間，想說聲謝謝，可以把加密貨幣轉到下面的地址。Ethereum 或 Polygon 鏈上的資產都收，ETH、POL、USDT、USDC 或其他代幣都歡迎，兩條鏈用同一個地址。
+
+```
+0x6c60bFCaDfb3AD63eC6D821baB0E6323361BFD4f
+```
+
+<p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="贊助地址的 QR Code" /></p>
+
+- 只收 Ethereum 和 Polygon 鏈上的轉帳，Polygon 的手續費通常比較低。
+- 官方地址只有這一個，[官網](https://aiusageclock.com/zh-tw/#donate)上顯示的也是同一個，不會有人要求你改轉到別的地址。
+- 鏈上轉帳無法撤回，所以無法退款。
+
+在 GitHub 幫 AI Usage Clock 按星星，或介紹給朋友，也是幫忙。
+
 ## 延伸閱讀
 
 [設定指南](docs/setup.zh-TW.md) · [日常使用](docs/usage.zh-TW.md) · [MCP 用量防護](docs/mcp.md)（英文） · [從原始碼建置](docs/build.md)（英文） · [參與貢獻](CONTRIBUTING.md) · [安全性](SECURITY.md) · [授權（MIT）](LICENSE)

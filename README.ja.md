@@ -134,6 +134,24 @@ macOS の MCP ヘルパーを含む詳しい説明は、[docs/build.md](docs/bui
 
 はい。MIT ライセンスで公開している、無料のオープンソースソフトウェアです。ただし、表示する各サービスを使うには、それぞれのアカウントやサブスクリプションが必要です。
 
+<a id="donate"></a>
+
+## 寄付
+
+AI Usage Clock は、寄付の有無にかかわらず無料でお使いいただけます。少しでもお役に立てて、お礼の気持ちを届けたいときは、下記のアドレスに暗号資産を送っていただけます。Ethereum と Polygon 上のトークンであれば、ETH、POL、USDT、USDC などどれでも受け付けています。どちらのネットワークでも同じアドレスです。
+
+```
+0x6c60bFCaDfb3AD63eC6D821baB0E6323361BFD4f
+```
+
+<p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="寄付用アドレスの QR コード" /></p>
+
+- 送金できるのは Ethereum と Polygon のみです。手数料は通常 Polygon のほうが安くなります。
+- 公式のアドレスはこの 1 つだけで、[公式サイト](https://aiusageclock.com/ja/#donate)に載っているものと同じです。別のアドレスへの送金をお願いされることはありません。
+- ブロックチェーン上の送金は取り消せないため、返金はできません。
+
+GitHub でスターを付けたり、友人に紹介したりしてもらえるのも助けになります。
+
 ## ドキュメント
 
 [セットアップガイド](docs/setup.md)（英語） · [日々の使い方](docs/usage.md)（英語） · [MCP による使用量ガード](docs/mcp.md)（英語） · [ソースからビルド](docs/build.md)（英語） · [コントリビューション](CONTRIBUTING.md)（英語） · [セキュリティ](SECURITY.md)（英語） · [ライセンス（MIT）](LICENSE)

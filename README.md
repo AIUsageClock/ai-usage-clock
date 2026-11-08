@@ -123,6 +123,24 @@ Yes, with a caveat. Windows is the platform it is developed on and tested with r
 
 Yes. It is free and open source under the MIT license. The services it shows need their own accounts or subscriptions.
 
+<a id="donate"></a>
+
+## Donate
+
+AI Usage Clock is free to use, whether you donate or not. If it has saved you some time and you would like to say thanks, you can send crypto to the address below. Any token on Ethereum or Polygon is welcome: ETH, POL, USDT, USDC or anything else. It is the same address on both networks.
+
+```
+0x6c60bFCaDfb3AD63eC6D821baB0E6323361BFD4f
+```
+
+<p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="QR code of the donation address" /></p>
+
+- Please send on Ethereum or Polygon only. Fees are usually lower on Polygon.
+- This is the only official address, and the same one is shown on [aiusageclock.com](https://aiusageclock.com/en/#donate). You will never be asked to send to a different one.
+- On-chain transfers cannot be reversed, so they cannot be refunded.
+
+Starring AI Usage Clock on GitHub or telling a friend helps too.
+
 ## More
 
 [Setup guide](docs/setup.md) · [Daily use](docs/usage.md) · [MCP usage guard](docs/mcp.md) · [Build from source](docs/build.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License (MIT)](LICENSE)

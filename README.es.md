@@ -133,6 +133,24 @@ Sí, con una salvedad. Windows es la plataforma donde se desarrolla y donde se p
 
 Sí. Es gratuito y de código abierto, con licencia MIT. Los servicios que muestra requieren sus propias cuentas o suscripciones.
 
+<a id="donate"></a>
+
+## Donar
+
+AI Usage Clock es gratis, con o sin donación. Si te ha ahorrado algo de tiempo y quieres dar las gracias, puedes enviar criptomonedas a la dirección de abajo. Se acepta cualquier token de Ethereum o de Polygon: ETH, POL, USDT, USDC u otro. La dirección es la misma en ambas redes.
+
+```
+0x6c60bFCaDfb3AD63eC6D821baB0E6323361BFD4f
+```
+
+<p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="Código QR de la dirección para donar" /></p>
+
+- Envía solo por Ethereum o Polygon. Las comisiones suelen ser más bajas en Polygon.
+- Esta es la única dirección oficial, y la misma aparece en [aiusageclock.com](https://aiusageclock.com/es/#donate). Nunca se te pedirá que envíes a otra.
+- Las transferencias en la cadena de bloques no se pueden revertir, así que no se pueden reembolsar.
+
+Dar una estrella al proyecto en GitHub o recomendárselo a un amigo también ayuda.
+
 ## Más recursos
 
 [Guía de configuración](docs/setup.md) (en inglés) · [Uso diario](docs/usage.md) (en inglés) · [Control de uso con MCP](docs/mcp.md) (en inglés) · [Compilar desde el código fuente](docs/build.md) (en inglés) · [Cómo contribuir](CONTRIBUTING.md) (en inglés) · [Seguridad](SECURITY.md) (en inglés) · [Licencia (MIT)](LICENSE)
