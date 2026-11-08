@@ -155,7 +155,7 @@ AI Usage Clock 免费使用，赞不赞助都一样。如果它帮你省了些�
 
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="赞助地址的二维码" /></p>
 
-- 只收 Ethereum 和 Polygon 链上的转账，Polygon 的手续费通常更低。
+- 只接收 Ethereum（ERC20）和 Polygon 链上的转账。如果两条链都能用，建议用 Polygon，手续费通常更低。
 - 官方地址只有这一个，[官网](https://aiusageclock.com/zh-cn/#donate)上显示的也是同一个，不会有人要求你改转到别的地址。
 - 链上转账无法撤回，所以不能退款。
 

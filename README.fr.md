@@ -145,7 +145,7 @@ AI Usage Clock est gratuit, que vous fassiez un don ou non. Si l’application v
 
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="Code QR de l’adresse de don" /></p>
 
-- Envoyez uniquement sur Ethereum ou Polygon. Les frais sont généralement plus bas sur Polygon.
+- Seuls les transferts sur Ethereum (ERC20) et Polygon sont acceptés. Si vous pouvez utiliser les deux, préférez Polygon : les frais y sont généralement plus bas.
 - C’est la seule adresse officielle, et la même figure sur [aiusageclock.com](https://aiusageclock.com/fr/#donate). On ne vous demandera jamais d’envoyer vers une autre.
 - Les transferts sur la blockchain sont irréversibles : ils ne peuvent donc pas être remboursés.
 

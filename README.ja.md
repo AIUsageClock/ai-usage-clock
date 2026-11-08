@@ -146,7 +146,7 @@ AI Usage Clock は、寄付の有無にかかわらず無料でお使いいた�
 
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="寄付用アドレスの QR コード" /></p>
 
-- 送金できるのは Ethereum と Polygon のみです。手数料は通常 Polygon のほうが安くなります。
+- 受け付けているのは Ethereum（ERC20）と Polygon 上の送金のみです。どちらも使える場合は、手数料が通常安い Polygon がおすすめです。
 - 公式のアドレスはこの 1 つだけで、[公式サイト](https://aiusageclock.com/ja/#donate)に載っているものと同じです。別のアドレスへの送金をお願いされることはありません。
 - ブロックチェーン上の送金は取り消せないため、返金はできません。
 

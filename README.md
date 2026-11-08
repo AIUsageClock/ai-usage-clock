@@ -135,7 +135,7 @@ AI Usage Clock is free to use, whether you donate or not. If it has saved you so
 
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="QR code of the donation address" /></p>
 
-- Please send on Ethereum or Polygon only. Fees are usually lower on Polygon.
+- Only transfers on Ethereum (ERC20) and Polygon are accepted. If you can use either, Polygon usually has lower fees.
 - This is the only official address, and the same one is shown on [aiusageclock.com](https://aiusageclock.com/en/#donate). You will never be asked to send to a different one.
 - On-chain transfers cannot be reversed, so they cannot be refunded.
 

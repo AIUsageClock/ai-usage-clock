@@ -145,7 +145,7 @@ AI Usage Clock ist kostenlos, ob du etwas spendest oder nicht. Wenn es dir etwas
 
 <p align="center"><img src="docs/screenshots/donate-qr.png" width="200" alt="QR-Code der Spendenadresse" /></p>
 
-- Bitte sende nur über Ethereum oder Polygon. Auf Polygon sind die Gebühren meist niedriger.
+- Angenommen werden nur Transaktionen auf Ethereum (ERC20) und Polygon. Wenn du beides nutzen kannst, nimm besser Polygon: Die Gebühren sind dort meist niedriger.
 - Das ist die einzige offizielle Adresse; auf [aiusageclock.com](https://aiusageclock.com/de/#donate) steht dieselbe. Du wirst nie gebeten, an eine andere zu senden.
 - Transaktionen auf der Blockchain lassen sich nicht rückgängig machen, deshalb gibt es keine Rückerstattung.
 
