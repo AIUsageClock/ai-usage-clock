@@ -143,7 +143,7 @@ Dar uma estrela ao AI Usage Clock no GitHub ou indicá-lo a um amigo também aju
 
 ## Mais
 
-[Guia de configuração](docs/setup.md) (em inglês) · [Uso diário](docs/usage.md) (em inglês) · [Proteção de uso via MCP](docs/mcp.md) (em inglês) · [Compilar a partir do código-fonte](docs/build.md) (em inglês) · [Como contribuir](CONTRIBUTING.md) (em inglês) · [Segurança](SECURITY.md) (em inglês) · [Licença (MIT)](LICENSE)
+[Guia de configuração](docs/setup.md) (em inglês) · [Uso diário](docs/usage.md) (em inglês) · [Proteção de uso via MCP](docs/mcp.md) (em inglês) · [Compilar a partir do código-fonte](docs/build.md) (em inglês) · [Como contribuir](CONTRIBUTING.md) (em inglês) · [Segurança](SECURITY.md) (em inglês) · [Licença (MIT)](LICENSE) (em inglês)
 
 Versão atual: **1.1.0** · [Changelog](CHANGELOG.md) (em inglês)
 

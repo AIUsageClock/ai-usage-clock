@@ -56,7 +56,7 @@ def main() -> int:
 
     missing = _readmes_missing_version(pyproject)
     if missing:
-        failures.append(f"{', '.join(missing)} does not mention version {pyproject}")
+        failures.append(f"These files do not mention version {pyproject}: {', '.join(missing)}")
 
     if not _changelog_has_section(pyproject):
         failures.append(f"CHANGELOG.md has no '## {pyproject}' section")
