@@ -1,0 +1,4 @@
+# Third-party license texts are byte-for-byte copies of the upstream files and
+# their SHA-256 is pinned in tests/test_third_party_notices.py, so git must not
+# convert their line endings on checkout (core.autocrlf on Windows runners).
+docs/legal/third-party/*.txt -text
