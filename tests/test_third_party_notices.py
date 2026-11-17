@@ -242,6 +242,188 @@ def test_a_package_without_license_text_says_so(site):
     assert "No license text is included in the installed package." in text
 
 
+# --- licenses archived for wheels that ship none (winrt, pyobjc-core) --------
+
+ARCHIVED_DIR = Path(__file__).resolve().parents[1] / "docs" / "legal" / "third-party"
+# The files are the upstream texts word for word. Change a hash only together
+# with the file, on purpose, after comparing it with the source URL in
+# tools/write_third_party_notices.py.
+ARCHIVED_LICENSE_SHA256 = {
+    "pywinrt-LICENSE.txt": "6e898069e8b3c6d8d23dc70ac7067cc2b7c9db14c36df873026758db82c0891d",
+    "pyobjc-core-License.txt": "0ca04b07928d4872b9d9bb22187ca0426dd8bfab08f26eada0999a71dc81aaff",
+}
+
+
+def _archived(tmp_path: Path, content: bytes | None) -> tuple[dict, Path]:
+    """An ARCHIVED_LICENSES-style mapping for "noticetest-bare" and its root folder."""
+    entry = notices.ArchivedLicense(
+        file="archive/bare-license.txt",
+        project="bare-project",
+        source_url="https://example.invalid/bare/LICENSE",
+        ref="tag v9.9",
+    )
+    if content is not None:
+        (tmp_path / "archive").mkdir()
+        (tmp_path / "archive" / "bare-license.txt").write_bytes(content)
+    return {"noticetest-bare": entry}, tmp_path
+
+
+def test_the_archived_license_files_are_the_pinned_upstream_texts():
+    for name, expected in ARCHIVED_LICENSE_SHA256.items():
+        raw = (ARCHIVED_DIR / name).read_bytes()
+        assert b"\r" not in raw, name
+        assert b"Permission is hereby granted, free of charge" in raw, name
+        assert hashlib.sha256(raw).hexdigest() == expected, name
+
+
+def test_every_archived_license_points_at_an_existing_file_and_a_pinned_source():
+    for canonical, entry in notices.ARCHIVED_LICENSES.items():
+        assert canonical == canonical.lower()
+        assert (Path(notices.REPO_ROOT) / entry.file).is_file(), canonical
+        assert Path(entry.file).name in ARCHIVED_LICENSE_SHA256, canonical
+        # A fixed commit, not a branch: the text is what that commit held.
+        assert re.search(r"/blob/[0-9a-f]{40}/", entry.source_url), canonical
+        assert entry.ref.startswith("tag v"), canonical
+
+
+def test_the_winrt_and_pyobjc_core_dependencies_have_an_archived_license():
+    import tomllib
+
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    dependencies = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["dependencies"]
+    winrt = {
+        str(canonicalize_name(Requirement(line).name))
+        for line in dependencies
+        if Requirement(line).name.lower().startswith("winrt-")
+    }
+
+    assert len(winrt) == 5
+    assert winrt <= set(notices.ARCHIVED_LICENSES)
+    # pyobjc-framework-Cocoa ships its own text; its dependency pyobjc-core does not.
+    assert "pyobjc-core" in notices.ARCHIVED_LICENSES
+
+
+def test_a_package_without_a_shipped_license_gets_the_archived_text_and_says_where_it_is_from(
+    site, tmp_path
+):
+    make_dist(site, "noticetest-app", requires=("noticetest-bare",))
+    make_dist(site, "noticetest-bare", expression="MIT")
+    archived, root = _archived(tmp_path, b"\xef\xbb\xbfArchived MIT text\r\nsecond line\r\n")
+
+    packages = notices.collect_packages(
+        "noticetest-app", (), (), archived=archived, archive_root=root
+    )
+
+    (bare,) = packages
+    assert [(t.name, t.text) for t in bare.texts] == [
+        ("bare-project license (tag v9.9)", "Archived MIT text\nsecond line")
+    ]
+    assert "ships no license file" in bare.note
+    assert "https://example.invalid/bare/LICENSE" in bare.note
+    assert "bare-project, tag v9.9" in bare.note
+
+    text = notices.render(
+        [bare], upstream_notice="upstream"
+    )
+    assert "No license text is included in the installed package." not in text
+    assert "Archived MIT text" in text
+    assert "https://example.invalid/bare/LICENSE" in text
+
+
+def test_a_license_that_the_wheel_ships_wins_over_the_archived_one(site, tmp_path):
+    make_dist(site, "noticetest-app", requires=("noticetest-bare",))
+    make_dist(site, "noticetest-bare", expression="MIT", files={"LICENSE": b"shipped text\n"})
+    archived, root = _archived(tmp_path, b"Archived text\n")
+
+    (bare,) = notices.collect_packages(
+        "noticetest-app", (), (), archived=archived, archive_root=root
+    )
+
+    assert [t.text for t in bare.texts] == ["shipped text"]
+    assert bare.note == ""
+
+
+def test_packages_that_nothing_is_archived_for_still_say_they_have_no_text(site, tmp_path):
+    make_dist(site, "noticetest-app", requires=("noticetest-other",))
+    make_dist(site, "noticetest-other", expression="MIT")
+    archived, root = _archived(tmp_path, b"Archived text\n")
+
+    (other,) = notices.collect_packages(
+        "noticetest-app", (), (), archived=archived, archive_root=root
+    )
+
+    assert other.texts == []
+    assert other.note == ""
+
+
+def test_the_real_winrt_and_pyobjc_core_texts_are_used_and_printed_once(site):
+    make_dist(
+        site,
+        "noticetest-app",
+        requires=("winrt-runtime", "winrt-windows-foundation", "pyobjc-core"),
+    )
+    make_dist(site, "winrt-runtime", "3.2.1", expression="MIT")
+    make_dist(site, "winrt-windows-foundation", "3.2.1", expression="MIT")
+    make_dist(site, "pyobjc-core", "12.2.2", license_field="MIT")
+
+    text, packages = build("noticetest-app")
+
+    # build() lists the bundled Python runtime first; it is not a package here.
+    assert {p.canonical_name: bool(p.texts) for p in packages if p.name != "Python"} == {
+        "pyobjc-core": True,
+        "winrt-runtime": True,
+        "winrt-windows-foundation": True,
+    }
+    assert "No license text is included in the installed package." not in text
+    # The two winrt packages share one text: printed once, then pointed at.
+    assert text.count("Copyright (c) Microsoft Corporation. All rights reserved.") == 1
+    assert "same text as pywinrt license (tag v3.2.1) of winrt-runtime 3.2.1, above" in text
+    assert "Copyright 2003-2025 - Ronald Oussoren" in text
+    assert "https://github.com/pywinrt/pywinrt/blob/" in text
+    assert "https://github.com/ronaldoussoren/pyobjc/blob/" in text
+
+
+@pytest.mark.parametrize(
+    ("content", "reason"),
+    [
+        (None, "cannot read the archived license"),
+        (b"", "is empty"),
+        (b"   \n\n", "is empty"),
+        (b"\xff\xfeM\x00I\x00T\x00", "not valid UTF-8"),
+        (b"MIT\x00text", "contains NUL"),
+    ],
+)
+def test_an_unusable_archived_license_fails_loudly_with_its_path(site, tmp_path, content, reason):
+    make_dist(site, "noticetest-app", requires=("noticetest-bare",))
+    make_dist(site, "noticetest-bare", expression="MIT")
+    archived, root = _archived(tmp_path, content)
+
+    with pytest.raises(notices.ArchivedLicenseError) as excinfo:
+        notices.collect_packages("noticetest-app", (), (), archived=archived, archive_root=root)
+
+    message = str(excinfo.value)
+    assert reason in message
+    assert "bare-license.txt" in message
+
+
+def test_main_reports_an_unusable_archived_license_and_writes_nothing(
+    tmp_path, monkeypatch, capsys
+):
+    def broken(**_options):
+        raise notices.ArchivedLicenseError("cannot read the archived license x.txt: gone")
+
+    monkeypatch.setattr(notices, "build_notices", broken)
+    output = tmp_path / "THIRD_PARTY_NOTICES.txt"
+
+    assert notices.main([str(output)]) == 1
+
+    assert "cannot read the archived license x.txt" in capsys.readouterr().err
+    assert not output.exists()
+
+
 def test_the_introduction_points_to_the_project_license(site):
     make_dist(site, "noticetest-app")
 

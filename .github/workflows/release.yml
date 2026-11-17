@@ -16,8 +16,8 @@ jobs:
       tag: ${{ steps.ver.outputs.tag }}
       version: ${{ steps.ver.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
       - id: ver
@@ -62,12 +62,15 @@ jobs:
             build_cmd: ./build.sh
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-python@v5
+      # .python-version is the single source of the build Python (3.14).
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: "3.11"
-          cache: pip
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
       - name: Set up Node.js 24 for extractor tests
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -77,21 +80,15 @@ jobs:
       - name: Confirm Node.js runtime
         run: node --version
 
-      - name: Bootstrap virtualenv (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          python -m venv .venv
-          .\.venv\Scripts\python.exe -m pip install --upgrade pip
-          .\.venv\Scripts\pip.exe install -e .[dev]
-
-      - name: Bootstrap virtualenv (macOS / Linux)
-        if: matrix.os != 'windows-latest'
+      # Creates .venv from uv.lock (the Python is the one set up above; uv may
+      # not download another). --frozen fails instead of re-resolving when the
+      # lock and pyproject.toml disagree. The later steps and build.ps1 /
+      # build.sh use the interpreter in .venv directly.
+      - name: Install locked dependencies + dev extras
         shell: bash
-        run: |
-          python -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/pip install -e .[dev]
+        env:
+          UV_PYTHON_DOWNLOADS: never
+        run: uv sync --frozen --extra dev
 
       - name: Install Linux Qt runtime libs
         if: matrix.os == 'ubuntu-22.04'
@@ -227,7 +224,7 @@ jobs:
           echo "sha=$sha"         >> "$GITHUB_OUTPUT"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ai-usage-clock-${{ matrix.label }}
           path: |
@@ -242,10 +239,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: artifacts
 
@@ -257,7 +254,7 @@ jobs:
           ls -la release
 
       - name: Create draft GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
           name: AI Usage Clock ${{ needs.resolve-version.outputs.version }}

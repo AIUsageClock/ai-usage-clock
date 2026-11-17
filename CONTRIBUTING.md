@@ -13,7 +13,9 @@ so most contributions fall into one of three buckets:
 
 ## Development environment
 
-Requirements: **Windows 10/11, macOS, or Linux** and **Python 3.11+**. The
+Requirements: **Windows 10/11, macOS, or Linux** and [uv](https://docs.astral.sh/uv/).
+The project builds with **Python 3.14** (pinned in `.python-version`); the code
+still supports **Python 3.11+**. The
 test suite runs headlessly under `QT_QPA_PLATFORM=offscreen`; manual smoke
 testing is still useful on each OS because tray/menu-bar behavior and native
 credential storage are platform-specific.
@@ -22,9 +24,12 @@ credential storage are platform-specific.
 git clone https://github.com/AIUsageClock/ai-usage-clock.git
 cd ai-usage-clock
 
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .[dev]
+uv sync --frozen --extra dev
 ```
+
+`uv sync` creates `.venv` from `uv.lock`, so everyone installs the same
+versions. After you change dependencies in `pyproject.toml`, run `uv lock` and
+commit the updated `uv.lock`.
 
 Run the app:
 
@@ -32,10 +37,9 @@ Run the app:
 .\.venv\Scripts\python.exe -m aiusageclock
 ```
 
-On macOS or Linux, use `python3 -m venv .venv` and `./.venv/bin/python` in
-place of the Windows commands, and quote the extras as `'.[dev]'`. A plain
-source install (see [docs/build.md](docs/build.md)) omits the dev extras that
-the tests need.
+On macOS or Linux, use `./.venv/bin/python` in place of the Windows
+interpreter path. A plain source install (see [docs/build.md](docs/build.md))
+omits the dev extras that the tests need.
 
 Run the tests:
 

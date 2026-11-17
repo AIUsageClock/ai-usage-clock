@@ -5,8 +5,8 @@
 #   ./build.sh             # one-folder build (recommended)
 #   ./build.sh --onefile   # single-file binary (slower first launch)
 #
-# Expects a virtualenv at .venv (created by `python -m venv .venv` and
-# `.venv/bin/pip install -e .[dev]`).
+# Expects a virtualenv at .venv, created from uv.lock by
+# `uv sync --frozen --extra dev` (PyInstaller comes from the lock).
 
 set -euo pipefail
 
@@ -15,8 +15,7 @@ VENV_PY="$SCRIPT_DIR/.venv/bin/python"
 
 if [ ! -x "$VENV_PY" ]; then
     echo "Virtualenv not found at .venv. Run:" >&2
-    echo "  python3 -m venv .venv" >&2
-    echo "  .venv/bin/pip install -e .[dev]" >&2
+    echo "  uv sync --frozen --extra dev" >&2
     exit 1
 fi
 
@@ -27,8 +26,6 @@ for arg in "$@"; do
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
-
-"$VENV_PY" -m pip install --quiet pyinstaller
 
 PYINSTALLER_ARGS=(
     -m PyInstaller

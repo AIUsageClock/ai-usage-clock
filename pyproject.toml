@@ -17,17 +17,21 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Desktop Environment",
     "Topic :: Utilities",
 ]
 dependencies = [
-    "PyQt6>=6.7,<7",
-    "PyQt6-WebEngine>=6.7,<7",
+    "PyQt6>=6.12,<6.13",
+    "PyQt6-Qt6>=6.12,<6.13",
+    "PyQt6-WebEngine>=6.140,<6.141",
+    "PyQt6-WebEngine-Qt6>=6.140,<6.141",
     "requests>=2.32",
     "websocket-client>=1.8",
     "pydantic>=2.6",
     "keyring>=25.0",
-    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+    "pyobjc-core>=10.0,<13; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=10.0,<13; sys_platform == 'darwin'",
     "winrt-runtime>=3.2,<4; sys_platform == 'win32'",
     "winrt-Windows.Data.Xml.Dom>=3.2,<4; sys_platform == 'win32'",
     "winrt-Windows.Foundation>=3.2,<4; sys_platform == 'win32'",
@@ -51,6 +55,8 @@ dev = [
     "pytest-qt>=4.4",
     "responses>=0.25",
     "pyinstaller>=6.6",
+    "packaging>=24.0",
+    "pefile>=2023.2.7",
 ]
 
 [project.scripts]

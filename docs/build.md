@@ -9,31 +9,33 @@ releases.
 
 ## Run from source
 
-Requires **Python 3.11+**.
+Requires [uv](https://docs.astral.sh/uv/). The project builds with
+**Python 3.14** (pinned in `.python-version`; uv fetches it when it is missing)
+and supports Python 3.11+.
 
 **Windows (PowerShell):**
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
+uv sync --frozen
 .\.venv\Scripts\python.exe -m aiusageclock
 ```
 
 **macOS / Linux (bash):**
 
 ```bash
-python3 -m venv .venv
-./.venv/bin/python -m pip install -e .
+uv sync --frozen
 ./.venv/bin/python -m aiusageclock
 ```
+
+`uv sync --frozen` installs the versions pinned in `uv.lock` into `.venv`.
 
 Then follow the [setup guide](setup.md) to connect your accounts. To run the
 tests, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Build a standalone binary
 
-The build machine needs Python 3.11+ and a `.venv` with `pip install -e .[dev]`
-already run. Windows builds also require PowerShell 7 (`pwsh`). The resulting
+The build machine needs Python 3.14 and a `.venv` created with
+`uv sync --frozen --extra dev` (PyInstaller comes from `uv.lock`). Windows builds also require PowerShell 7 (`pwsh`). The resulting
 binary does **not** require Python or PowerShell on the target machine.
 
 | OS      | Command                  | Output                                   |

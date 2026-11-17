@@ -15,11 +15,8 @@ $projectRoot = $PSScriptRoot
 
 $venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $venvPython)) {
-    Write-Error "Virtualenv not found at .venv. Run: py -m venv .venv; .venv\Scripts\pip install -e .[dev]"
+    Write-Error "Virtualenv not found at .venv. Run: uv sync --frozen --extra dev"
 }
-
-& $venvPython -m pip install --quiet pyinstaller
-if ($LASTEXITCODE -ne 0) { Write-Error "Could not install/verify PyInstaller." }
 
 $versionInfo = Join-Path $PSScriptRoot "build\pyinstaller-version-info.txt"
 & $venvPython (Join-Path $PSScriptRoot "tools\write_pyinstaller_version_info.py") $versionInfo

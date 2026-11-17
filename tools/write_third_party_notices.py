@@ -20,7 +20,10 @@ PyInstaller bundles is listed first, with the license file found in the Python
 installation the virtualenv was created from. Between the introduction and the
 component index the file carries the notice of the code AI Usage Clock builds
 on, read from docs/legal/UPSTREAM-LICENSE.txt; the script stops before it
-collects anything when that file cannot be read. The output is UTF-8 with LF
+collects anything when that file cannot be read. A few packages (the winrt
+packages and pyobjc-core) ship no license file in their wheels; for those the
+text of the source project's repository, archived under docs/legal/third-party/,
+is used (see ARCHIVED_LICENSES). The output is UTF-8 with LF
 line endings and carries no timestamp, so the same environment always yields
 the same bytes.
 
@@ -95,6 +98,56 @@ _PYTHON_LICENSE_FILE_NAME = re.compile(
     r"^(LICEN[CS]E|COPYING|NOTICE)(\.(txt|md|rst))?$", re.IGNORECASE
 )
 PYTHON_NAME = "Python"
+
+# Packages whose wheels ship no license file, although they declare a license:
+# the five winrt packages (Windows) and pyobjc-core (macOS). For these the
+# license text of the project's source repository is archived word for word
+# under docs/legal/third-party/ and used when the installed distribution has no
+# license text of its own. A text the wheel does ship always wins. The packages
+# are the names in pyproject.toml and what they pull in; the texts were copied
+# from the tags below, which are the versions pinned in uv.lock when they were
+# archived (a license change in a later release shows up as a changed file in
+# the source repository, which is why the source is named in the output).
+THIRD_PARTY_LICENSE_DIR = "docs/legal/third-party"
+
+
+@dataclass(frozen=True)
+class ArchivedLicense:
+    """A license text kept in this repository for a package whose wheel ships none."""
+
+    file: str  # relative to REPO_ROOT
+    project: str  # name of the source project, as printed
+    source_url: str  # where the text was copied from (a file at a fixed commit)
+    ref: str  # the release tag that commit belongs to
+
+
+_PYWINRT = ArchivedLicense(
+    file=f"{THIRD_PARTY_LICENSE_DIR}/pywinrt-LICENSE.txt",
+    project="pywinrt",
+    source_url=(
+        "https://github.com/pywinrt/pywinrt/blob/"
+        "21cbd0fd7ff91422ed76b4e3611d3fb52716e017/LICENSE"
+    ),
+    ref="tag v3.2.1",
+)
+_PYOBJC_CORE = ArchivedLicense(
+    file=f"{THIRD_PARTY_LICENSE_DIR}/pyobjc-core-License.txt",
+    project="PyObjC",
+    source_url=(
+        "https://github.com/ronaldoussoren/pyobjc/blob/"
+        "38cdf73fc049ef2d176973eff4ac8d5c76b0a34b/pyobjc-core/License.txt"
+    ),
+    ref="tag v12.2.2",
+)
+# Keyed by canonical package name (see Package.canonical_name).
+ARCHIVED_LICENSES: dict[str, ArchivedLicense] = {
+    "winrt-runtime": _PYWINRT,
+    "winrt-windows-data-xml-dom": _PYWINRT,
+    "winrt-windows-foundation": _PYWINRT,
+    "winrt-windows-foundation-collections": _PYWINRT,
+    "winrt-windows-ui-notifications": _PYWINRT,
+    "pyobjc-core": _PYOBJC_CORE,
+}
 
 _RULE = "=" * 80
 _THIN_RULE = "-" * 80
@@ -360,10 +413,60 @@ def license_texts_of(dist: metadata.Distribution) -> list[LicenseText]:
     return [found[name] for name in sorted(found)]
 
 
+class ArchivedLicenseError(Exception):
+    """An archived license text that a package needs cannot be used."""
+
+
+def archived_license_for(
+    canonical_name: str,
+    archived: Mapping[str, ArchivedLicense] | None = None,
+    root: Path | None = None,
+) -> tuple[LicenseText, str] | None:
+    """The archived license text of a package and the note that explains it.
+
+    None when nothing is archived for *canonical_name*. Fails loudly (like the
+    upstream notice) when the archived file is missing, unreadable, empty or
+    not clean UTF-8: a notices file that quietly drops a text it promises, or
+    carries a garbled one, is worse than a failed build. *archived* and *root*
+    default to ARCHIVED_LICENSES and the repository root.
+    """
+    archived = ARCHIVED_LICENSES if archived is None else archived
+    entry = archived.get(canonical_name)
+    if entry is None:
+        return None
+    path = (REPO_ROOT if root is None else root) / entry.file
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ArchivedLicenseError(f"cannot read the archived license {path}: {exc}") from exc
+    try:
+        raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ArchivedLicenseError(
+            f"the archived license {path} is not valid UTF-8 ({exc.reason})"
+        ) from exc
+    text = _normalise_text(raw)
+    if not text.strip():
+        raise ArchivedLicenseError(f"the archived license {path} is empty")
+    if "\0" in text:
+        raise ArchivedLicenseError(
+            f"the archived license {path} contains NUL characters (UTF-16?); save it as UTF-8"
+        )
+    note = (
+        "The wheel of this package ships no license file. The text below is the\n"
+        f"license of its source project ({entry.project}, {entry.ref}), copied word\n"
+        "for word from:\n"
+        f"{entry.source_url}"
+    )
+    return LicenseText(f"{entry.project} license ({entry.ref})", text), note
+
+
 def collect_packages(
     project: str = PROJECT,
     extras: tuple[str, ...] = SHIPPED_EXTRAS,
     build_tools: tuple[str, ...] = EMBEDDED_BUILD_TOOLS,
+    archived: Mapping[str, ArchivedLicense] | None = None,
+    archive_root: Path | None = None,
 ) -> list[Package]:
     packages = [
         Package(
@@ -374,6 +477,13 @@ def collect_packages(
         )
         for dist in collect_distributions(project, extras, build_tools)
     ]
+    for package in packages:
+        if package.texts:
+            continue  # the wheel's own text always wins
+        fallback = archived_license_for(package.canonical_name, archived, archive_root)
+        if fallback is not None:
+            package.texts = [fallback[0]]
+            package.note = fallback[1]
     packages.sort(key=lambda package: package.canonical_name)
     return packages
 
@@ -1050,6 +1160,9 @@ def main(argv: list[str] | None = None) -> int:
             + ", ".join(exc.names),
             file=sys.stderr,
         )
+        return 1
+    except ArchivedLicenseError as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 1
 
     for package in packages:
