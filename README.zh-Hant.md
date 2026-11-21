@@ -64,7 +64,7 @@
 | --- | --- | --- |
 | **Claude** | Session 和 Weekly（每週）額度；方案有每週 Fable 額度的話也會顯示 | 用瀏覽器登入（Google 帳號、密碼金鑰都能用），或貼上工作階段 Cookie |
 | **Codex**（ChatGPT） | Session 和 Weekly 額度 | 跟 Claude 一樣 |
-| **Antigravity** | Gemini 和 Claude+GPT 兩組用量，各有 5 小時和每週額度 | 讀取你電腦上的 `agy` 命令列工具，不用在程式裡輸入帳號或金鑰 |
+| **Antigravity** | Gemini 和 Claude+GPT 兩組用量，各有 5 小時和每週額度，另有 Gemini 4 Argon 的獨立每週額度 | 讀取你電腦上的 `agy` 命令列工具，不用在程式裡輸入帳號或金鑰 |
 | **OpenCode Go** | Rolling、Weekly、Monthly（滾動、每週、每月）三種用量 | OpenCode API 金鑰 |
 | **GitHub Copilot** | 本月用掉多少 AI 點數，對照方案內含的額度；每月 1 號重置 | GitHub 細粒度個人存取權杖（fine-grained PAT） |
 | **OpenRouter** | 今天和本月的花費，可另設每日預算；有管理金鑰的話，還看得到餘額和各模型的使用情形 | OpenRouter API 金鑰 |

@@ -63,7 +63,7 @@ La eldonaj versioj ne estas ciferece subskribitaj, do Windows aŭ macOS povas av
 | --- | --- | --- |
 | **Claude** | Limoj Session kaj Weekly (plus la semajna limo de Fable ĉe planoj, kiuj havas tian) | Ensalutu per via retumilo (Google kaj pasŝlosiloj funkcias), aŭ algluu seancan kuketon |
 | **Codex** (ChatGPT) | Limoj Session kaj Weekly | Same kiel Claude |
-| **Antigravity** | Uzo de Gemini kaj de Claude+GPT, ĉiu kun 5-hora kaj semajna limo | Ĝi legas vian lokan komandlinian ilon `agy`; neniu konto aŭ ŝlosilo en la programo |
+| **Antigravity** | Uzo de Gemini kaj de Claude+GPT, ĉiu kun 5-hora kaj semajna limo, plus aparta semajna limo de Gemini 4 Argon | Ĝi legas vian lokan komandlinian ilon `agy`; neniu konto aŭ ŝlosilo en la programo |
 | **OpenCode Go** | Uzo Rolling, Weekly kaj Monthly | API-ŝlosilo de OpenCode |
 | **GitHub Copilot** | Monataj AI-kreditoj, uzitaj kontraŭ la inkluzivita kvanto de via plano, restarigataj je la 1-a | Fine-grained personal access token de GitHub |
 | **OpenRouter** | Elspezo hodiaŭ kaj ĉi tiu monato, laŭvola taga buĝeto; saldo kaj modela agado per administra ŝlosilo | API-ŝlosilo de OpenRouter |

@@ -63,7 +63,7 @@ Các bản phát hành chưa được ký mã, nên Windows hoặc macOS có th�
 | --- | --- | --- |
 | **Claude** | Giới hạn Session và Weekly (kèm giới hạn Fable theo tuần ở những gói có giới hạn này) | Đăng nhập qua trình duyệt (dùng Google hoặc passkey đều được), hoặc dán cookie phiên |
 | **Codex** (ChatGPT) | Giới hạn Session và Weekly | Giống Claude |
-| **Antigravity** | Mức sử dụng Gemini và Claude+GPT, mỗi loại có giới hạn 5 giờ và giới hạn theo tuần | Đọc công cụ dòng lệnh `agy` có sẵn trên máy của bạn; không cần tài khoản hay khóa trong ứng dụng |
+| **Antigravity** | Mức sử dụng Gemini và Claude+GPT, mỗi loại có giới hạn 5 giờ và giới hạn theo tuần, cùng giới hạn theo tuần riêng cho Gemini 4 Argon | Đọc công cụ dòng lệnh `agy` có sẵn trên máy của bạn; không cần tài khoản hay khóa trong ứng dụng |
 | **OpenCode Go** | Mức sử dụng Rolling, Weekly và Monthly | Khóa API của OpenCode |
 | **GitHub Copilot** | Tín dụng AI hằng tháng đã dùng so với mức gói của bạn cho phép, đặt lại vào ngày 1 | Personal access token dạng fine-grained của GitHub |
 | **OpenRouter** | Chi tiêu hôm nay và tháng này, kèm ngân sách theo ngày tùy chọn; số dư và hoạt động theo từng mô hình với khóa quản lý | Khóa API của OpenRouter |

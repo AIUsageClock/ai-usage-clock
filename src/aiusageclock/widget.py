@@ -5,6 +5,7 @@ import html
 import math
 import re
 import sys
+import textwrap
 from datetime import datetime, timedelta
 
 from PyQt6.QtCore import (
@@ -935,6 +936,19 @@ _ANTIGRAVITY_COMPACT_SLOTS = (("5h", "5"), ("weekly", "W"))
 _ANTIGRAVITY_COMPACT_WINDOWS = tuple(w for w, _ in _ANTIGRAVITY_COMPACT_SLOTS)
 
 
+def _wrapped_description(description: str) -> str:
+    # Plain-text tooltips do not wrap, and a group description can be long.
+    return textwrap.fill(description, width=56)
+
+
+def _metric_row_note(metric: UsageMetric) -> str | None:
+    """Row tooltip text: the metric note plus its group description, if any."""
+    if not metric.group_description:
+        return metric.note
+    description = _wrapped_description(metric.group_description)
+    return f"{metric.note}\n{description}" if metric.note else description
+
+
 def _usage_rank(metric: UsageMetric) -> float:
     return metric.percent_used if metric.percent_used is not None else -1.0
 
@@ -1440,6 +1454,12 @@ class _ProviderTile(QFrame):
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(4)
             label = QLabel(group)
+            description = next(
+                (m.group_description for m in by_window.values() if m.group_description),
+                None,
+            )
+            if description:
+                label.setToolTip(_wrapped_description(description))
             label.setFixedWidth(76)
             label.setStyleSheet("color:#d1d5db; font-size:10px;")
             layout.addWidget(label)
@@ -1557,7 +1577,7 @@ class _ProviderTile(QFrame):
                         m.percent_used,
                         m.resets_at,
                         m.reset_label,
-                        m.note,
+                        _metric_row_note(m),
                         m.window,
                         m.tag,
                     )
@@ -1623,7 +1643,7 @@ class _ProviderTile(QFrame):
                     m.percent_used,
                     m.resets_at,
                     m.reset_label,
-                    m.note,
+                    _metric_row_note(m),
                     m.window,
                     m.tag,
                 )

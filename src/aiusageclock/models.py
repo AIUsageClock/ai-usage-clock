@@ -21,6 +21,10 @@ class UsageMetric:
     note: str | None = None
     window: timedelta | None = None
     tag: str | None = None
+    # Tooltip-only text supplied by the provider (for example the models in an
+    # Antigravity quota group). Never persisted: history and the usage cache
+    # build their own records from explicit fields.
+    group_description: str | None = None
 
 
 @dataclass

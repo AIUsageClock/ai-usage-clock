@@ -63,7 +63,7 @@ The builds are unsigned, so Windows or macOS may warn the first time you start t
 | --- | --- | --- |
 | **Claude** | Session and weekly limits (plus the weekly Fable limit on plans that have one) | Sign in through your browser (Google and passkeys work), or paste a session cookie |
 | **Codex** (ChatGPT) | Session and weekly limits | Same as Claude |
-| **Antigravity** | Gemini and Claude+GPT usage, each with 5-hour and weekly limits | Reads your local `agy` command-line tool; no account or key in the app |
+| **Antigravity** | Gemini and Claude+GPT usage, each with 5-hour and weekly limits, plus a separate Gemini 4 Argon weekly limit | Reads your local `agy` command-line tool; no account or key in the app |
 | **OpenCode Go** | Rolling, weekly, and monthly usage | OpenCode API key |
 | **GitHub Copilot** | Monthly AI credits used against your plan's allowance, resetting on the 1st | Fine-grained GitHub personal access token |
 | **OpenRouter** | Spend today and this month, an optional daily budget; balance and model activity with a management key | OpenRouter API key |

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.0 - Unreleased
+
+### Added
+
+- Antigravity: hovering a row now shows which models share that quota group, using the group description reported by `agy`.
+- Antigravity: on macOS and Linux the default install location `~/.local/bin/agy` is now found automatically.
+- Antigravity: the Settings tab explains that the **Gemini models** switch also covers the separate Argon weekly row.
+
+### Fixed
+
+- Antigravity: when `agy` is signed in with `GEMINI_API_KEY` it exits with code 2 and provides no quota data. This is now shown as a recoverable "sign in with a Google account" error instead of a vague or paused state.
+- Antigravity: a run cut short by `agy`'s own print timeout is now reported as a timeout.
+- Antigravity: on macOS and Linux a manually chosen `agy` file without execute permission is now reported clearly.
+- Antigravity: "agy CLI not found" now explains that a desktop app can have a different `PATH` than your terminal, and that the full path from `which agy` can be entered in Settings.
+
+### Documentation
+
+- The setup guides (English, Traditional Chinese, Simplified Chinese) describe the new lookup, the sign-in requirement, and how quota rows may differ by plan. All READMEs mention the separate Gemini 4 Argon weekly limit.
 ## 1.1.0 - 2026-10-22
 
 ### Licensing

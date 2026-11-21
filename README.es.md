@@ -64,7 +64,7 @@ Las versiones publicadas no tienen firma de código, así que Windows o macOS pu
 | --- | --- | --- |
 | **Claude** | Límites Session (de sesión) y Weekly (semanal), más el límite semanal de Fable en los planes que lo tienen | Inicia sesión desde tu navegador (puedes entrar con Google o con una llave de acceso) o pega una cookie de sesión |
 | **Codex** (ChatGPT) | Límites Session y Weekly | Igual que Claude |
-| **Antigravity** | Uso de Gemini y de Claude+GPT, cada uno con su límite de 5 horas y su límite semanal | Lee la herramienta de línea de comandos `agy` instalada en tu computadora; no necesitas cuenta ni clave en la app |
+| **Antigravity** | Uso de Gemini y de Claude+GPT, cada uno con su límite de 5 horas y su límite semanal, además de un límite semanal aparte para Gemini 4 Argon | Lee la herramienta de línea de comandos `agy` instalada en tu computadora; no necesitas cuenta ni clave en la app |
 | **OpenCode Go** | Uso Rolling, Weekly y Monthly (ventana móvil, semanal y mensual) | Clave de API de OpenCode |
 | **GitHub Copilot** | Créditos de IA usados en el mes frente a lo que incluye tu plan; el conteo se reinicia el día 1 de cada mes | *Fine-grained personal access token* de GitHub (token de acceso personal) |
 | **OpenRouter** | Gasto de hoy y del mes, con un presupuesto diario opcional; saldo y actividad por modelo si usas una clave de administración | Clave de API de OpenRouter |

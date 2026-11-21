@@ -38,7 +38,9 @@ Linear 區塊會顯示你的工作區離免費方案的 issue 上限還有多遠
 
 ### Antigravity
 
-在 **Settings → General** 中啟用 **Antigravity**。AI Usage Clock 會執行本機 `agy` CLI 的 `/quota` 指令；無須在 AI Usage Clock 中輸入帳號或 API 金鑰。**agy CLI** 欄位留空即可自動偵測（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`），你也可以自行選擇執行檔。若檔案不存在，或檔名不是 `agy`，系統會回報錯誤且不會執行。區塊可顯示 Gemini 與 Claude+GPT 的用量，各有 5 小時與每週上限，另有獨立的「Argon weekly」一列顯示 Gemini 4 Argon 的每週額度（「Gemini models」開關會同時控制 Gemini 與 Argon）；請在 Antigravity 分頁選擇要顯示的群組。AI Usage Clock 在自行呼叫 `agy` 時會停用其背景更新並隱藏其主控台視窗；這不會影響你自行執行 `agy` 時的更新。若回應顯示有 token 消耗，或結果無法確認未消耗，輪詢會停止，直到重新啟動 AI Usage Clock。
+在 **Settings → General** 中啟用 **Antigravity**。AI Usage Clock 會執行本機 `agy` CLI 的 `/quota` 指令；無須在 AI Usage Clock 中輸入帳號或 API 金鑰。**agy CLI** 欄位留空即可自動偵測（先找 `PATH` 中的 `agy`，Windows 上再找 `%LOCALAPPDATA%\agy\bin\agy.exe`，macOS 與 Linux 上再找 `~/.local/bin/agy`），你也可以自行選擇執行檔。若檔案不存在，或檔名不是 `agy`，系統會回報錯誤且不會執行；在 macOS 與 Linux 上，檔案沒有執行權限也會回報。若你在終端機中可以執行 `agy`，本程式卻找不到它（圖形介面程式的 `PATH` 可能與終端機不同），請在終端機執行 `which agy`，並把完整路徑貼到 **agy CLI** 欄位；路徑支援 `~` 與環境變數。區塊可顯示 Gemini 與 Claude+GPT 的用量，各有 5 小時與每週上限，另有獨立的「Argon weekly」一列顯示 Gemini 4 Argon 的每週額度（「Gemini models」開關會同時控制 Gemini 與 Argon）；請在 Antigravity 分頁選擇要顯示的群組。AI Usage Clock 在自行呼叫 `agy` 時會停用其背景更新並隱藏其主控台視窗；這不會影響你自行執行 `agy` 時的更新。若回應顯示有 token 消耗，或結果無法確認未消耗，輪詢會停止，直到重新啟動 AI Usage Clock。
+
+以 `GEMINI_API_KEY` 登入 `agy` 時，`agy` 不提供額度資料（它會以結束碼 2 結束），請改用 Google 帳號登入 `agy`。顯示哪些列可能取決於你的方案：沒有方案的帳號可能只有每週視窗，Gemini 4 Argon 與 Claude 5.5 模型也可能只在部分方案提供。請參閱官方的 [Plans](https://antigravity.google/docs/plans) 與 [Models](https://antigravity.google/docs/models) 頁面。
 
 ## 多個 Claude / Codex / OpenCode Go 帳號
 

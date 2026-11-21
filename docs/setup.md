@@ -78,8 +78,12 @@ plan) to `https://api.linear.app/graphql`.
 In **Settings → General**, enable **Antigravity**. AI Usage Clock runs the local
 `agy` CLI's `/quota` command; no account or API key is entered in AI Usage Clock.
 Leave **agy CLI** blank for auto-detection (`agy` on `PATH`, then
-`%LOCALAPPDATA%\agy\bin\agy.exe` on Windows), or select the executable. A missing
-file or a file not named `agy` is reported and not run. The tile can show Gemini
+`%LOCALAPPDATA%\agy\bin\agy.exe` on Windows, `~/.local/bin/agy` on macOS and Linux), or
+select the executable. A missing file or a file not named `agy` is reported and not
+run; on macOS and Linux a file without execute permission is reported too. If the
+app cannot find `agy` although it runs in your terminal (a GUI app can have a
+different `PATH`), run `which agy` there and paste the full path into **agy CLI**;
+`~` and environment variables are expanded. The tile can show Gemini
 and Claude+GPT usage, each with 5-hour and weekly limits, plus a separate Argon
 weekly row for the Gemini 4 Argon quota (the **Gemini models** switch controls both
 Gemini and Argon); choose which groups to display in the Antigravity tab. AI Usage
@@ -87,6 +91,13 @@ Clock disables `agy` background updates
 for its own calls and hides its console window; this does not affect updates when
 you run `agy` yourself. If a response indicates token use, or the result cannot
 confirm no use, polling stops until AI Usage Clock is restarted.
+
+`agy` provides no quota data when it is signed in with `GEMINI_API_KEY` (it exits with
+code 2), so sign in to `agy` with a Google account instead. Which rows appear may
+depend on your plan: an account without a plan may only have a weekly window, and
+Gemini 4 Argon and the Claude 5.5 models may be available only on some plans. See the
+official [Plans](https://antigravity.google/docs/plans) and
+[Models](https://antigravity.google/docs/models) pages.
 
 ## Multiple Claude / Codex / OpenCode Go accounts
 

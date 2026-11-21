@@ -150,7 +150,10 @@ def test_settings_browse_populates_path(qtbot, monkeypatch, tmp_path):
         ("", "auto", True, "Using auto-detected: {path}"),
         (
             "", None, False,
-            "agy CLI not found. Install the Antigravity CLI or set its path.",
+            "agy CLI not found. Install the Antigravity CLI or set its path. "
+            "This app may not see the same PATH as your terminal: if agy runs "
+            "there, paste the full path from `which agy` (~ and environment "
+            "variables work).",
         ),
     ],
 )
@@ -185,3 +188,40 @@ def test_settings_identifies_wrong_cli_name(qtbot, monkeypatch, tmp_path):
     assert dialog.antigravity_cli_path_status.text() == (
         f"Not the agy CLI: {executable}"
     )
+
+
+def test_settings_gemini_checkbox_has_scope_hint(qtbot, monkeypatch):
+    from PyQt6.QtWidgets import QLabel
+
+    dialog = _dialog(qtbot, monkeypatch)
+    hints = [
+        label.text()
+        for label in dialog.findChildren(QLabel)
+        if label.text().startswith("Covers the models that share the Gemini limits")
+    ]
+
+    assert hints == [
+        "Covers the models that share the Gemini limits, and also the "
+        "separate Gemini Argon weekly row when your plan has one."
+    ]
+
+
+@pytest.mark.parametrize("platform", ["darwin", "linux"])
+def test_settings_status_flags_non_executable_agy(
+    qtbot, monkeypatch, tmp_path, platform
+):
+    from aiusageclock.providers import antigravity
+
+    cli = tmp_path / "agy"
+    cli.write_text("", encoding="utf-8")
+    monkeypatch.setattr(antigravity.sys, "platform", platform)
+    monkeypatch.setattr(antigravity.os, "access", lambda path, mode: False)
+    config = Config()
+    config.antigravity.cli_path = str(cli)
+    dialog = _dialog(qtbot, monkeypatch, config)
+
+    assert dialog.antigravity_cli_path_status.text() == f"Not executable: {cli}"
+
+    monkeypatch.setattr(antigravity.sys, "platform", "win32")
+    dialog._update_antigravity_cli_status()
+    assert dialog.antigravity_cli_path_status.text() == f"Using: {cli}"

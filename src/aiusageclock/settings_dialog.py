@@ -68,7 +68,7 @@ from .local_usage.settings_panel import LocalUsagePanel
 from .logging_setup import log_path
 from .providers.claude import CLAUDE_USAGE_URL
 from .providers.codex import CODEX_USAGE_URL
-from .providers.antigravity import normalize_cli_path, resolve_cli
+from .providers.antigravity import cli_is_executable, normalize_cli_path, resolve_cli
 from .startup import set_start_at_login
 from .webview.cookies import clear_browser_session  # lazy inside; no WebEngine at import
 
@@ -1060,6 +1060,13 @@ class SettingsDialog(QDialog):
         self.antigravity_show_gemini_cb = QCheckBox("Gemini models")
         self.antigravity_show_gemini_cb.setChecked(config.antigravity.show_gemini)
         antigravity_form.addRow("Show:", self.antigravity_show_gemini_cb)
+        antigravity_form.addRow(
+            "",
+            _hint_label(
+                "Covers the models that share the Gemini limits, and also the "
+                "separate Gemini Argon weekly row when your plan has one."
+            ),
+        )
         self.antigravity_show_third_party_cb = QCheckBox("Claude & GPT models")
         self.antigravity_show_third_party_cb.setChecked(
             config.antigravity.show_third_party
@@ -1833,11 +1840,12 @@ class SettingsDialog(QDialog):
         configured_path = normalize_cli_path(self.antigravity_cli_path_edit.text())
         if configured_path:
             if Path(configured_path).is_file():
-                status = (
-                    f"Using: {configured_path}"
-                    if Path(configured_path).stem.lower() == "agy"
-                    else f"Not the agy CLI: {configured_path}"
-                )
+                if Path(configured_path).stem.lower() != "agy":
+                    status = f"Not the agy CLI: {configured_path}"
+                elif not cli_is_executable(configured_path):
+                    status = f"Not executable: {configured_path}"
+                else:
+                    status = f"Using: {configured_path}"
             else:
                 status = f"Not found: {configured_path}"
         else:
@@ -1848,7 +1856,12 @@ class SettingsDialog(QDialog):
             status = (
                 f"Using auto-detected: {detected_cli}"
                 if detected_cli
-                else "agy CLI not found. Install the Antigravity CLI or set its path."
+                else (
+                    "agy CLI not found. Install the Antigravity CLI or set its "
+                    "path. This app may not see the same PATH as your terminal: "
+                    "if agy runs there, paste the full path from `which agy` "
+                    "(~ and environment variables work)."
+                )
             )
         self.antigravity_cli_path_status.setText(status)
 

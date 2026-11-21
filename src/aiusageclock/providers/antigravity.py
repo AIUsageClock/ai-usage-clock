@@ -19,6 +19,16 @@ _LATCH_ERROR = (
     "agy did not treat /quota as a built-in command; polling paused to avoid "
     "spending model quota. Update agy and restart AI Usage Clock."
 )
+_NOT_FOUND_ERROR = (
+    "agy CLI not found. If agy runs in your terminal, set its full path "
+    "(from `which agy`) in Settings."
+)
+# agy 1.5.11+ exits with code 2 for /quota when signed in with GEMINI_API_KEY.
+_EXIT_2_ERROR = (
+    "agy exit code 2: no quota data (not signed in with a Google account?). "
+    "Sign in to agy with a Google account; GEMINI_API_KEY mode has no quota."
+)
+_PRINT_TIMEOUT_ERROR = "agy timed out (print timeout reached)"
 _AGY_ENV_OVERRIDES = {"AGY_CLI_DISABLE_AUTO_UPDATE": "true"}
 _PROCESS_LATCHED_ERROR: str | None = None
 # agy's background updater can open an unhidden console on Windows; the value
@@ -40,6 +50,11 @@ def normalize_cli_path(value: str | None) -> str | None:
     return normalized or None
 
 
+def cli_is_executable(path: str) -> bool:
+    """Whether ``path`` can be launched. Windows has no execute bit to check."""
+    return sys.platform == "win32" or os.access(path, os.X_OK)
+
+
 def resolve_cli(cli_path: str | None) -> str | None:
     cli_path = normalize_cli_path(cli_path)
     if cli_path:
@@ -55,6 +70,12 @@ def resolve_cli(cli_path: str | None) -> str | None:
             candidate = Path(local_app_data) / "agy" / "bin" / "agy.exe"
             if candidate.is_file():
                 return str(candidate)
+    else:
+        # Official install location on macOS and Linux. A GUI app launched from
+        # the Dock or a login item often has a shorter PATH than a terminal.
+        candidate = Path.home() / ".local" / "bin" / "agy"
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
     return None
 
 
@@ -62,6 +83,10 @@ def _invoke_cli(exe: str) -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as cwd:
         env = os.environ.copy()
         env.update(_AGY_ENV_OVERRIDES)
+        # --mode plan: since agy 1.5.7 a headless run without a saved mode starts
+        # in Auto, so request the read-only plan mode explicitly. --print-timeout:
+        # since 1.5.0 -p waits for background tasks unless a timeout is given
+        # (on expiry agy exits with code 3). Do not "simplify" either flag away.
         return subprocess.run(
             [
                 exe,
@@ -103,6 +128,29 @@ def _decode_output(stdout: str) -> dict[str, Any]:
         if isinstance(payload, dict):
             return payload
     raise ValueError("unexpected agy output: stdout is not JSON")
+
+
+def _recoverable_exit_error(result: subprocess.CompletedProcess[str]) -> str | None:
+    """Error text for agy exit codes that must not latch polling, else None.
+
+    Exit 2 (API-key sign-in) and exit 3 with finished_reason "print_timeout"
+    are recoverable when the output shows no model turns or tokens were spent.
+    If tokens were spent, or the output is unrecognised for any other code,
+    return None so the normal parser decides (and may still latch).
+    """
+    if result.returncode not in (2, 3):
+        return None
+    try:
+        payload: dict[str, Any] | None = _decode_output(result.stdout)
+    except ValueError:
+        payload = None
+    if payload is not None and _spent_tokens(payload):
+        return None
+    if result.returncode == 2:
+        return _EXIT_2_ERROR[:200]
+    if payload is not None and payload.get("finished_reason") == "print_timeout":
+        return _PRINT_TIMEOUT_ERROR
+    return None
 
 
 def _parse_reset_at(value: object) -> datetime | None:
@@ -155,6 +203,31 @@ def _classify_bucket(
     return group_name, None
 
 
+_MAX_DESCRIPTION_CHARS = 200
+
+
+def _spent_tokens(payload: dict[str, Any]) -> bool:
+    """True when agy reports that the call used model turns or tokens."""
+    usage = payload.get("usage")
+    num_turns = payload.get("num_turns")
+    total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
+    return (isinstance(num_turns, (int, float)) and num_turns > 0) or (
+        isinstance(total_tokens, (int, float)) and total_tokens > 0
+    )
+
+
+def _clean_group_description(value: object) -> str | None:
+    """Plain-text, length-capped group description, or None when unusable.
+
+    The text is written by Google and shown in a tooltip, so angle brackets are
+    dropped to keep Qt from treating it as rich text.
+    """
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.replace("<", " ").replace(">", " ").split())
+    return text[:_MAX_DESCRIPTION_CHARS] or None
+
+
 def _build_snapshot(
     payload: dict[str, Any],
     *,
@@ -166,9 +239,7 @@ def _build_snapshot(
     usage = payload.get("usage")
     num_turns = payload.get("num_turns")
     total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
-    spent_tokens = (
-        isinstance(num_turns, (int, float)) and num_turns > 0
-    ) or (isinstance(total_tokens, (int, float)) and total_tokens > 0)
+    spent_tokens = _spent_tokens(payload)
     indeterminate_usage = (
         "command" not in payload
         and "num_turns" not in payload
@@ -206,6 +277,7 @@ def _build_snapshot(
         if not isinstance(buckets, list):
             raise ValueError("unexpected agy output: group.buckets is not a list")
 
+        group_description = _clean_group_description(group.get("description"))
         group_metrics: list[tuple[int, UsageMetric]] = []
         for bucket in buckets:
             if not isinstance(bucket, dict):
@@ -261,6 +333,7 @@ def _build_snapshot(
                 note=note,
                 window=window,
                 tag=None,
+                group_description=group_description,
             )
             group_metrics.append((order, metric))
             summary.append(
@@ -325,12 +398,19 @@ class AntigravityProvider(Provider):
                     error=f"Not the agy CLI: {configured_path}"[:200],
                     raw={"config_error": True},
                 )
+            if configured_path and not cli_is_executable(configured_path):
+                return UsageSnapshot(
+                    provider=self.name,
+                    status=SnapshotStatus.ERROR,
+                    error=f"agy CLI is not executable: {configured_path}"[:200],
+                    raw={"config_error": True},
+                )
             exe = resolve_cli(configured_path)
             if exe is None:
                 return UsageSnapshot(
                     provider=self.name,
                     status=SnapshotStatus.ERROR,
-                    error="agy CLI not found",
+                    error=_NOT_FOUND_ERROR,
                 )
             try:
                 result = _invoke_cli(exe)
@@ -346,6 +426,14 @@ class AntigravityProvider(Provider):
                     provider=self.name,
                     status=SnapshotStatus.ERROR,
                     error=f"failed to start agy: {reason}"[:200],
+                )
+
+            exit_error = _recoverable_exit_error(result)
+            if exit_error is not None:
+                return UsageSnapshot(
+                    provider=self.name,
+                    status=SnapshotStatus.ERROR,
+                    error=exit_error,
                 )
 
             try:
