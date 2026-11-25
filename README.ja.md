@@ -65,7 +65,7 @@
 | --- | --- | --- |
 | **Claude** | Session と Weekly（週）の上限。Fable の週上限があるプランでは、それも表示 | ブラウザーでログイン（Google アカウントやパスキーも可）、またはセッション Cookie を貼り付け |
 | **Codex**（ChatGPT） | Session と Weekly の上限 | Claude と同じ |
-| **Antigravity** | Gemini と Claude+GPT の使用量（それぞれ 5 時間と週の上限）と、Gemini 4 Argon 専用の週の上限 | 手元の `agy` コマンドラインツールを読み取るので、アプリにアカウントやキーを登録する必要はありません |
+| **Antigravity** | Gemini と Claude+GPT の使用量（それぞれ 5 時間と週の上限）。各グループに含まれるモデルは agy が報告します | 手元の `agy` コマンドラインツールを読み取るので、アプリにアカウントやキーを登録する必要はありません |
 | **OpenCode Go** | Rolling、Weekly、Monthly（ローリング・週・月）の使用量 | OpenCode の API キー |
 | **GitHub Copilot** | 当月に使った AI クレジットを、プランの利用枠と比べて表示。毎月 1 日にリセット | GitHub の fine-grained personal access token |
 | **OpenRouter** | 今日と今月の利用額、任意で 1 日の予算。管理キーがあれば残高とモデル別のアクティビティも | OpenRouter の API キー |

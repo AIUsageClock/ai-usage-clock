@@ -1079,3 +1079,73 @@ def test_tile_tooltip_is_unchanged_when_description_is_absent(qtbot):
     tile = widget._tiles["antigravity"]
 
     assert tile._rows[0].toolTip() == "Countdown starts when you next use this limit."
+
+# --- agy 1.5.14: Argon folded into the shared Gemini group ------------------
+
+FIXTURE_1_5_14 = (
+    Path(__file__).parent / "fixtures" / "antigravity" / "quota_1_5_14.json"
+)
+LABELS_1_5_14 = ["Gemini 5h", "Gemini weekly", "Claude+GPT 5h", "Claude+GPT weekly"]
+
+
+def _payload_1_5_14() -> dict:
+    return json.loads(FIXTURE_1_5_14.read_text(encoding="utf-8"))
+
+
+def test_quota_1_5_14_fixture_pins_the_four_history_labels():
+    snapshot = _build_snapshot(_payload_1_5_14())
+
+    assert snapshot.status == SnapshotStatus.OK
+    assert [m.label for m in snapshot.metrics] == LABELS_1_5_14
+    assert all(m.percent_used == 0 for m in snapshot.metrics)
+    assert all(m.resets_at is None for m in snapshot.metrics)
+    assert all(m.reset_label == "idle" for m in snapshot.metrics)
+
+
+def test_quota_1_5_14_gemini_rows_carry_the_group_description():
+    by_label = {m.label: m.group_description for m in _build_snapshot(_payload_1_5_14()).metrics}
+
+    assert "Carbon" in by_label["Gemini 5h"]
+    assert by_label["Gemini 5h"] == by_label["Gemini weekly"]
+    assert "Claude Opus 5.5" in by_label["Claude+GPT weekly"]
+
+
+@pytest.mark.parametrize(
+    ("show_gemini", "show_third_party", "labels"),
+    [
+        (True, True, LABELS_1_5_14),
+        (False, True, ["Claude+GPT 5h", "Claude+GPT weekly"]),
+        (True, False, ["Gemini 5h", "Gemini weekly"]),
+    ],
+)
+def test_quota_1_5_14_family_toggles(show_gemini, show_third_party, labels):
+    snapshot = _build_snapshot(
+        _payload_1_5_14(),
+        show_gemini=show_gemini,
+        show_third_party=show_third_party,
+    )
+
+    assert [m.label for m in snapshot.metrics] == labels
+
+
+def test_epoch_reset_time_on_a_used_bucket_is_treated_as_unknown():
+    # agy 1.5.14 reports 1970-01-01T00:00:00Z for the Claude+GPT group even
+    # though the quota is in use; that must never surface as a 1970 reset.
+    payload = _payload_1_5_14()
+    for bucket in payload["command"]["data"]["groups"][1]["buckets"]:
+        bucket["remaining_fraction"] = 0.6
+    snapshot = _build_snapshot(payload)
+    third_party = [m for m in snapshot.metrics if m.label.startswith("Claude+GPT")]
+
+    assert len(third_party) == 2
+    for metric in third_party:
+        assert metric.percent_used == pytest.approx(40.0)
+        assert metric.resets_at is None
+
+
+@pytest.mark.parametrize(
+    "value", ["1970-01-01T00:00:00Z", "1969-12-31T00:00:00Z", "1970-01-01T00:00:00"]
+)
+def test_parse_reset_at_treats_epoch_and_earlier_as_unknown(value):
+    assert antigravity._parse_reset_at(value) is None
+    assert antigravity._parse_reset_at("2099-01-01T00:00:00Z") is not None

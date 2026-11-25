@@ -64,7 +64,7 @@ Les versions ne sont pas signées : Windows ou macOS peut donc afficher un aver
 | --- | --- | --- |
 | **Claude** | Limites Session et Weekly (hebdomadaire), plus la limite hebdomadaire Fable sur les forfaits qui en comportent une | Connectez-vous via votre navigateur (compte Google et clés d’accès acceptés) ou collez un cookie de session |
 | **Codex** (ChatGPT) | Limites Session et Weekly | Comme pour Claude |
-| **Antigravity** | Consommation Gemini et Claude+GPT, chacune avec une limite sur 5 heures et une limite hebdomadaire, plus une limite hebdomadaire distincte pour Gemini 4 Argon | Lecture de votre outil en ligne de commande `agy` local ; aucun compte ni clé dans l’application |
+| **Antigravity** | Consommation Gemini et Claude+GPT, chacune avec une limite sur 5 heures et une limite hebdomadaire; agy indique quels modèles composent chaque groupe | Lecture de votre outil en ligne de commande `agy` local ; aucun compte ni clé dans l’application |
 | **OpenCode Go** | Consommation Rolling, Weekly et Monthly (fenêtre glissante, semaine, mois) | Clé d’API OpenCode |
 | **GitHub Copilot** | Crédits IA consommés dans le mois, comparés à l’enveloppe de votre forfait ; compteur remis à zéro le premier du mois | Jeton d’accès personnel GitHub de type *fine-grained* |
 | **OpenRouter** | Dépenses du jour et du mois, budget quotidien facultatif ; solde et activité par modèle avec une clé de gestion | Clé d’API OpenRouter |

@@ -201,10 +201,9 @@ def test_settings_gemini_checkbox_has_scope_hint(qtbot, monkeypatch):
     ]
 
     assert hints == [
-        "Covers the models that share the Gemini limits. Also shows or hides "
-        'the separate "Argon weekly" row for Gemini 4 Argon, which paid '
-        "Pro plans have; on Ultra, Argon quota is part of the Gemini "
-        "limits."
+        "Covers the models that share the Gemini limits, and any separate "
+        "Gemini limit agy reports. Hover a row to see the models in its "
+        "group."
     ]
 
 

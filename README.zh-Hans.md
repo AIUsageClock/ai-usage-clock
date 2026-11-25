@@ -63,7 +63,7 @@
 | --- | --- | --- |
 | **Claude** | 会话额度和每周额度（套餐带每周 Fable 额度的，也会一起显示） | 用浏览器登录（支持 Google 账号和通行密钥），或者粘贴会话 Cookie |
 | **Codex**（ChatGPT） | 会话额度和每周额度 | 同 Claude |
-| **Antigravity** | Gemini、Claude+GPT 两组用量，各有 5 小时额度和每周额度，另有 Gemini 4 Argon 的独立每周额度 | 读取本机的 `agy` 命令行工具，程序里不用登录账号，也不用填密钥 |
+| **Antigravity** | Gemini、Claude+GPT 两组用量，各有 5 小时额度和每周额度，各组包含哪些模型由 agy 提供 | 读取本机的 `agy` 命令行工具，程序里不用登录账号，也不用填密钥 |
 | **OpenCode Go** | 滚动窗口、每周、每月用量 | OpenCode API 密钥 |
 | **GitHub Copilot** | 本月已用的 AI 积分，对照套餐内含的额度，每月 1 日重置 | GitHub 细粒度个人访问令牌（fine-grained PAT） |
 | **OpenRouter** | 今天和本月的花费，可设每日预算；填了管理密钥，还能看余额和各模型用量 | OpenRouter API 密钥 |

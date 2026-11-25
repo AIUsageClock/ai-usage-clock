@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
 
@@ -158,6 +158,14 @@ def _parse_reset_at(value: object) -> datetime | None:
         return None
     try:
         parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        # agy 1.5.14 reports 1970-01-01T00:00:00Z as the reset_time of the
+        # Claude and GPT group (no countdown known). Treat the Unix epoch and
+        # anything earlier as unknown instead of showing a 1970 reset.
+        as_utc = (
+            parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+        )
+        if as_utc <= datetime(1970, 1, 1, tzinfo=timezone.utc):
+            return None
         if parsed.tzinfo is not None:
             parsed = parsed.astimezone().replace(tzinfo=None)
         return parsed
