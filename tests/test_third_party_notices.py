@@ -29,7 +29,11 @@ def names_of(packages) -> list[str]:
 def build(project: str, python_dirs: list[Path] | None = None):
     """build_notices for a fake project, looking for Python's license in *python_dirs* only."""
     return notices.build_notices(
-        project, (), (), python_dirs=[] if python_dirs is None else python_dirs
+        project,
+        (),
+        (),
+        python_dirs=[] if python_dirs is None else python_dirs,
+        platform="linux",
     )
 
 
@@ -251,9 +255,12 @@ ARCHIVED_DIR = Path(__file__).resolve().parents[1] / "docs" / "legal" / "third-p
 ARCHIVED_LICENSE_SHA256 = {
     "pywinrt-LICENSE.txt": "6e898069e8b3c6d8d23dc70ac7067cc2b7c9db14c36df873026758db82c0891d",
     "pyobjc-core-License.txt": "0ca04b07928d4872b9d9bb22187ca0426dd8bfab08f26eada0999a71dc81aaff",
-    # LICENSE of libffi v3.8.1 (commit de7afe7a...), 1132 bytes; byte-identical to
-    # the LICENSE of v3.8.0 and to the one inside libffi-3.8.1.tar.gz.
-    "libffi-LICENSE.txt": "17b64dc60f3b6897a60f971e288b973f655c2edcdf08b25f3c3dd5549857881c",
+    # LICENSE of libffi v3.4.4 (commit f24180be...), 1132 bytes: the libffi that
+    # CPython v3.14.10 ships on Windows (PCbuild/get_externals.bat).
+    "libffi-3.4.4-LICENSE.txt": "2c9c2acb9743e6b007b91350475308aee44691d96aa20eacef8e199988c8c388",
+    # LICENSE of Apple's libffi, tag libffi-40 (commit 72e95a49...), 1132 bytes;
+    # tags libffi-30 to libffi-40 carry the same bytes.
+    "libffi-apple-40-LICENSE.txt": "25d56871423a870487edee68000ef66b1a7ec44a7ab84838ceeb3ce07f734b74",
 }
 
 
@@ -289,52 +296,151 @@ def test_every_archived_license_points_at_an_existing_file_and_a_pinned_source()
         assert entry.ref.startswith("tag v"), canonical
 
 
-def test_the_libffi_license_is_archived_with_a_pinned_source_and_matches_its_hash():
-    entry = notices._LIBFFI
+LIBFFI_SOURCES = {
+    "win32": "https://github.com/libffi/libffi/blob/",
+    "darwin": "https://github.com/apple-oss-distributions/libffi/blob/",
+}
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin"])
+def test_the_libffi_licenses_are_archived_with_a_pinned_source_and_match_their_hash(platform):
+    entry = notices.LIBFFI_LICENSES[platform]
     assert (Path(notices.REPO_ROOT) / entry.file).is_file()
     assert Path(entry.file).name in ARCHIVED_LICENSE_SHA256
     assert re.search(r"/blob/[0-9a-f]{40}/LICENSE$", entry.source_url)
-    assert entry.source_url.startswith("https://github.com/libffi/libffi/blob/")
-    assert entry.ref.startswith("tag v")
+    assert entry.source_url.startswith(LIBFFI_SOURCES[platform])
+    assert entry.ref.startswith("tag ")
+    assert platform in notices.LIBFFI_NOTES
+    assert entry.source_url in notices.LIBFFI_NOTES[platform]
 
 
-def test_macos_notices_list_libffi_with_its_full_license_text(site):
+def test_every_archived_file_is_used_by_an_entry():
+    used = {Path(e.file).name for e in notices.ARCHIVED_LICENSES.values()}
+    used |= {Path(e.file).name for e in notices.LIBFFI_LICENSES.values()}
+    assert used == set(ARCHIVED_LICENSE_SHA256)
+    assert {path.name for path in ARCHIVED_DIR.glob("*.txt")} == used
+
+
+@pytest.mark.parametrize(
+    ("platform", "file", "first_line"),
+    [
+        (
+            "win32",
+            "libffi-3.4.4-LICENSE.txt",
+            "libffi - Copyright (c) 1996-2022  Anthony Green, Red Hat, Inc and others.",
+        ),
+        (
+            "darwin",
+            "libffi-apple-40-LICENSE.txt",
+            "libffi - Copyright (c) 1996-2020  Anthony Green, Red Hat, Inc and others.",
+        ),
+    ],
+)
+def test_windows_and_macos_notices_list_libffi_with_its_full_license_text(
+    site, platform, file, first_line
+):
     make_dist(site, "noticetest-app")
-    expected = notices._normalise_text((ARCHIVED_DIR / "libffi-LICENSE.txt").read_bytes())
-
-    text, components = notices.build_notices(
-        "noticetest-app", (), (), python_dirs=[], platform="darwin"
-    )
-
-    assert [c.name for c in components] == ["Python", "libffi"]
-    assert notices.listed_component_names(text) == ["python", "libffi"]
-    assert "libffi (statically-linked-into-CPython-_ctypes) - MIT" in text
-    assert not re.search(r"libffi \d", text)  # no release number is claimed
-    assert expected in text
-    assert "libffi - Copyright (c) 1996-2026  Anthony Green, Red Hat, Inc and others." in text
-    assert notices._LIBFFI.source_url in text
-
-
-@pytest.mark.parametrize("platform", ["win32", "linux"])
-def test_windows_and_linux_notices_are_unchanged_by_the_libffi_entry(site, platform):
-    make_dist(site, "noticetest-app")
+    expected = notices._normalise_text((ARCHIVED_DIR / file).read_bytes())
 
     text, components = notices.build_notices(
         "noticetest-app", (), (), python_dirs=[], platform=platform
     )
-    default_text, _ = build("noticetest-app")
+
+    assert [c.name for c in components] == ["Python", "libffi"]
+    assert notices.listed_component_names(text) == ["python", "libffi"]
+    assert "libffi (used-by-CPython-_ctypes) - MIT" in text
+    assert "statically" not in text  # no claim about how a platform links it
+    assert expected in text
+    assert first_line in text
+    assert notices.LIBFFI_LICENSES[platform].source_url in text
+    # The other platform's text is not in this one.
+    other = "darwin" if platform == "win32" else "win32"
+    assert notices.LIBFFI_LICENSES[other].source_url not in text
+
+
+def test_the_notes_say_what_each_platform_really_ships():
+    assert "libffi-8.dll" in notices.LIBFFI_NOTES["win32"]
+    assert "libffi 3.4.4" in notices.LIBFFI_NOTES["win32"]
+    # python.org's macOS build links the system libffi; the note must not claim a bundle.
+    assert "/usr/lib/libffi.dylib" in notices.LIBFFI_NOTES["darwin"]
+    assert "instead of carrying its own copy" in notices.LIBFFI_NOTES["darwin"]
+
+
+def test_linux_notices_have_no_libffi_component_of_their_own(site):
+    make_dist(site, "noticetest-app")
+
+    text, components = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], platform="linux"
+    )
 
     assert [c.name for c in components] == ["Python"]
     assert "Anthony Green" not in text
-    assert "libffi-LICENSE" not in text
     assert notices.listed_component_names(text) == ["python"]
-    if sys.platform != "darwin":  # the default platform is the host's
-        assert text == default_text
+    assert notices.collect_libffi("linux") is None
 
 
-def test_the_macos_libffi_entry_fails_loudly_when_its_archived_file_is_unusable(tmp_path):
-    with pytest.raises(notices.ArchivedLicenseError, match="cannot read the archived license"):
-        notices.collect_libffi(tmp_path)
+# What Ubuntu 22.04 (jammy) ships as /usr/share/doc/libffi8/copyright (libffi
+# 3.4.2-4): the permission notice of libffi between the list of copyright holders
+# and the documentation terms. Shortened to the parts the test looks at.
+JAMMY_LIBFFI8_COPYRIGHT = """\
+This package was debianized by Matthias Klose <doko@debian.org>
+on Mon, 10 Mar 2008 05:46:40 +0000.
+
+License:
+
+    libffi - Copyright (c) 1996-2010  Red Hat, Inc and others.
+    See source files for details.
+
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    ``Software''), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+"""
+
+
+@pytest.mark.parametrize("analysed", ["gui", "mcp"])
+def test_a_linux_build_that_packs_libffi_so_carries_the_libffi_license_text(
+    site, tmp_path, analysed
+):
+    write_copyright(tmp_path, "libffi8", JAMMY_LIBFFI8_COPYRIGHT)
+    make_dist(site, "noticetest-app")
+    owned = {f"{LIB_DIR}/libffi.so.8": ["libffi8"]}
+    system = collect({analysed: [library("libffi.so.8")]}, owned, tmp_path)
+
+    text, _ = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system, platform="linux"
+    )
+
+    section = text[text.index(notices.SYSTEM_LIBRARIES_TITLE) :]
+    assert notices.listed_system_library_names(text) == ["libffi.so.8"]
+    assert "libffi8" in section
+    assert "libffi - Copyright (c) 1996-2010  Red Hat, Inc and others." in section
+    assert "``Software''), to deal in the Software" in section  # libffi's own wording
+
+
+def test_a_linux_build_whose_libffi_copyright_file_is_missing_says_so(site, tmp_path):
+    make_dist(site, "noticetest-app")
+    owned = {f"{LIB_DIR}/libffi.so.8": ["libffi8"]}
+    system = collect({"gui": [library("libffi.so.8")]}, owned, tmp_path)
+
+    text, _ = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system, platform="linux"
+    )
+
+    assert "libffi8" in text
+    assert "Red Hat" not in text
+
+
+def test_the_libffi_entries_fail_loudly_when_their_archived_file_is_unusable(tmp_path):
+    for platform in ("win32", "darwin"):
+        with pytest.raises(notices.ArchivedLicenseError, match="cannot read the archived license"):
+            notices.collect_libffi(platform, tmp_path)
 
 
 def test_the_winrt_and_pyobjc_core_dependencies_have_an_archived_license():
@@ -1214,7 +1320,7 @@ def test_a_copyright_text_equal_to_a_python_license_text_points_at_it(site, tmp_
     )
 
     text, _ = notices.build_notices(
-        "noticetest-app", (), (), python_dirs=[], system_libraries=system
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system, platform="linux"
     )
 
     assert text.count(shared) == 1
@@ -1473,7 +1579,7 @@ def test_a_referenced_text_equal_to_one_printed_earlier_is_not_repeated(site, tm
     )
 
     text, _ = notices.build_notices(
-        "noticetest-app", (), (), python_dirs=[], system_libraries=system
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system, platform="linux"
     )
 
     base = licenses.as_posix()
@@ -1607,7 +1713,7 @@ def test_the_system_libraries_section_is_written_after_the_packages_and_read_bac
     system = collect({"gui": [library("libnss3.so"), library("libodd.so")]}, owned, tmp_path)
 
     text, _ = notices.build_notices(
-        "noticetest-app", (), (), python_dirs=[], system_libraries=system
+        "noticetest-app", (), (), python_dirs=[], system_libraries=system, platform="linux"
     )
 
     assert text.index("noticetest-lib 1.0\n=") < text.index(notices.SYSTEM_LIBRARIES_TITLE)
@@ -1621,7 +1727,12 @@ def test_no_section_is_written_without_system_libraries(site):
 
     plain, _ = build("noticetest-app")
     empty, _ = notices.build_notices(
-        "noticetest-app", (), (), python_dirs=[], system_libraries=notices.SystemLibraries([], [])
+        "noticetest-app",
+        (),
+        (),
+        python_dirs=[],
+        system_libraries=notices.SystemLibraries([], []),
+        platform="linux",
     )
     with_one, _ = notices.build_notices(
         "noticetest-app",

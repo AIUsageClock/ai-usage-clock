@@ -23,9 +23,11 @@ on, read from docs/legal/UPSTREAM-LICENSE.txt; the script stops before it
 collects anything when that file cannot be read. A few packages (the winrt
 packages and pyobjc-core) ship no license file in their wheels; for those the
 text of the source project's repository, archived under docs/legal/third-party/,
-is used (see ARCHIVED_LICENSES). On macOS the libffi that the bundled Python
-carries is listed as a component of its own, with its archived license text
-(see collect_libffi). The output is UTF-8 with LF
+is used (see ARCHIVED_LICENSES). On Windows and macOS the libffi that the
+bundled Python's _ctypes module uses is listed as a component of its own, with
+its archived license text (see collect_libffi); on Linux the libffi.so that is
+packed into the build is covered by the system libraries section below. The
+output is UTF-8 with LF
 line endings and carries no timestamp, so the same environment always yields
 the same bytes.
 
@@ -141,40 +143,78 @@ _PYOBJC_CORE = ArchivedLicense(
     ),
     ref="tag v12.2.2",
 )
-# libffi, listed as a component of macOS builds only (see collect_libffi). The
-# Python that the macOS build uses is a python-build-standalone distribution,
-# whose build script disables CPython's probe for the system libffi on macOS and
-# links its own libffi (a static build, --disable-shared) into _ctypes.
-# CPython's LICENSE does not carry libffi's notice, so the text is archived
-# here. Which libffi version that is depends on the python-build-standalone
-# release the build's uv picks (3.8.0 in release 20261013, 3.8.1 on that
-# project's main branch), so the component is deliberately listed without a
-# version. The text is the same for both: libffi v3.8.0 and v3.8.1 have a
-# byte-identical LICENSE (1132 bytes), and the commit below is the one tag
-# v3.8.1 points to. pyobjc-core is not the reason for this entry: its _objc
-# extension links /usr/lib/libffi.dylib, the macOS system library, which is not
-# part of the bundle (its License.txt only says libffi-src is a separate
-# product).
+# libffi, which CPython's _ctypes module uses. CPython's own LICENSE does not
+# carry libffi's notice, so the text is archived here, one file per platform
+# because what the release builds ship differs (checked against release run
+# 44103626977, CPython 3.14.10 from actions/setup-python, UV_PYTHON_DOWNLOADS
+# never):
+#   * Windows: python.org's installer build, which carries libffi-8.dll. CPython
+#     v3.14.10 fetches libffi 3.4.4 for it (PCbuild/get_externals.bat,
+#     Misc/externals.spdx.json). The text is libffi 3.4.4's LICENSE.
+#   * macOS: python.org's pkg build. Its configure script uses the libffi of the
+#     macOS SDK (-DUSING_APPLE_OS_LIBFFI=1, i.e. /usr/lib/libffi.dylib, Apple's
+#     libffi); Mac/BuildScript/build-installer.py builds none of its own. So
+#     the library is not part of the bundle, but the notice is shipped anyway.
+#     The text is Apple's libffi LICENSE (apple-oss-distributions/libffi, tag
+#     libffi-40; tags libffi-30 to libffi-40 all carry the same bytes, which
+#     release ships in the runner's macOS is not known).
+#   * Linux: libffi.so.8 of the build machine is packed, so the "System
+#     libraries bundled on Linux" section carries the copyright file of its
+#     Debian package (libffi8), which reproduces the MIT text. No component
+#     here.
+# A local build with another Python (for example uv's python-build-standalone,
+# which on macOS links its own libffi 3.8.x statically) gets the same entry for
+# its platform: the terms are the same MIT text, only the year in the first line
+# can differ from the library actually linked. That is why the label names the
+# role of the library and claims no release, and why the notes say what the
+# text was taken from. pyobjc-core is not a reason for this entry: its _objc
+# extension links /usr/lib/libffi.dylib, which is not part of the bundle (its
+# License.txt only says libffi-src is a separate product).
 LIBFFI_NAME = "libffi"
 # The index line splits "<name> <version>" at the last space, so this is one
-# word; it says where the library sits instead of naming a release.
-LIBFFI_VERSION_LABEL = "(statically-linked-into-CPython-_ctypes)"
-_LIBFFI = ArchivedLicense(
-    file=f"{THIRD_PARTY_LICENSE_DIR}/libffi-LICENSE.txt",
+# word; it says what the library is for instead of naming a release.
+LIBFFI_VERSION_LABEL = "(used-by-CPython-_ctypes)"
+_LIBFFI_WINDOWS = ArchivedLicense(
+    file=f"{THIRD_PARTY_LICENSE_DIR}/libffi-3.4.4-LICENSE.txt",
     project="libffi",
     source_url=(
         "https://github.com/libffi/libffi/blob/"
-        "de7afe7aa9e8ab7ac36429428a7222caae1e7988/LICENSE"
+        "f24180be1367f942824365b131ae894b9c769c7d/LICENSE"
     ),
-    ref="tag v3.8.1",
+    ref="tag v3.4.4",
 )
-LIBFFI_NOTE = (
-    "The Python runtime of the macOS build links this library into its _ctypes\n"
-    "module (python-build-standalone bundles its own libffi on macOS instead of\n"
-    "using the system one). Python's own license text does not reproduce it.\n"
-    "The text below is the license of libffi, copied word for word from:\n"
-    f"{_LIBFFI.source_url}"
+_LIBFFI_MACOS = ArchivedLicense(
+    file=f"{THIRD_PARTY_LICENSE_DIR}/libffi-apple-40-LICENSE.txt",
+    project="libffi (Apple)",
+    source_url=(
+        "https://github.com/apple-oss-distributions/libffi/blob/"
+        "72e95a49029b75b2a0de094477f8410a32013c87/LICENSE"
+    ),
+    ref="tag libffi-40",
 )
+# By sys.platform; Linux has none (see above).
+LIBFFI_LICENSES: dict[str, ArchivedLicense] = {
+    "win32": _LIBFFI_WINDOWS,
+    "darwin": _LIBFFI_MACOS,
+}
+LIBFFI_NOTES = {
+    "win32": (
+        "The Python runtime of the Windows build carries libffi-8.dll for its\n"
+        "_ctypes module (libffi 3.4.4 in the python.org build of CPython 3.14.10).\n"
+        "Python's own license text does not reproduce libffi's notice.\n"
+        "The text below is the license of libffi, copied word for word from:\n"
+        f"{_LIBFFI_WINDOWS.source_url}"
+    ),
+    "darwin": (
+        "The Python runtime of the macOS build uses libffi for its _ctypes module.\n"
+        "The python.org build of CPython links the libffi of macOS\n"
+        "(/usr/lib/libffi.dylib) instead of carrying its own copy; the notice of\n"
+        "that library is reproduced here all the same. Python's own license text\n"
+        "does not reproduce it. The text below is the license of Apple's libffi,\n"
+        "copied word for word from:\n"
+        f"{_LIBFFI_MACOS.source_url}"
+    ),
+}
 # Keyed by canonical package name (see Package.canonical_name).
 ARCHIVED_LICENSES: dict[str, ArchivedLicense] = {
     "winrt-runtime": _PYWINRT,
@@ -524,19 +564,24 @@ def collect_packages(
     return packages
 
 
-def collect_libffi(root: Path | None = None) -> Package:
-    """The libffi that the macOS build's Python carries, with its archived license text.
+def collect_libffi(platform: str, root: Path | None = None) -> Package | None:
+    """The libffi of *platform*'s Python (sys.platform value), with its archived license text.
 
-    Fails like archived_license_for() when the archived file cannot be used.
+    None for a platform that has no entry of its own (Linux: its libffi.so is
+    listed in the system libraries section). Fails like archived_license_for()
+    when the archived file cannot be used.
     """
-    found = archived_license_for("libffi", {"libffi": _LIBFFI}, root)
+    entry = LIBFFI_LICENSES.get(platform)
+    if entry is None:
+        return None
+    found = archived_license_for("libffi", {"libffi": entry}, root)
     assert found is not None  # the mapping above always has the key
     return Package(
         name=LIBFFI_NAME,
         version=LIBFFI_VERSION_LABEL,
         declaration="MIT",
         texts=[found[0]],
-        note=LIBFFI_NOTE,
+        note=LIBFFI_NOTES[platform],
     )
 
 
@@ -1160,13 +1205,14 @@ def build_notices(
 
     *system_libraries* adds the Linux section (see collect_system_libraries()).
     *upstream_notice* defaults to the archived file (see render()).
-    *platform* (default sys.platform) decides whether the macOS-only libffi
-    component follows Python: on "darwin" only.
+    *platform* (default sys.platform) decides whether a libffi component follows
+    Python: on "win32" and "darwin" (see LIBFFI_LICENSES), not on Linux.
     """
     platform = sys.platform if platform is None else platform
     components = [collect_python(python_dirs)]
-    if platform == "darwin":
-        components.append(collect_libffi())
+    libffi = collect_libffi(platform)
+    if libffi is not None:
+        components.append(libffi)
     components.extend(collect_packages(project, extras, build_tools))
     return render(components, system_libraries, upstream_notice), components
 
