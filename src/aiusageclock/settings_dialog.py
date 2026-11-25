@@ -1063,8 +1063,10 @@ class SettingsDialog(QDialog):
         antigravity_form.addRow(
             "",
             _hint_label(
-                "Covers the models that share the Gemini limits, and also the "
-                "separate Gemini Argon weekly row when your plan has one."
+                "Covers the models that share the Gemini limits. Also shows or hides "
+                'the separate "Argon weekly" row for Gemini 4 Argon, which paid '
+                "Pro plans have; on Ultra, Argon quota is part of the Gemini "
+                "limits."
             ),
         )
         self.antigravity_show_third_party_cb = QCheckBox("Claude & GPT models")

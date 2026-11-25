@@ -6,7 +6,7 @@
 
 - Antigravity: hovering a row now shows which models share that quota group, using the group description reported by `agy`.
 - Antigravity: on macOS and Linux the default install location `~/.local/bin/agy` is now found automatically.
-- Antigravity: the Settings tab explains that the **Gemini models** switch also covers the separate Argon weekly row.
+- Antigravity: the Settings tab explains that the **Gemini models** switch also covers the separate Argon weekly row (paid Pro plans; on Ultra, Argon quota is part of the Gemini limits).
 
 ### Fixed
 

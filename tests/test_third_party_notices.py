@@ -251,6 +251,9 @@ ARCHIVED_DIR = Path(__file__).resolve().parents[1] / "docs" / "legal" / "third-p
 ARCHIVED_LICENSE_SHA256 = {
     "pywinrt-LICENSE.txt": "6e898069e8b3c6d8d23dc70ac7067cc2b7c9db14c36df873026758db82c0891d",
     "pyobjc-core-License.txt": "0ca04b07928d4872b9d9bb22187ca0426dd8bfab08f26eada0999a71dc81aaff",
+    # LICENSE of libffi v3.8.1 (commit de7afe7a...), 1132 bytes; byte-identical to
+    # the LICENSE of v3.8.0 and to the one inside libffi-3.8.1.tar.gz.
+    "libffi-LICENSE.txt": "17b64dc60f3b6897a60f971e288b973f655c2edcdf08b25f3c3dd5549857881c",
 }
 
 
@@ -284,6 +287,54 @@ def test_every_archived_license_points_at_an_existing_file_and_a_pinned_source()
         # A fixed commit, not a branch: the text is what that commit held.
         assert re.search(r"/blob/[0-9a-f]{40}/", entry.source_url), canonical
         assert entry.ref.startswith("tag v"), canonical
+
+
+def test_the_libffi_license_is_archived_with_a_pinned_source_and_matches_its_hash():
+    entry = notices._LIBFFI
+    assert (Path(notices.REPO_ROOT) / entry.file).is_file()
+    assert Path(entry.file).name in ARCHIVED_LICENSE_SHA256
+    assert re.search(r"/blob/[0-9a-f]{40}/LICENSE$", entry.source_url)
+    assert entry.source_url.startswith("https://github.com/libffi/libffi/blob/")
+    assert entry.ref.startswith("tag v")
+
+
+def test_macos_notices_list_libffi_with_its_full_license_text(site):
+    make_dist(site, "noticetest-app")
+    expected = notices._normalise_text((ARCHIVED_DIR / "libffi-LICENSE.txt").read_bytes())
+
+    text, components = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], platform="darwin"
+    )
+
+    assert [c.name for c in components] == ["Python", "libffi"]
+    assert notices.listed_component_names(text) == ["python", "libffi"]
+    assert "libffi (statically-linked-into-CPython-_ctypes) - MIT" in text
+    assert not re.search(r"libffi \d", text)  # no release number is claimed
+    assert expected in text
+    assert "libffi - Copyright (c) 1996-2026  Anthony Green, Red Hat, Inc and others." in text
+    assert notices._LIBFFI.source_url in text
+
+
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_windows_and_linux_notices_are_unchanged_by_the_libffi_entry(site, platform):
+    make_dist(site, "noticetest-app")
+
+    text, components = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], platform=platform
+    )
+    default_text, _ = build("noticetest-app")
+
+    assert [c.name for c in components] == ["Python"]
+    assert "Anthony Green" not in text
+    assert "libffi-LICENSE" not in text
+    assert notices.listed_component_names(text) == ["python"]
+    if sys.platform != "darwin":  # the default platform is the host's
+        assert text == default_text
+
+
+def test_the_macos_libffi_entry_fails_loudly_when_its_archived_file_is_unusable(tmp_path):
+    with pytest.raises(notices.ArchivedLicenseError, match="cannot read the archived license"):
+        notices.collect_libffi(tmp_path)
 
 
 def test_the_winrt_and_pyobjc_core_dependencies_have_an_archived_license():
