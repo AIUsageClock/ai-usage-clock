@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from aiusageclock.models import SnapshotStatus
+from tests.agy_factory import make_fake_agy
 from aiusageclock.providers import antigravity
 from aiusageclock.providers.antigravity import (
     AntigravityProvider,
@@ -441,8 +442,7 @@ def test_normalize_cli_path_expands_home_and_environment(monkeypatch, tmp_path):
         assert normalize_cli_path("%AGY_BIN%") == str(tmp_path / "agy.exe")
 
 def test_provider_uses_explicit_existing_file_without_autodetect(monkeypatch, tmp_path):
-    executable = tmp_path / "agy.exe"
-    executable.touch()
+    executable = make_fake_agy(tmp_path / "agy.exe")
     provider = AntigravityProvider(cli_path=f' "{executable}" ')
     _sync(provider, monkeypatch)
     which = lambda _: pytest.fail("explicit path must not trigger PATH lookup")
@@ -490,8 +490,7 @@ def test_none_keeps_path_then_windows_fallback_order(monkeypatch, tmp_path):
     assert resolve_cli(None) == str(fallback)
 
 def _provider_for_payload(monkeypatch, tmp_path, payload):
-    cli = tmp_path / "agy.exe"
-    cli.touch()
+    cli = make_fake_agy(tmp_path / "agy.exe")
     provider = AntigravityProvider(cli_path=str(cli))
     _sync(provider, monkeypatch)
     calls = []
@@ -1149,3 +1148,30 @@ def test_epoch_reset_time_on_a_used_bucket_is_treated_as_unknown():
 def test_parse_reset_at_treats_epoch_and_earlier_as_unknown(value):
     assert antigravity._parse_reset_at(value) is None
     assert antigravity._parse_reset_at("2099-01-01T00:00:00Z") is not None
+
+
+# --- helper check: fake agy files are launchable on POSIX -------------------
+
+
+def test_make_fake_agy_requests_execute_bits(monkeypatch, tmp_path):
+    """Runs on every OS: the helper must chmod 0o755 (what POSIX needs)."""
+    from tests import agy_factory
+
+    calls = []
+    real_chmod = os.chmod
+    monkeypatch.setattr(
+        agy_factory.os, "chmod",
+        lambda path, mode: (calls.append((Path(path), mode)), real_chmod(path, mode))[1],
+    )
+    cli = make_fake_agy(tmp_path / "agy")
+    assert cli.is_file()
+    assert calls == [(cli, 0o755)]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no POSIX execute bits")
+def test_make_fake_agy_passes_real_access_check(monkeypatch, tmp_path):
+    plain = tmp_path / "plain-agy"
+    plain.touch()
+    monkeypatch.setattr(antigravity.sys, "platform", "linux")
+    assert antigravity.cli_is_executable(str(plain)) is False
+    assert antigravity.cli_is_executable(str(make_fake_agy(tmp_path / "agy"))) is True

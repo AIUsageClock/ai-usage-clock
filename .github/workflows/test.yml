@@ -12,12 +12,37 @@ permissions:
 
 jobs:
   test:
+    name: test (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2025-vs2026, macos-26, ubuntu-22.04]
-        python-version: ["3.14.10", "3.11.18"]
+        python-series: ["3.14", "3.11"]
+        # Exact patch version per os and series. 3.11 only gets security fixes,
+        # so python.org no longer ships new Windows/macOS binaries and the
+        # newest installable 3.11 differs by platform (docs/build.md). Each
+        # entry matches one os + python-series combination of the lists above
+        # and adds python-version to it, so all six combinations have one.
+        include:
+          - os: windows-2025-vs2026
+            python-series: "3.14"
+            python-version: "3.14.10"
+          - os: macos-26
+            python-series: "3.14"
+            python-version: "3.14.10"
+          - os: ubuntu-22.04
+            python-series: "3.14"
+            python-version: "3.14.10"
+          - os: windows-2025-vs2026
+            python-series: "3.11"
+            python-version: "3.11.9"
+          - os: macos-26
+            python-series: "3.11"
+            python-version: "3.11.9"
+          - os: ubuntu-22.04
+            python-series: "3.11"
+            python-version: "3.11.18"
     env:
       # CI pins exact patch versions (see docs/build.md). The matrix version wins
       # over .python-version for every uv command in this job (uv sync and uv run

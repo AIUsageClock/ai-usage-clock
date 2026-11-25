@@ -10,6 +10,7 @@ from aiusageclock.mcp_server import _configured_account_ids
 from aiusageclock.menubar import PROVIDER_LABELS
 from aiusageclock.settings_dialog import SettingsDialog
 from aiusageclock.widget import PROVIDER_ORDER
+from tests.agy_factory import make_fake_agy
 
 
 def test_antigravity_config_defaults_and_legacy_json(tmp_path, monkeypatch):
@@ -163,7 +164,7 @@ def test_settings_path_status_text(qtbot, monkeypatch, tmp_path, configured,
     custom = tmp_path / custom_name
     auto = tmp_path / "auto agy.exe"
     if exists:
-        (custom if configured else auto).touch()
+        make_fake_agy(custom if configured else auto)
     config = Config()
     config.antigravity.cli_path = str(custom) if configured else None
     dialog = _dialog(

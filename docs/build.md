@@ -71,9 +71,18 @@ reference.
 | Python packages | `uv.lock` (installed with `uv sync --frozen`) |
 | GitHub Actions | the 40-character commit SHA in each `uses:` line (Dependabot updates these) |
 | Runner images | `windows-2025-vs2026`, `macos-26`, `ubuntu-22.04` in the `os` lists |
-| CPython | `python-version` in `test.yml` and `release.yml` (3.14.10 for builds and tests, 3.11.18 for the 3.11 floor). `.python-version` (3.14) is for local work only |
+| CPython | `python-version` in `test.yml` and `release.yml`: 3.14.10 on every platform for builds and tests; the 3.11 floor is tested with 3.11.18 on Linux and 3.11.9 on Windows and macOS (see below). `.python-version` (3.14) is for local work only |
 | uv | `version:` of `astral-sh/setup-uv` (0.13.9) |
 | Node.js | `node-version` of `actions/setup-node` (24.22.2) |
+
+The 3.11 patch version differs by platform on purpose. 3.11 only receives
+security fixes, so python.org no longer publishes new Windows and macOS
+binaries for it, and `actions/setup-python` can install only 3.11.9 there, while
+the Linux runners have 3.11.18. `test.yml` therefore lists an exact
+`python-version` per `os` and `python-series` in its matrix `include` entries
+(every combination must have one; `tests/test_ci_pins.py` checks that each is
+`X.Y.Z`). When you bump the 3.11 pin, check which patch versions each platform
+can install.
 
 Dependabot cannot update the last four rows, so upgrade them by hand:
 
