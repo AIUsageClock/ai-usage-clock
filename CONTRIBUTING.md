@@ -14,7 +14,7 @@ so most contributions fall into one of three buckets:
 ## Development environment
 
 Requirements: **Windows 10/11, macOS, or Linux** and [uv](https://docs.astral.sh/uv/).
-The project builds with **Python 3.14** (pinned in `.python-version`); the code
+The project builds with **Python 3.14** (pinned in `.python-version` for local work; CI pins exact patch versions, see [docs/build.md](docs/build.md#pinned-ci-versions)); the code
 still supports **Python 3.11+**. The
 test suite runs headlessly under `QT_QPA_PLATFORM=offscreen`; manual smoke
 testing is still useful on each OS because tray/menu-bar behavior and native

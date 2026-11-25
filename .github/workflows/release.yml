@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   resolve-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       tag: ${{ steps.ver.outputs.tag }}
       version: ${{ steps.ver.outputs.version }}
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: "3.11"
+          python-version: "3.11.18"
       - id: ver
         shell: bash
         run: |
@@ -48,11 +48,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2025-vs2026
             label: windows
             archive_ext: zip
             build_cmd: ./build.ps1
-          - os: macos-latest
+          - os: macos-26
             label: macos
             archive_ext: tar.gz
             build_cmd: ./build.sh
@@ -64,18 +64,22 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # .python-version is the single source of the build Python (3.14).
+      # The CI Python is pinned to an exact patch release here (and in the other
+      # python-version lines of the workflows); .python-version (3.14) is only for
+      # local development. Upgrade steps: docs/build.md.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version-file: .python-version
+          python-version: "3.14.10"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.9"
 
-      - name: Set up Node.js 24 for extractor tests
+      - name: Set up Node.js 24.22.2 for extractor tests
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.2
 
       - name: Confirm Node.js runtime
         run: node --version
@@ -103,7 +107,7 @@ jobs:
               libxkbfile1 libxshmfence1
 
       - name: Run tests (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2025-vs2026'
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
@@ -118,7 +122,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests (macOS / Linux)
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows-2025-vs2026'
         shell: bash
         env:
           QT_QPA_PLATFORM: offscreen
@@ -131,24 +135,24 @@ jobs:
           .venv/bin/python -m pytest -q
 
       - name: Build (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2025-vs2026'
         shell: pwsh
         run: ${{ matrix.build_cmd }}
 
       - name: Build (macOS / Linux)
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows-2025-vs2026'
         shell: bash
         run: |
           chmod +x ./build.sh
           ${{ matrix.build_cmd }}
 
       - name: Smoke test MCP helper (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2025-vs2026'
         shell: pwsh
         run: .\.venv\Scripts\python.exe tools\smoke_test_mcp.py dist\ai-usage-clock\ai-usage-clock-mcp.exe
 
       - name: Smoke test MCP helper (macOS)
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-26'
         run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-usage-clock-mcp
 
       - name: Smoke test MCP helper (Linux)
@@ -156,12 +160,12 @@ jobs:
         run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-usage-clock/ai-usage-clock-mcp
 
       - name: Smoke test packaged GUI (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2025-vs2026'
         shell: pwsh
         run: .\.venv\Scripts\python.exe tools\smoke_test_gui.py dist\ai-usage-clock
 
       - name: Smoke test packaged GUI (macOS)
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-26'
         run: .venv/bin/python tools/smoke_test_gui.py dist/ai-usage-clock.app
 
       - name: Smoke test packaged GUI (Linux)
@@ -170,7 +174,7 @@ jobs:
 
       - name: Package (Windows zip + sha256)
         id: pack_win
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2025-vs2026'
         shell: pwsh
         run: |
           $version = "${{ needs.resolve-version.outputs.version }}"
@@ -197,14 +201,14 @@ jobs:
 
       - name: Package (macOS / Linux tar.gz + sha256)
         id: pack_unix
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows-2025-vs2026'
         shell: bash
         run: |
           version="${{ needs.resolve-version.outputs.version }}"
           archive="ai-usage-clock-${version}-${{ matrix.label }}.tar.gz"
           sha="${archive}.sha256"
           # On mac, archive the .app bundle. On Linux, archive the dist folder.
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          if [ "${{ matrix.os }}" = "macos-26" ]; then
               tar -C dist -czf "$archive" ai-usage-clock.app ai-usage-clock-mcp LICENSE THIRD_PARTY_NOTICES.txt
               prefix=""
           else
@@ -235,7 +239,7 @@ jobs:
   release:
     needs: [resolve-version, build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:

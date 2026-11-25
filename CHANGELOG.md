@@ -6,18 +6,25 @@
 
 - Antigravity: hovering a row now shows which models share that quota group, using the group description reported by `agy`.
 - Antigravity: on macOS and Linux the default install location `~/.local/bin/agy` is now found automatically.
-- Antigravity: the Settings tab explains that the **Gemini models** switch also covers the separate Argon weekly row (paid Pro plans; on Ultra, Argon quota is part of the Gemini limits).
+- Antigravity: the Settings tab explains that the **Gemini models** switch covers the models that share the Gemini limits, and any separate Gemini limit `agy` reports.
+
+### Changed
+
+- Builds use Python 3.14, PyQt6 6.12.1 and PyQt6-WebEngine 6.140.1.
+- Python dependencies are locked in `uv.lock`. CI pins every tool it uses to an exact version (runner images, CPython, uv and Node.js, in addition to the commit-SHA-pinned actions), and a test fails if a workflow ever uses a floating reference.
+- `THIRD_PARTY_NOTICES.txt` now carries the full license texts of the winrt packages and pyobjc-core, whose wheels ship none, and of libffi in the Windows and macOS builds. The Linux build already carries libffi's license through the Debian copyright file of libffi8.
 
 ### Fixed
 
 - Antigravity: when `agy` is signed in with `GEMINI_API_KEY` it exits with code 2 and provides no quota data. This is now shown as a recoverable "sign in with a Google account" error instead of a vague or paused state.
 - Antigravity: a run cut short by `agy`'s own print timeout is now reported as a timeout.
+- Antigravity: a used quota whose reset time `agy` reports as 1970-01-01 no longer shows a reset in 1970.
 - Antigravity: on macOS and Linux a manually chosen `agy` file without execute permission is now reported clearly.
 - Antigravity: "agy CLI not found" now explains that a desktop app can have a different `PATH` than your terminal, and that the full path from `which agy` can be entered in Settings.
 
 ### Documentation
 
-- The setup guides (English, Traditional Chinese, Simplified Chinese) describe the new lookup, the sign-in requirement, and how quota rows may differ by plan. All READMEs mention the separate Gemini 4 Argon weekly limit.
+- The setup guides (English, Traditional Chinese, Simplified Chinese) describe the new lookup, the sign-in requirement, and how quota rows may differ by plan. All READMEs describe the Gemini and Claude+GPT groups, whose members `agy` reports.
 ## 1.1.0 - 2026-10-22
 
 ### Licensing

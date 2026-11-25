@@ -59,6 +59,34 @@ For a single-file binary (slower first launch), pass `-OneFile` (PowerShell) or
 `--onefile` (bash). On macOS the `.app` bundle is recommended over the
 single-file form.
 
+## Pinned CI versions
+
+Everything the CI workflows download or select is pinned to an exact version, so
+that a new (possibly compromised) upstream release is never picked up
+automatically. `tests/test_ci_pins.py` fails when a workflow uses a floating
+reference.
+
+| What | Where it is pinned |
+| --- | --- |
+| Python packages | `uv.lock` (installed with `uv sync --frozen`) |
+| GitHub Actions | the 40-character commit SHA in each `uses:` line (Dependabot updates these) |
+| Runner images | `windows-2025-vs2026`, `macos-26`, `ubuntu-22.04` in the `os` lists |
+| CPython | `python-version` in `test.yml` and `release.yml` (3.14.10 for builds and tests, 3.11.18 for the 3.11 floor). `.python-version` (3.14) is for local work only |
+| uv | `version:` of `astral-sh/setup-uv` (0.13.9) |
+| Node.js | `node-version` of `actions/setup-node` (24.22.2) |
+
+Dependabot cannot update the last four rows, so upgrade them by hand:
+
+1. Pick the new version (a runner image from the
+   [runner-images README](https://github.com/actions/runner-images#available-images),
+   a CPython release that `actions/setup-python` can install, a uv release, a
+   Node.js 24.x release).
+2. Change it in every place it appears: `git grep -n "3.14.10"` (and likewise
+   for the other versions) lists them. Runner labels also appear in `if:`
+   conditions in `release.yml`.
+3. Run `tests/test_ci_pins.py` and `tests/test_license_bundling.py`.
+4. Push to a branch and let the `test` workflow pass on all three systems
+   before tagging a release.
 ## First-launch warnings on unsigned builds
 
 Release artifacts are unsigned, and SHA256 sums are published next to each
