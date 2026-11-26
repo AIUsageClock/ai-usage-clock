@@ -61,25 +61,16 @@ from .providers.opencode_go import OpenCodeGoProvider
 from .ratio import RatioStore, sessions_per_week
 from .ratio_dialog import RatioHistoryDialog
 from .settings_dialog import SettingsDialog
-from .webview import runtime as webengine
-from .webview.cookies import clear_browser_session, hydrate_all_from_keyring
+from .webview import ipc as worker_ipc
+from .webview import profile_cleanup
+from .webview.cookies import clear_browser_session
+from .webview.host import existing_host, failure_reason, get_host
 from .widget import UsageWidget, tray_metric_code
 from .usage_cache import invalidate_usage_cache, write_usage_cache
 
-# Resolved when the user first opens a sign-in window rather than imported at
-# module scope: .webview.login_window pulls in QtWebEngine, and importing
-# Chromium aborts on a session with no GL context (issue #7). Kept as a module
-# attribute so it remains patchable.
-LoginWindow = None
-
-
-def _login_window_class():
-    global LoginWindow
-    if LoginWindow is None:
-        from .webview.login_window import LoginWindow as _resolved
-
-        LoginWindow = _resolved
-    return LoginWindow
+# This process never imports QtWebEngine: every job that needs a browser (the
+# scrapes, the sign-in window, verifying a pasted cookie) is handed to a worker
+# process started from the same executable. See webview/host.py.
 
 log = logging.getLogger("aiusageclock.app")
 
@@ -368,6 +359,7 @@ class App(QObject):
 
     # Class-level default so App stubs built without __init__ read None.
     _local_usage = None
+    _login_job = None
 
     def __init__(self):
         super().__init__()
@@ -406,10 +398,20 @@ class App(QObject):
         self._settings_old_copilot_quota: int | None = None
         self._install_lifecycle_logging()
 
-        # Push any saved session cookies into the WebEngine profiles before any
-        # scrape runs, so the headless page loads as signed-in.
-        loaded = hydrate_all_from_keyring(self._config)
-        log.info("hydrated cookies for: %s", loaded or "none")
+        # Saved session cookies are pushed into a profile by the worker, right
+        # before the scrape that needs them. Anything a sign-out could not
+        # delete last time (a locked folder) goes now, before a worker starts.
+        self._login_job = None
+        try:
+            removed = profile_cleanup.process_pending()
+        except Exception:  # noqa: BLE001 - never block startup over cleanup
+            log.exception("queued browser profile deletion failed")
+            removed = []
+        log.info(
+            "browser work runs in worker processes; main process stays browser-free "
+            "(profiles removed from queue: %s)",
+            removed or "none",
+        )
 
         self._widget = UsageWidget(self._config)
         self._widget.refresh_requested.connect(lambda: self.refresh_now(manual=True))
@@ -502,6 +504,7 @@ class App(QObject):
             qt_app.aboutToQuit.connect(self._log_about_to_quit)
             qt_app.aboutToQuit.connect(self._invalidate_usage_cache)
             qt_app.aboutToQuit.connect(self._shutdown_local_usage)
+            qt_app.aboutToQuit.connect(self._stop_worker_host)
         atexit.register(self._log_atexit)
         atexit.register(self._invalidate_usage_cache)
 
@@ -570,6 +573,11 @@ class App(QObject):
 
     def _log_about_to_quit(self) -> None:
         self._log_lifecycle_event("qt aboutToQuit")
+
+    def _stop_worker_host(self) -> None:
+        host = existing_host()
+        if host is not None:
+            host.stop(graceful=True)
 
     def _log_atexit(self) -> None:
         self._log_lifecycle_event("python atexit")
@@ -1159,13 +1167,13 @@ class App(QObject):
         get_draft = getattr(dialog, "draft_browser_account", None)
         return get_draft(provider) if callable(get_draft) else None
 
-    def _show_webengine_unavailable(self, display_name: str) -> None:
+    def _show_webengine_unavailable(self, display_name: str, reason: str) -> None:
         QMessageBox.warning(
             self._widget,
             "Browser sign-in unavailable",
             f"{display_name} signs in through an embedded browser, which "
             "needs hardware or software OpenGL.\n\n"
-            f"{webengine.unavailable_reason()}\n\n"
+            f"{reason}\n\n"
             "Providers that use an API key or token (GitHub Copilot, "
             "OpenRouter) work without it. If you believe this is wrong, set "
             f"{ENV_FORCE_WEBENGINE}=1 to skip this check.",
@@ -1204,34 +1212,65 @@ class App(QObject):
             if draft is not None
             else display_name_for_account(self._config, provider)
         )
-        if not webengine.is_available():
-            self._show_webengine_unavailable(display_name)
+        if self._login_job is not None:
+            # Only one sign-in window at a time; bring the open one forward.
+            host = existing_host()
+            if host is not None:
+                host.focus_job(worker_ipc.JOB_LOGIN)
             return
-        dlg = _login_window_class()(
-            kind,
-            url,
-            f"Sign in to {display_name}",
-            account_id=provider,
-            browser_preference=getattr(self._config, "sign_in_browser", "ask"),
-        )
-        preference_changed = getattr(dlg, "browser_preference_changed", None)
-        if preference_changed is not None:
-            preference_changed.connect(self._remember_sign_in_browser)
+
+        def _on_result(result: dict) -> None:
+            self._on_login_finished(provider, display_name, result)
+
+        # The sign-in window lives in the worker process, so a sign-in no
+        # longer blocks this one; scrapes simply queue behind it.
         self._widget.suspend_always_on_top()
-        try:
-            accepted = bool(dlg.exec())
-        finally:
-            self._widget.restore_always_on_top()
-        session_may_have_changed = bool(
-            getattr(dlg, "session_may_have_changed", False)
+        self._login_job = get_host().submit(
+            worker_ipc.JOB_LOGIN,
+            {
+                "kind": kind,
+                "url": url,
+                "title": f"Sign in to {display_name}",
+                "account_id": provider,
+                "browser_preference": getattr(self._config, "sign_in_browser", "ask"),
+            },
+            _on_result,
+            timeout_s=worker_ipc.LOGIN_TIMEOUT_S,
+            account_id=provider,
+            on_event=self._on_login_event,
+            priority=True,
         )
+
+    def _on_login_event(self, message: dict) -> None:
+        if message.get("event") == "browser_preference":
+            self._remember_sign_in_browser(str(message.get("value", "")))
+
+    def _on_login_finished(self, provider: str, display_name: str, result: dict) -> None:
+        self._login_job = None
+        self._widget.restore_always_on_top()
+        if result.get("error") == worker_ipc.ERR_NO_GL:
+            self._show_webengine_unavailable(
+                display_name, str(result.get("reason") or "no OpenGL context")
+            )
+            return
+        if not result.get("ok"):
+            log.warning(
+                "sign-in window did not complete provider=%s code=%s detail=%s",
+                provider,
+                result.get("error"),
+                result.get("detail"),
+            )
+            if result.get("error") != worker_ipc.ERR_CANCELLED:
+                self._show_webengine_unavailable(display_name, failure_reason(result))
+            return
+        accepted = bool(result.get("accepted"))
+        session_may_have_changed = bool(result.get("session_may_have_changed"))
         if accepted or session_may_have_changed:
             self._cleared_sessions.discard(provider)
             # Embedded sessions already live in this profile; imported external
             # cookies commit asynchronously. Either way, refresh now instead of
             # leaving a valid sign-in stale until the five-minute active timer.
             QTimer.singleShot(750, lambda: self.refresh_provider(provider))
-
     def open_cookie_paste(self, provider: str) -> None:
         draft = self._draft_browser_account(provider)
         kind = draft.kind if draft is not None else account_kind(self._config, provider)
@@ -1809,6 +1848,12 @@ def _apply_ui_scale_env() -> None:
 
 
 def main() -> int:
+    if worker_ipc.ARG_WORKER in sys.argv[1:]:
+        # A browser worker: runs before the single-instance lock (it is not a
+        # second app) and is the only place QtWebEngine is ever loaded.
+        from .webview.worker import run as run_worker
+
+        return run_worker(sys.argv[1:])
     instance_lock = _acquire_instance_lock()
     if instance_lock is None:
         return 0

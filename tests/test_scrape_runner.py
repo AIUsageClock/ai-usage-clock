@@ -8,6 +8,7 @@ from aiusageclock.providers import _scrape_runner as runner_module
 from aiusageclock.providers import codex as codex_module
 from aiusageclock.providers._scrape_runner import ScrapeRunner
 from aiusageclock.providers.codex import CodexProvider
+from aiusageclock.webview.host import no_gl_message
 
 
 class _FakeDoneSignal:
@@ -23,7 +24,7 @@ class _FakeDoneSignal:
 
 
 class _FakeScraper:
-    """Stand-in for HeadlessScraper that fires `done` synchronously on demand."""
+    """Stand-in for WorkerScraper that fires `done` synchronously on demand."""
 
     instances: list["_FakeScraper"] = []
 
@@ -36,11 +37,7 @@ class _FakeScraper:
 @pytest.fixture
 def fake_scraper(monkeypatch):
     _FakeScraper.instances.clear()
-    monkeypatch.setattr(runner_module, "HeadlessScraper", _FakeScraper)
-    # The runner refuses to scrape when QtWebEngine is unusable, and the test
-    # environment (offscreen platform) genuinely has no GL context. These tests
-    # drive a fake scraper, so declare the real thing available.
-    monkeypatch.setattr(runner_module.webengine, "is_available", lambda: True)
+    monkeypatch.setattr(runner_module, "WorkerScraper", _FakeScraper)
     yield _FakeScraper
     _FakeScraper.instances.clear()
 
@@ -217,20 +214,13 @@ def test_scrape_runner_surfaces_transport_error_without_build(fake_scraper):
     assert received[0].error == "timeout"
 
 
-def test_scrape_runner_reports_error_when_webengine_is_unavailable(monkeypatch):
+def test_scrape_runner_turns_the_no_gl_message_into_an_error_snapshot(fake_scraper):
     """Regression for issue #7.
 
-    On a session with no GL context Chromium cannot start. The runner must say
-    so on the provider tile rather than importing WebEngine and taking the
-    process down with it.
+    With no GL context the worker cannot start Chromium. WorkerScraper reports
+    that as an error string, and the runner must show it on the tile like any
+    other scrape error instead of retrying or crashing.
     """
-    _FakeScraper.instances.clear()
-    monkeypatch.setattr(runner_module, "HeadlessScraper", _FakeScraper)
-    monkeypatch.setattr(runner_module.webengine, "is_available", lambda: False)
-    monkeypatch.setattr(
-        runner_module.webengine, "unavailable_reason", lambda: "no GLX/EGL"
-    )
-
     received: list[UsageSnapshot] = []
     rn = ScrapeRunner(
         account_id="claude",
@@ -240,8 +230,10 @@ def test_scrape_runner_reports_error_when_webengine_is_unavailable(monkeypatch):
         log=logging.getLogger("test"),
     )
     rn.run(received.append)
+    message = no_gl_message("no GLX/EGL")
+    fake_scraper.instances[0].done.emit(None, message)
 
-    assert _FakeScraper.instances == [], "no browser should be started"
-    assert len(received) == 1
+    assert len(fake_scraper.instances) == 1, "a missing GL context is not retried"
     assert received[0].status == SnapshotStatus.ERROR
     assert "no GLX/EGL" in received[0].error
+    assert "AIUSAGECLOCK_FORCE_WEBENGINE=1" in received[0].error

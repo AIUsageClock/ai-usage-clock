@@ -54,6 +54,130 @@ def test_importing_the_app_does_not_load_webengine():
     )
 
 
+_ALL_PATHS_SCRIPT = r"""
+import logging
+import sys
+from types import SimpleNamespace
+
+logging.basicConfig(level=logging.INFO)
+sys.path.insert(0, {src!r})
+from PyQt6.QtCore import QEventLoop, QTimer
+from PyQt6.QtWidgets import QApplication
+
+qt_app = QApplication([])
+
+from aiusageclock import app as app_module
+from aiusageclock import cookie_dialog
+from aiusageclock.config import Config
+from aiusageclock.providers._scrape_runner import ScrapeRunner
+from aiusageclock.webview import cookies, host as host_module
+
+# A real WorkerHost talking over the real socket to a stand-in worker process.
+host = host_module.WorkerHost(
+    command=lambda: [sys.executable, {fake!r}], idle_shutdown_ms=200
+)
+host_module.set_host(host)
+secrets = {{}}
+cookies.set_provider_cookie = lambda account_id, value: secrets.update({{account_id: value}})
+cookie_dialog.set_provider_cookie = cookies.set_provider_cookie
+cookie_dialog.get_provider_cookie = lambda account_id: secrets.get(account_id)
+
+pending = []
+
+def wait_for(count):
+    loop = QEventLoop()
+    timer = QTimer()
+    timer.setInterval(50)
+    def poll():
+        if len(pending) >= count:
+            loop.quit()
+    timer.timeout.connect(poll)
+    timer.start()
+    QTimer.singleShot(20000, loop.quit)
+    loop.exec()
+    assert len(pending) >= count, pending
+
+# 1. refresh: ScrapeRunner -> WorkerScraper -> worker process
+runner = ScrapeRunner(
+    account_id="claude", url="https://example.test", extractor_js="1",
+    build=lambda payload: SimpleNamespace(status="ok", error=""),
+    log=__import__("logging").getLogger("t"),
+)
+runner.run(lambda snapshot: pending.append(("refresh", snapshot)))
+wait_for(1)
+
+# 2. sign-in window
+stub = app_module.App.__new__(app_module.App)
+stub._config = Config()
+stub._settings_dialog = None
+stub._cleared_sessions = set()
+stub._widget = SimpleNamespace(
+    suspend_always_on_top=lambda: None, restore_always_on_top=lambda: pending.append(("login", 1))
+)
+stub.refresh_provider = lambda provider: None
+stub.open_login("claude")
+wait_for(2)
+
+# 3. pasted cookie: inject + verify
+dialog = cookie_dialog.CookieDialog("claude", account_id="claude")
+dialog._cookie_input.setPlainText("Cookie: sessionKey=abc")
+dialog.accepted.connect(lambda: pending.append(("paste", 1)))
+dialog.finished.connect(lambda code: pending.append(("paste", code)))
+dialog._save()
+wait_for(3)
+
+# 4. clear sign-in
+cookies.clear_browser_session("claude")
+
+host.stop(graceful=True)
+print("WEBENGINE:", sorted(m for m in sys.modules if "WebEngine" in m))
+print("PATHS:", [name for name, _ in pending])
+"""
+
+
+def test_every_browser_path_leaves_the_main_process_without_webengine():
+    """Refresh, sign-in, paste-a-cookie and clear-sign-in, end to end.
+
+    Each runs through the real WorkerHost and a real socket to a stand-in worker
+    process, in a subprocess so this session's own imports cannot hide a leak.
+    """
+    code = _ALL_PATHS_SCRIPT.format(
+        src=str(REPO_ROOT / "src"), fake=str(REPO_ROOT / "tests" / "fake_worker.py")
+    )
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    process = subprocess.Popen(
+        [sys.executable, "-u", "-c", code],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+    )
+    try:
+        output, _ = process.communicate(timeout=90)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, _ = process.communicate()
+        pytest.fail("browser-path script did not finish:\n" + output)
+    result = subprocess.CompletedProcess(process.args, process.returncode, output, "")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "WEBENGINE: []" in result.stdout, result.stdout
+    assert "'refresh'" in result.stdout and "'login'" in result.stdout
+    assert "'paste'" in result.stdout
+
+
+def test_worker_modules_are_not_pulled_in_by_the_main_process_at_startup():
+    code = (
+        "import sys; sys.path.insert(0, r'%s');"
+        "import aiusageclock.app;"
+        "print(sorted(m for m in sys.modules if m.startswith('aiusageclock.webview.') "
+        "and m.rsplit('.', 1)[-1] in ('worker', 'scraper', 'profile', 'verify', 'login_window', "
+        "'page', 'external_login')))" % str(REPO_ROOT / "src")
+    )
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "[]", result.stdout
+
 def test_probe_reports_unavailable_without_a_gl_context(qapp, monkeypatch):
     monkeypatch.delenv("AIUSAGECLOCK_FORCE_WEBENGINE", raising=False)
     monkeypatch.setattr(

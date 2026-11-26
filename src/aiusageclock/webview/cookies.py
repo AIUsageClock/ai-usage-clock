@@ -10,21 +10,20 @@ from ..config import (
     COOKIE_DOMAINS,
     COOKIE_NAME_ALIASES,
     COOKIE_NAMES,
-    Config,
-    browser_accounts,
     get_provider_cookie,
     set_provider_cookie,
     webview_profile_dir,
 )
+from . import profile_cleanup
+from .host import existing_host
 
 log = logging.getLogger("aiusageclock.webview.cookies")
 
 
 # Resolved on first use rather than imported at module scope: .profile pulls in
-# QtWebEngine, which initialises a GL context and aborts on a session that has
-# none. The app imports this module at startup to hydrate cookies, so that
-# import must stay Chromium-free (issue #7). Kept as a module attribute so it
-# remains patchable.
+# QtWebEngine. The main process imports this module (cookie parsing, sign-out)
+# and must never load Chromium; only the worker process calls the functions
+# that need a profile. Kept as a module attribute so it remains patchable.
 get_profile = None
 
 
@@ -266,11 +265,17 @@ def import_browser_cookies(
 
 
 def clear_browser_session(account_id: str) -> None:
-    """Remove an account's saved secret and live WebEngine cookies.
+    """Remove an account's saved secret and its whole browser profile.
 
-    Both stores are attempted even if one fails. This prevents an error in the
-    OS secret backend from leaving the current in-process browser signed in, or
-    a WebEngine error from leaving a cookie that will be restored on restart.
+    The browser runs in a worker process, so there is no live cookie store to
+    ask: any worker that could hold the profile open is stopped, then the
+    profile directory is deleted (cookies, cache and localStorage together). A
+    directory the OS still has locked is queued and removed before the next
+    worker starts (see ``profile_cleanup``).
+
+    Both the secret and the profile are attempted even if one fails, so an
+    error in the OS secret backend cannot leave the browser session behind, nor
+    a file error leave a secret that would be restored on restart.
     """
     errors: list[str] = []
     try:
@@ -279,9 +284,10 @@ def clear_browser_session(account_id: str) -> None:
         errors.append(f"encrypted cookie: {exc}")
 
     try:
-        profile = _get_profile(account_id)
-        profile.cookieStore().deleteAllCookies()
-        profile.clearHttpCache()
+        host = existing_host()
+        if host is not None:
+            host.release_profile(account_id)
+        profile_cleanup.delete_profile(account_id)
     except Exception as exc:  # noqa: BLE001 - report partial cleanup to the UI
         errors.append(f"browser profile: {exc}")
 
@@ -305,57 +311,46 @@ def _profile_has_persistent_cookies(account_id: str) -> bool:
         return False
 
 
-def hydrate_all_from_keyring(config: Config | None = None) -> list[str]:
-    """On startup, push any saved cookies into their respective WebEngine profiles.
+def hydrate_account_from_keyring(kind: str, account_id: str) -> bool:
+    """Push the account's saved cookie into its WebEngine profile if it has none.
 
-    Skips accounts whose profile already has Chromium-persisted cookies on
-    disk — re-injecting in that case would overwrite session tokens that the
-    site has rotated mid-session with the stale blob the user originally
-    pasted, which causes spurious "Sign in" prompts after restart.
+    Runs inside the worker, right before a scrape. Skips an account whose
+    profile already has Chromium-persisted cookies on disk: re-injecting then
+    would overwrite session tokens that the site has rotated since the user
+    pasted the cookie with the stale blob, which causes spurious "Sign in"
+    prompts.
 
-    Returns the list of providers that had a cookie injected.
+    Returns True when a cookie was injected.
     """
-    loaded: list[str] = []
-    if config is not None:
-        account_specs = [
-            (account.kind, account.id)
-            for account in browser_accounts(config)
-            if account.kind in ("claude", "codex")
-        ]
+    value = get_provider_cookie(account_id)
+    pairs = _parse_cookie_pairs(kind, value) if value else []
+    names = sorted({name for name, _ in pairs})
+    has_auth = _has_auth_cookie(kind, pairs) if pairs else False
+    profile_has_cookies = _profile_has_persistent_cookies(account_id)
+
+    if not value:
+        injected = False
+        skip_reason = "no_stored_cookie"
+    elif profile_has_cookies:
+        injected = False
+        skip_reason = "profile_has_live_cookies"
     else:
-        account_specs = [(provider, provider) for provider in COOKIE_NAMES]
-    for kind, account_id in account_specs:
-        value = get_provider_cookie(account_id)
-        pairs = _parse_cookie_pairs(kind, value) if value else []
-        names = sorted({name for name, _ in pairs})
-        has_auth = _has_auth_cookie(kind, pairs) if pairs else False
-        profile_has_cookies = _profile_has_persistent_cookies(account_id)
-
-        if not value:
-            injected = False
-            skip_reason = "no_stored_cookie"
-        elif profile_has_cookies:
-            injected = False
-            skip_reason = "profile_has_live_cookies"
+        skip_reason = ""
+        if account_id != kind:
+            injected = inject_session_cookie(kind, value, account_id=account_id)
         else:
-            skip_reason = ""
-            if account_id != kind:
-                injected = inject_session_cookie(kind, value, account_id=account_id)
-            else:
-                injected = bool(inject_session_cookie(kind, value))
+            injected = bool(inject_session_cookie(kind, value))
 
-        log.info(
-            "cookie hydration provider=%s kind=%s stored=%s parsed_cookie_names=%s "
-            "has_auth_cookie=%s profile_has_cookies=%s injected=%s skip_reason=%s",
-            account_id,
-            kind,
-            bool(value),
-            names,
-            has_auth,
-            profile_has_cookies,
-            injected,
-            skip_reason or "-",
-        )
-        if injected:
-            loaded.append(account_id)
-    return loaded
+    log.info(
+        "cookie hydration provider=%s kind=%s stored=%s parsed_cookie_names=%s "
+        "has_auth_cookie=%s profile_has_cookies=%s injected=%s skip_reason=%s",
+        account_id,
+        kind,
+        bool(value),
+        names,
+        has_auth,
+        profile_has_cookies,
+        injected,
+        skip_reason or "-",
+    )
+    return injected

@@ -20,7 +20,7 @@ import tomllib
 
 STARTUP_MARKERS = (
     " starting platform=",
-    "hydrated cookies for: none",
+    "browser work runs in worker processes",
     "heartbeat enabled interval_s=",
 )
 ERROR_MARKERS = (

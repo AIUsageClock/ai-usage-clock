@@ -351,52 +351,129 @@ def test_opencode_auth_action_opens_account_key_settings():
     assert captured == [("opencode_go", "opencode_go-work")]
 
 
-def test_login_refreshes_immediately_when_embedded_session_changed(monkeypatch):
-    refreshed = []
-    timers = []
+class _FakeHost:
+    def __init__(self):
+        self.submitted = []
+        self.focused = []
 
-    class FakeLoginWindow:
-        session_may_have_changed = True
+    def submit(self, kind, params, on_result, **kwargs):
+        job = SimpleNamespace(kind=kind, params=params, on_result=on_result, kwargs=kwargs)
+        self.submitted.append(job)
+        return job
 
-        def __init__(self, *args, **kwargs):
-            return None
+    def focus_job(self, kind):
+        self.focused.append(kind)
+        return True
 
-        def exec(self):
-            return False
 
-    monkeypatch.setattr(app_module, "LoginWindow", FakeLoginWindow)
-    monkeypatch.setattr(app_module.webengine, "is_available", lambda: True)
-    monkeypatch.setattr(
-        app_module.QTimer,
-        "singleShot",
-        lambda delay, callback: timers.append((delay, callback)),
-    )
+def _login_app(monkeypatch):
+    host = _FakeHost()
+    monkeypatch.setattr(app_module, "get_host", lambda: host)
+    monkeypatch.setattr(app_module, "existing_host", lambda: host)
     app = App.__new__(App)
     app._config = Config()  # noqa: SLF001
     app._settings_dialog = None  # noqa: SLF001
     app._cleared_sessions = {"claude"}  # noqa: SLF001
     app._widget = SimpleNamespace(  # noqa: SLF001
-        suspend_always_on_top=lambda: None,
-        restore_always_on_top=lambda: None,
+        suspend_always_on_top=lambda: app._calls.append("suspend"),
+        restore_always_on_top=lambda: app._calls.append("restore"),
     )
+    app._calls = []  # noqa: SLF001
+    return app, host
+
+
+def test_login_runs_in_the_worker_and_refreshes_when_the_session_changed(monkeypatch):
+    refreshed = []
+    timers = []
+    monkeypatch.setattr(
+        app_module.QTimer,
+        "singleShot",
+        lambda delay, callback: timers.append((delay, callback)),
+    )
+    app, host = _login_app(monkeypatch)
     app.refresh_provider = refreshed.append
 
     app.open_login("claude")
 
+    job = host.submitted[0]
+    assert job.kind == "login"
+    assert job.params["kind"] == "claude"
+    assert job.params["account_id"] == "claude"
+    assert job.params["title"] == "Sign in to Claude"
+    assert job.params["browser_preference"] == "ask"
+    assert job.kwargs["priority"] is True
+    assert app._calls == ["suspend"]  # noqa: SLF001
+
+    job.on_result({"ok": True, "accepted": False, "session_may_have_changed": True})
+
+    assert app._calls == ["suspend", "restore"]  # noqa: SLF001
     assert app._cleared_sessions == set()  # noqa: SLF001
+    assert app._login_job is None  # noqa: SLF001
     assert timers[0][0] == 750
     timers[0][1]()
     assert refreshed == ["claude"]
 
-def test_widget_activation_raises_open_settings_dialog():
-    app = App.__new__(App)
-    dialog = _Dialog()
-    app._settings_dialog = dialog  # noqa: SLF001
 
-    app._on_widget_activated()  # noqa: SLF001
+def test_only_one_login_window_at_a_time(monkeypatch):
+    app, host = _login_app(monkeypatch)
 
-    assert dialog.calls == ["show", "raise", "activate"]
+    app.open_login("claude")
+    app.open_login("claude")
 
+    assert len(host.submitted) == 1
+    assert host.focused == ["login"]
+
+
+def test_cancelled_login_does_not_refresh(monkeypatch):
+    refreshed = []
+    app, host = _login_app(monkeypatch)
+    app.refresh_provider = refreshed.append
+
+    app.open_login("claude")
+    host.submitted[0].on_result(
+        {"ok": True, "accepted": False, "session_may_have_changed": False}
+    )
+
+    assert refreshed == []
+    assert app._cleared_sessions == {"claude"}  # noqa: SLF001
+    assert app._login_job is None  # noqa: SLF001
+
+
+def test_login_without_gl_shows_the_unavailable_dialog_with_the_reason(monkeypatch):
+    shown = []
+    app, host = _login_app(monkeypatch)
+    app._show_webengine_unavailable = lambda name, reason: shown.append((name, reason))  # noqa: SLF001
+
+    app.open_login("claude")
+    host.submitted[0].on_result({"ok": False, "error": "no_gl", "reason": "no GLX/EGL"})
+
+    assert shown == [("Claude", "no GLX/EGL")]
+    assert app._calls == ["suspend", "restore"]  # noqa: SLF001
+
+
+def test_login_worker_failure_is_reported_but_cancel_is_silent(monkeypatch):
+    shown = []
+    app, host = _login_app(monkeypatch)
+    app._show_webengine_unavailable = lambda name, reason: shown.append(reason)  # noqa: SLF001
+
+    app.open_login("claude")
+    host.submitted[0].on_result({"ok": False, "error": "worker_crashed", "detail": "exit code 7"})
+    app.open_login("claude")
+    host.submitted[1].on_result({"ok": False, "error": "cancelled"})
+
+    assert len(shown) == 1
+    assert "exited unexpectedly" in shown[0]
+
+
+def test_login_remembers_the_browser_choice_made_in_the_worker(monkeypatch):
+    remembered = []
+    app, host = _login_app(monkeypatch)
+    app._remember_sign_in_browser = remembered.append  # noqa: SLF001
+
+    app.open_login("claude")
+    host.submitted[0].kwargs["on_event"]({"event": "browser_preference", "value": "edge"})
+
+    assert remembered == ["edge"]
 
 def test_app_menu_controls_widget_view_and_is_available_on_widget(qtbot):
     config = Config()

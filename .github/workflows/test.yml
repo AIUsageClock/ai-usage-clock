@@ -100,6 +100,29 @@ jobs:
           NO_PROXY: localhost,127.0.0.1,::1
         run: uv run --frozen --no-sync python -m pytest -q
 
+      # The browser runs in a worker process of the same program. This starts
+      # one for real: it loads a data: page in QtWebEngine, runs a line of
+      # JavaScript and exits 0 on success (3 if the session has no OpenGL).
+      # Not the offscreen platform: that has no GL context for Chromium. The
+      # pytest step above already covers the worker handshake without a browser.
+      - name: WebEngine worker self-test
+        if: matrix.os != 'ubuntu-22.04'
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: localhost,127.0.0.1,::1
+        run: uv run --frozen --no-sync python -m aiusageclock --webengine-worker --selftest
+
+      - name: WebEngine worker self-test (Linux, virtual display)
+        if: matrix.os == 'ubuntu-22.04'
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: localhost,127.0.0.1,::1
+        run: xvfb-run -a uv run --frozen --no-sync python -m aiusageclock --webengine-worker --selftest
+
   mcp-helper-smoke:
     runs-on: ${{ matrix.os }}
     strategy:

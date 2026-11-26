@@ -1,4 +1,3 @@
-from aiusageclock.config import BrowserAccount, Config
 from aiusageclock.cookie_dialog import INSTRUCTIONS
 from aiusageclock.webview.cookies import _parse_cookie_pairs
 from aiusageclock.webview import cookies
@@ -165,52 +164,36 @@ def test_import_browser_cookies_preserves_attributes_and_saves_fallback(monkeypa
     ]
 
 
-def test_clear_browser_session_removes_secret_cookies_and_cache(monkeypatch):
+def test_clear_browser_session_removes_secret_and_the_whole_profile(monkeypatch):
+    from aiusageclock.config import webview_profile_dir
+
+    profile = webview_profile_dir("codex-work")
+    (profile / "cache").mkdir(parents=True)
+    (profile / "Cookies").write_bytes(b"x")
     calls = []
-
-    class Store:
-        def deleteAllCookies(self):  # noqa: N802 - Qt-shaped test double
-            calls.append("cookies")
-
-    class Profile:
-        def cookieStore(self):  # noqa: N802 - Qt-shaped test double
-            return Store()
-
-        def clearHttpCache(self):  # noqa: N802 - Qt-shaped test double
-            calls.append("cache")
-
     monkeypatch.setattr(
         cookies,
         "set_provider_cookie",
         lambda account_id, value: calls.append((account_id, value)),
     )
-    monkeypatch.setattr(cookies, "get_profile", lambda account_id: Profile())
 
     cookies.clear_browser_session("codex-work")
 
-    assert calls == [("codex-work", None), "cookies", "cache"]
+    assert calls == [("codex-work", None)]
+    assert not profile.exists()
 
 
 def test_clear_browser_session_attempts_profile_cleanup_if_secret_fails(monkeypatch):
-    calls = []
+    from aiusageclock.config import webview_profile_dir
 
-    class Store:
-        def deleteAllCookies(self):  # noqa: N802 - Qt-shaped test double
-            calls.append("cookies")
-
-    class Profile:
-        def cookieStore(self):  # noqa: N802 - Qt-shaped test double
-            return Store()
-
-        def clearHttpCache(self):  # noqa: N802 - Qt-shaped test double
-            calls.append("cache")
-
+    profile = webview_profile_dir("claude")
+    profile.mkdir(parents=True)
+    (profile / "Cookies").write_bytes(b"x")
     monkeypatch.setattr(
         cookies,
         "set_provider_cookie",
         lambda account_id, value: (_ for _ in ()).throw(RuntimeError("locked")),
     )
-    monkeypatch.setattr(cookies, "get_profile", lambda account_id: Profile())
 
     try:
         cookies.clear_browser_session("claude")
@@ -219,7 +202,7 @@ def test_clear_browser_session_attempts_profile_cleanup_if_secret_fails(monkeypa
     else:
         raise AssertionError("partial cleanup failure was not reported")
 
-    assert calls == ["cookies", "cache"]
+    assert not profile.exists()
 
 
 def test_cookie_hydration_logs_names_without_values(monkeypatch, caplog):
@@ -237,7 +220,7 @@ def test_cookie_hydration_logs_names_without_values(monkeypatch, caplog):
     )
     caplog.set_level("INFO", logger="aiusageclock.webview.cookies")
 
-    assert cookies.hydrate_all_from_keyring() == ["claude"]
+    assert cookies.hydrate_account_from_keyring("claude", "claude") is True
 
     assert "provider=claude" in caplog.text
     assert "sessionKey" in caplog.text
@@ -246,16 +229,6 @@ def test_cookie_hydration_logs_names_without_values(monkeypatch, caplog):
 
 
 def test_cookie_hydration_uses_account_ids_for_secrets_and_profiles(monkeypatch):
-    config = Config()
-    config.browser_accounts.append(
-        BrowserAccount(
-            id="codex-work",
-            kind="codex",
-            name="Work",
-            enabled=True,
-        )
-    )
-
     def fake_get_provider_cookie(account_id):
         if account_id == "codex-work":
             return "__Secure-next-auth.session-token=secret"
@@ -272,7 +245,7 @@ def test_cookie_hydration_uses_account_ids_for_secrets_and_profiles(monkeypatch)
         or True,
     )
 
-    assert cookies.hydrate_all_from_keyring(config) == ["codex-work"]
+    assert cookies.hydrate_account_from_keyring("codex", "codex-work") is True
     assert injected == [
         ("codex", "__Secure-next-auth.session-token=secret", "codex-work")
     ]
@@ -284,16 +257,6 @@ def test_cookie_hydration_skips_injection_when_profile_has_persistent_cookies(
     # If Chromium has already persisted cookies for this profile, re-injecting
     # the stored blob would overwrite session tokens the site has rotated
     # since the original paste. Skip injection in that case.
-    config = Config()
-    config.browser_accounts.append(
-        BrowserAccount(
-            id="codex-home",
-            kind="codex",
-            name="Home",
-            enabled=True,
-        )
-    )
-
     from aiusageclock.config import webview_profile_dir
 
     profile_dir = webview_profile_dir("codex-home")
@@ -315,7 +278,7 @@ def test_cookie_hydration_skips_injection_when_profile_has_persistent_cookies(
     )
     caplog.set_level("INFO", logger="aiusageclock.webview.cookies")
 
-    assert cookies.hydrate_all_from_keyring(config) == []
+    assert cookies.hydrate_account_from_keyring("codex", "codex-home") is False
     assert injected == []
     assert "profile_has_cookies=True" in caplog.text
     assert "skip_reason=profile_has_live_cookies" in caplog.text
@@ -326,16 +289,6 @@ def test_cookie_hydration_injects_when_profile_cookies_file_is_missing(
 ):
     # Fresh profile (no Cookies file): hydration must seed it from the keyring
     # so the first scrape can sign in.
-    config = Config()
-    config.browser_accounts.append(
-        BrowserAccount(
-            id="codex-fresh",
-            kind="codex",
-            name="Fresh",
-            enabled=True,
-        )
-    )
-
     monkeypatch.setattr(
         cookies,
         "get_provider_cookie",
@@ -353,35 +306,16 @@ def test_cookie_hydration_injects_when_profile_cookies_file_is_missing(
         or True,
     )
 
-    assert cookies.hydrate_all_from_keyring(config) == ["codex-fresh"]
+    assert cookies.hydrate_account_from_keyring("codex", "codex-fresh") is True
     assert injected == [("codex", "codex-fresh")]
-def test_cookie_hydration_ignores_opencode_api_accounts(monkeypatch):
-    config = Config()
-    config.providers.opencode_go = True
-    config.browser_accounts.append(
-        BrowserAccount(
-            id="opencode_go-work",
-            kind="opencode_go",
-            name="Work",
-        )
-    )
 
-    monkeypatch.setattr(
-        cookies,
-        "get_provider_cookie",
-        lambda account_id: (
-            f"Cookie: auth={account_id}" if account_id.startswith("opencode_go") else None
-        ),
-    )
-    injected = []
+
+def test_cookie_hydration_does_nothing_without_a_stored_cookie(monkeypatch):
+    monkeypatch.setattr(cookies, "get_provider_cookie", lambda account_id: None)
     monkeypatch.setattr(
         cookies,
         "inject_session_cookie",
-        lambda provider, value, *, account_id=None: injected.append(
-            (provider, value, account_id)
-        )
-        or True,
+        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("must not inject")),
     )
 
-    assert cookies.hydrate_all_from_keyring(config) == []
-    assert injected == []
+    assert cookies.hydrate_account_from_keyring("claude", "claude") is False

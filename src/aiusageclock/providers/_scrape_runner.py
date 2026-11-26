@@ -5,28 +5,16 @@ from typing import Any, Callable
 
 from PyQt6.QtCore import QObject
 
-from ..identity import ENV_FORCE_WEBENGINE
 from ..models import SnapshotStatus, UsageSnapshot
-from ..webview import runtime as webengine
+from ..webview.host import WorkerScraper
 
-# Resolved on first scrape rather than imported at module scope: ..webview
-# .scraper pulls in QtWebEngine, and importing Chromium aborts on a session
-# with no GL context (issue #7). Kept as a module attribute so it remains
-# patchable.
-HeadlessScraper = None
-
-
-def _scraper_class():
-    global HeadlessScraper
-    if HeadlessScraper is None:
-        from ..webview.scraper import HeadlessScraper as _resolved
-
-        HeadlessScraper = _resolved
-    return HeadlessScraper
+# The scrape itself runs in a worker process (QtWebEngine is never loaded
+# here); WorkerScraper has HeadlessScraper's constructor and ``done`` signal.
+# Kept as a module attribute so it remains patchable.
 
 
 class ScrapeRunner:
-    """Drives a HeadlessScraper and feeds the payload to a builder.
+    """Drives a WorkerScraper and feeds the payload to a builder.
 
     Retries the whole scrape when the builder returns an ERROR snapshot, up
     to ``build_max_attempts`` times. Holds the active scraper reference so
@@ -63,33 +51,7 @@ class ScrapeRunner:
         self._scraper: Any | None = None
 
     def run(self, on_done: Callable[[UsageSnapshot], None]) -> None:
-        if not webengine.is_available():
-            # No GL context in this session, so Chromium can't start. Report it
-            # on the tile instead of taking the whole app down (issue #7).
-            self._log.warning(
-                "provider needs a browser but WebEngine is unavailable "
-                "provider=%s reason=%s",
-                self._account_id,
-                webengine.unavailable_reason(),
-            )
-            on_done(
-                UsageSnapshot(
-                    provider=self._account_id,
-                    status=SnapshotStatus.ERROR,
-                    error=(
-                        "needs an embedded browser, which this session can't "
-                        f"start — {webengine.unavailable_reason()} "
-                        # The probe reports whether *Qt* can get a context.
-                        # Chromium sometimes finds one where Qt cannot, so
-                        # point at the override rather than leaving a dead end.
-                        "If this machine does have working OpenGL, set "
-                        f"{ENV_FORCE_WEBENGINE}=1 to skip this check."
-                    ),
-                )
-            )
-            return
-
-        scraper_class = _scraper_class()
+        scraper_class = WorkerScraper
         attempts = [0]
 
         def _handle(result: Any, error: str) -> None:

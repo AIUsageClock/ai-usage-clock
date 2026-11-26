@@ -84,7 +84,7 @@ def test_startup_log_requires_expected_frozen_version_and_heartbeat(tmp_path):
     log_path.write_text(
         "2026 [INFO] aiusageclock.app: ai-usage-clock 0.9.0 starting platform=linux "
         "frozen=True executable=/bundle cwd=/bundle app_data=/isolated\n"
-        "hydrated cookies for: none\n"
+        "browser work runs in worker processes\n"
         "heartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )
@@ -103,7 +103,7 @@ def test_startup_log_rejects_wrong_version(tmp_path):
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
         "ai-usage-clock 0.8.4 starting platform=linux frozen=False\n"
-        "hydrated cookies for: none\nheartbeat enabled interval_s=300\n",
+        "browser work runs in worker processes\nheartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )
     process = Mock()
@@ -118,7 +118,7 @@ def test_startup_log_rejects_version_prefix_collision(tmp_path):
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
         "ai-usage-clock 0.9.01 starting platform=linux frozen=True\n"
-        "hydrated cookies for: none\nheartbeat enabled interval_s=300\n",
+        "browser work runs in worker processes\nheartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )
     process = Mock()
@@ -133,7 +133,7 @@ def test_startup_log_rejects_matching_version_when_not_frozen(tmp_path):
     stderr_path = tmp_path / "stderr.log"
     log_path.write_text(
         "ai-usage-clock 0.9.0 starting platform=linux frozen=False\n"
-        "hydrated cookies for: none\nheartbeat enabled interval_s=300\n",
+        "browser work runs in worker processes\nheartbeat enabled interval_s=300\n",
         encoding="utf-8",
     )
     process = Mock()

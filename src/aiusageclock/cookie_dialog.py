@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -12,11 +12,12 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from .config import COOKIE_NAMES, set_provider_cookie
+from .config import COOKIE_DOMAINS, COOKIE_NAMES, set_provider_cookie
 from .config import get_provider_cookie
 from .providers._codex_page import CODEX_USAGE_URL
-from .webview.cookies import _parse_cookie_pairs, inject_session_cookie
-from .webview import runtime as webengine
+from .webview import ipc as worker_ipc
+from .webview.cookies import _parse_cookie_pairs
+from .webview.host import failure_reason, get_host
 from .webview.targets import VERIFY_TARGETS
 
 log = logging.getLogger("aiusageclock.cookie_dialog")
@@ -98,7 +99,8 @@ class CookieDialog(QDialog):
         self._provider = provider
         self._account_id = account_id or provider
         self._verify_url = verify_url
-        self._verifier = None
+        self._job = None
+        self._closed = False
         title, instructions_html = INSTRUCTIONS[provider]
         # Not stays-on-top: the user has to switch to their normal browser to
         # copy the cookie, and the main widget is suspended from always-on-top
@@ -139,6 +141,10 @@ class CookieDialog(QDialog):
         layout.addWidget(self._status)
         layout.addWidget(self._buttons)
 
+    def done(self, result: int) -> None:
+        self._closed = True
+        super().done(result)
+
     def _set_busy(self, busy: bool) -> None:
         self._buttons.setEnabled(not busy)
         self._cookie_input.setReadOnly(busy)
@@ -167,12 +173,7 @@ class CookieDialog(QDialog):
                 "storage. Check terminal output for DPAPI/key storage errors.",
             )
             return
-        injected = inject_session_cookie(
-            self._provider,
-            value,
-            account_id=self._account_id,
-        )
-        if not injected:
+        if not COOKIE_NAMES.get(self._provider) or not COOKIE_DOMAINS.get(self._provider):
             QMessageBox.warning(
                 self,
                 "Cookie was not injected",
@@ -186,41 +187,66 @@ class CookieDialog(QDialog):
             names += f", and {len(pairs) - 6} more"
         log.info("saved %s cookies: %s", self._provider, names)
 
-        if self._provider not in VERIFY_TARGETS:
-            self.accept()
-            return
+        verify = self._provider in VERIFY_TARGETS
+        self._set_busy(True)
+        if verify:
+            self._status.setText(
+                f"<span style='color:#9ca3af;'>Saved. Verifying that the cookie loads "
+                f"a signed-in {self._provider} page…</span>"
+            )
+        # The browser lives in a worker process: it injects the saved cookie
+        # into the profile and (when the provider has a check) loads the page.
+        self._job = get_host().submit(
+            worker_ipc.JOB_INJECT_VERIFY,
+            {
+                "kind": self._provider,
+                "account_id": self._account_id,
+                "verify": verify,
+                "verify_url": self._verify_url,
+            },
+            self._on_worker_result,
+            timeout_s=worker_ipc.INJECT_VERIFY_TIMEOUT_S,
+            account_id=self._account_id,
+            priority=True,
+        )
 
-        if not webengine.is_available():
+    def _on_worker_result(self, result: dict) -> None:
+        if self._closed:
+            # The user closed the dialog while the worker was busy.
+            return
+        code = result.get("error")
+        if code == worker_ipc.ERR_CANCELLED:
+            self._set_busy(False)
+            return
+        if code == worker_ipc.ERR_NO_GL:
             # Verification loads the provider's page in an embedded browser.
             # Without one there is nothing to verify against, so keep the
             # cookie the user pasted rather than blocking on a check we can't
             # run (issue #7).
             log.info(
-                "skipping cookie verify for %s: %s",
-                self._provider,
-                webengine.unavailable_reason(),
+                "skipping cookie verify for %s: %s", self._provider, result.get("reason")
             )
             self.accept()
             return
-
-        self._set_busy(True)
-        self._status.setText(
-            f"<span style='color:#9ca3af;'>Saved. Verifying that the cookie loads "
-            f"a signed-in {self._provider} page…</span>"
-        )
-        QTimer.singleShot(500, self._start_verify)
-
-    def _start_verify(self) -> None:
-        from .webview.verify import verify_session
-
-        self._verifier = verify_session(
-            self._provider,
-            self._on_verify_done,
-            account_id=self._account_id,
-            parent=self,
-            verify_url=self._verify_url,
-        )
-
+        if not result.get("ok"):
+            # The helper process failed (crash, timeout): same as an
+            # inconclusive check. The cookie is saved either way.
+            self._on_verify_done(False, failure_reason(result))
+            return
+        if not result.get("injected"):
+            QMessageBox.warning(
+                self,
+                "Cookie was not injected",
+                "The cookie was saved, but AI Usage Clock does not know how to inject "
+                "cookies for this provider yet. Check the provider cookie domain "
+                "mapping in config.py.",
+            )
+            self._set_busy(False)
+            return
+        if "verified" not in result:
+            self.accept()
+            return
+        self._on_verify_done(bool(result.get("verified")), str(result.get("verify_error") or ""))
     def _on_verify_done(self, ok: bool, error: str) -> None:
         if ok:
             log.info("cookie verify ok for %s", self._provider)
