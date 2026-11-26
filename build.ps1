@@ -211,6 +211,13 @@ if (-not $OneFile) {
     Write-Host "Pruning unused Qt/Chromium payload..."
     & $venvPython (Join-Path $PSScriptRoot "tools\prune_bundle.py") (Join-Path $PSScriptRoot "dist\ai-usage-clock")
     if ($LASTEXITCODE -ne 0) { Write-Error "Bundle prune failed." }
+
+    # The prune removed Qt libraries by name; prove nothing left in the folder
+    # still imports one of them (a miss would only surface on a user's machine).
+    Write-Host ""
+    Write-Host "Checking bundle dependencies..."
+    & $venvPython (Join-Path $PSScriptRoot "tools\check_bundle_deps.py") (Join-Path $PSScriptRoot "dist\ai-usage-clock")
+    if ($LASTEXITCODE -ne 0) { Write-Error "Bundle dependency check failed; see the missing libraries above." }
 }
 
 # The MIT License requires its text to travel with every copy, and the bundled

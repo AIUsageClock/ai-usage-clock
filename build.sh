@@ -152,6 +152,18 @@ if [ "$ONEFILE" -eq 0 ]; then
     echo
     echo "Pruning unused Qt/Chromium payload..."
     "$VENV_PY" "$SCRIPT_DIR/tools/prune_bundle.py" "$PRUNE_TARGET"
+
+    # The prune removed Qt libraries by name; prove nothing left in the bundle
+    # still needs one of them (a miss would only surface on a user's machine).
+    # set -e makes a failure here fail the build. On macOS the MCP helper sits
+    # beside the .app, so it is checked too.
+    echo
+    echo "Checking bundle dependencies..."
+    if [ "$(uname -s)" = "Darwin" ]; then
+        "$VENV_PY" "$SCRIPT_DIR/tools/check_bundle_deps.py" "$PRUNE_TARGET" "dist/ai-usage-clock-mcp"
+    else
+        "$VENV_PY" "$SCRIPT_DIR/tools/check_bundle_deps.py" "$PRUNE_TARGET"
+    fi
 fi
 
 # The MIT License requires its text to travel with every copy, and the bundled
