@@ -15,12 +15,14 @@ Production callers should never reach the non-Windows branch.
 """
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import ctypes.wintypes as wt
 import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 from .config import app_data_dir
@@ -29,6 +31,10 @@ from .identity import ENV_ALLOW_PLAINTEXT_SECRETS
 log = logging.getLogger("aiusageclock.secret_storage")
 
 _SECRETS_FILENAME = "secrets.dat"
+_LOCK_WAIT_S = 10.0
+_LOCK_POLL_S = 0.02
+_REPLACE_ATTEMPTS = 20
+_REPLACE_DELAY_S = 0.05
 
 # Opt-in escape hatch for the cross-platform test suite. When unset (the
 # normal case) writes on non-Windows refuse loudly so a misconfigured macOS
@@ -118,12 +124,34 @@ def _load_all() -> dict[str, str]:
         return {}
 
 
+def _write_atomically(path: Path, payload: bytes) -> None:
+    """Replace ``path`` with ``payload`` so a reader sees the old file or the new
+    one, never a half-written one."""
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    try:
+        temporary.write_bytes(payload)
+        for attempt in range(_REPLACE_ATTEMPTS):
+            try:
+                os.replace(temporary, path)
+                return
+            except PermissionError:
+                # Windows: another process has the file open for a moment.
+                if attempt + 1 == _REPLACE_ATTEMPTS:
+                    raise
+                time.sleep(_REPLACE_DELAY_S)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def _save_all(data: dict[str, str]) -> None:
     path = _secrets_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(data).encode("utf-8")
     if sys.platform == "win32":
-        path.write_bytes(_protect(payload))
+        _write_atomically(path, _protect(payload))
         return
     if os.environ.get(_ALLOW_PLAINTEXT_ENV) == "1":
         log.warning(
@@ -131,7 +159,7 @@ def _save_all(data: dict[str, str]) -> None:
             f"({_ALLOW_PLAINTEXT_ENV}=1). This is a development-only "
             "escape hatch; do not use it with real provider cookies."
         )
-        path.write_bytes(payload)
+        _write_atomically(path, payload)
         return
     raise RuntimeError(
         "secret_storage: refusing to write secrets on non-Windows host. "
@@ -141,14 +169,76 @@ def _save_all(data: dict[str, str]) -> None:
     )
 
 
+def _lock_in_use() -> bool:
+    # macOS and Linux keep their secrets in the OS keyring and never write this
+    # file (production refuses to); the lock file is only for hosts that do.
+    return sys.platform == "win32" or os.environ.get(_ALLOW_PLAINTEXT_ENV) == "1"
+
+
+@contextlib.contextmanager
+def _file_lock():
+    """Cross-process lock around reading and writing ``secrets.dat``.
+
+    The main process and the browser worker both read and change this file. A
+    read-modify-write without a lock can lose a change the other process made
+    in between (and a reader of a file being rewritten could see it empty).
+    """
+    if not _lock_in_use():
+        yield
+        return
+    path = _secrets_path().with_name(_SECRETS_FILENAME + ".lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(path, "a+b")  # noqa: SIM115 - closed in the finally below
+    locked = False
+    try:
+        deadline = time.monotonic() + _LOCK_WAIT_S
+        while True:
+            try:
+                handle.seek(0)
+                if sys.platform == "win32":
+                    import msvcrt
+
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    # A hung holder must not make every secret unreadable.
+                    log.warning("secret_storage: lock not acquired in time; continuing without it")
+                    break
+                time.sleep(_LOCK_POLL_S)
+        yield
+    finally:
+        try:
+            if locked:
+                handle.seek(0)
+                if sys.platform == "win32":
+                    import msvcrt
+
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        handle.close()
+
+
 def save_secret(name: str, value: str | None) -> None:
-    data = _load_all()
-    if value:
-        data[name] = value
-    else:
-        data.pop(name, None)
-    _save_all(data)
+    with _file_lock():
+        data = _load_all()
+        if value:
+            data[name] = value
+        else:
+            data.pop(name, None)
+        _save_all(data)
 
 
 def load_secret(name: str) -> str | None:
-    return _load_all().get(name)
+    with _file_lock():
+        return _load_all().get(name)
