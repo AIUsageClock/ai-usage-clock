@@ -10,6 +10,10 @@
 
 ### Changed
 
+- The main process no longer loads Qt WebEngine. Sign-in, reading the Claude and Codex usage pages and checking a pasted cookie now run in a short-lived helper process that exits when it is idle, so the browser engine's memory is returned to the system after each refresh. On Windows the app's idle private memory drops from about 220 MB to about 60 MB.
+- The sign-in window no longer blocks the main window. Only one sign-in can be open at a time; pressing Sign in again brings it to the front.
+- Clearing a sign-in now deletes that account's browser profile folder, including site storage.
+- Qt modules the app never loads are no longer shipped, and the build fails if any bundled binary is missing a library it needs. The unpacked Windows build shrinks from about 422 MB to about 357 MB.
 - Builds use Python 3.14, PyQt6 6.12.1 and PyQt6-WebEngine 6.140.1.
 - Python dependencies are locked in `uv.lock`. CI pins every tool it uses to an exact version (runner images, CPython, uv and Node.js, in addition to the commit-SHA-pinned actions), and a test fails if a workflow ever uses a floating reference.
 - `THIRD_PARTY_NOTICES.txt` now carries the full license texts of the winrt packages and pyobjc-core, whose wheels ship none, and of libffi in the Windows and macOS builds. The Linux build already carries libffi's license through the Debian copyright file of libffi8.
