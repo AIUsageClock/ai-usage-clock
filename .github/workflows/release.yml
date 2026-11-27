@@ -100,7 +100,7 @@ jobs:
           sudo apt-get update
           # Minimum runtime libs PyQt6's xcb plugin links against on Ubuntu
           sudo apt-get install -y \
-              libegl1 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+              libegl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
               libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
               libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 \
               libnss3 libxss1 libasound2 libdrm2 libgbm1 \
