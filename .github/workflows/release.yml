@@ -172,6 +172,43 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: .venv/bin/python tools/smoke_test_gui.py dist/ai-usage-clock
 
+      # The GUI smoke test above turns every provider off, so it never starts
+      # the browser worker; the trimmed packaged build could lose a WebEngine
+      # module without any other step noticing. This runs the worker from the
+      # packaged program: it loads a data: page, runs one line of JavaScript
+      # and exits 0 on success (3 if the session has no OpenGL).
+      - name: Smoke test packaged WebEngine worker (Windows)
+        if: matrix.os == 'windows-2025-vs2026'
+        shell: pwsh
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: localhost,127.0.0.1,::1
+        run: |
+          # A windowed exe has no console to read: wait for it and use its exit code.
+          $exe = (Resolve-Path "dist\ai-usage-clock\ai-usage-clock.exe").Path
+          $process = Start-Process -FilePath $exe -ArgumentList "--webengine-worker", "--selftest" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "packaged WebEngine worker self-test failed (exit code $($process.ExitCode))" }
+
+      - name: Smoke test packaged WebEngine worker (macOS)
+        if: matrix.os == 'macos-26'
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: localhost,127.0.0.1,::1
+        run: dist/ai-usage-clock.app/Contents/MacOS/ai-usage-clock --webengine-worker --selftest
+
+      - name: Smoke test packaged WebEngine worker (Linux, virtual display)
+        if: matrix.os == 'ubuntu-22.04'
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: localhost,127.0.0.1,::1
+        run: xvfb-run -a dist/ai-usage-clock/ai-usage-clock --webengine-worker --selftest
+
       - name: Package (Windows zip + sha256)
         id: pack_win
         if: matrix.os == 'windows-2025-vs2026'

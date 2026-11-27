@@ -156,3 +156,23 @@ def test_detector_rejects_floating_reference(bad: str):
 )
 def test_detector_accepts_pinned_reference(good: str):
     assert find_violations(good) == []
+
+
+def test_release_runs_the_packaged_webengine_worker_selftest_on_every_platform():
+    """The GUI smoke test turns every provider off, so it never starts the worker.
+
+    Without these steps a trimmed packaged build that lost a WebEngine module
+    would ship without any CI step noticing.
+    """
+    text = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    code = "\n".join(line for _, line in _code_lines(text))
+
+    assert "--webengine-worker" in code and "--selftest" in code
+    # Windows: a windowed exe has no console, so wait for it and read its exit code.
+    assert re.search(r"Start-Process[^\n]*ai-usage-clock\.exe|Start-Process -FilePath \$exe", code)
+    assert "-Wait -PassThru" in code
+    assert "ExitCode" in code
+    # macOS: the executable inside the .app bundle.
+    assert "dist/ai-usage-clock.app/Contents/MacOS/ai-usage-clock --webengine-worker --selftest" in code
+    # Linux: no display on the runner, so a virtual one.
+    assert "xvfb-run -a dist/ai-usage-clock/ai-usage-clock --webengine-worker --selftest" in code
