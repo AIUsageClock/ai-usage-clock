@@ -7,6 +7,7 @@ and the magic-byte detection run) but contain only their magic bytes.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -110,6 +111,28 @@ def test_windows_system_dll_rules(tmp_path, name, expected):
 def test_windows_dll_in_system_dir_counts(tmp_path):
     make(tmp_path / "USER32.dll", PE)
     assert cbd.is_windows_system_dll("user32.DLL", [tmp_path])
+    assert not cbd.is_windows_system_dll("user33.dll", [tmp_path])
+
+
+def test_windows_system_dir_match_does_not_depend_on_filesystem_case(tmp_path, monkeypatch):
+    """Windows matches DLL names case-insensitively; Linux file systems do not.
+
+    Simulate a case-sensitive file system (Path.is_file looks for the exact
+    spelling in the directory listing) and check the verdict is unchanged.
+    """
+    make(tmp_path / "USER32.dll", PE)
+    make(tmp_path / "kernel32.DLL", PE)
+    real_listdir = os.listdir
+    real_is_file = Path.is_file
+
+    def case_sensitive_is_file(self):
+        return self.name in real_listdir(self.parent) and real_is_file(self)
+
+    monkeypatch.setattr(Path, "is_file", case_sensitive_is_file)
+    assert not (tmp_path / "user32.DLL").is_file()  # the simulation bites
+    assert cbd.is_windows_system_dll("user32.DLL", [tmp_path])
+    assert cbd.is_windows_system_dll("KERNEL32.dll", [tmp_path])
+    assert not cbd.is_windows_system_dll("gdi32.dll", [tmp_path])
 
 
 # --- macOS -------------------------------------------------------------------
@@ -221,6 +244,8 @@ def test_check_macos_with_fake_otool(tmp_path):
 
     def fake_run(cmd):
         path = Path(cmd[-1])
+        if cmd[:2] == ["otool", "-D"]:
+            return completed(f"{path}:\n")  # no ID (MH_BUNDLE style)
         if cmd[:2] == ["otool", "-L"]:
             body = "".join(f"\t{d} (compatibility version 1.0.0, current version 1.0.0)\n" for d in deps[path])
             return completed(f"{path}:\n{body}")
@@ -237,6 +262,110 @@ def test_check_macos_with_fake_otool(tmp_path):
     deps[ext] = ["@rpath/QtCore.framework/Versions/A/QtCore"]
     missing, _ = cbd.check_macos([app], run=fake_run, warnings=warnings)
     assert missing == {}
+
+
+OTOOL_D = """\
+/x/app/Contents/Frameworks/pydantic_core/_pydantic_core.cpython-314-darwin.so:
+@rpath/pydantic_core._pydantic_core.cpython-314-darwin.so
+"""
+
+OTOOL_D_FAT = """\
+/x/lib (architecture x86_64):
+@rpath/libfoo.dylib
+/x/lib (architecture arm64):
+@rpath/libfoo.dylib
+"""
+
+
+def test_parse_otool_ids():
+    assert cbd.parse_otool_ids(OTOOL_D) == {
+        "@rpath/pydantic_core._pydantic_core.cpython-314-darwin.so"
+    }
+    assert cbd.parse_otool_ids(OTOOL_D_FAT) == {"@rpath/libfoo.dylib"}
+    # MH_BUNDLE: header only, no install name
+    assert cbd.parse_otool_ids("/x/ext.so:\n") == set()
+    assert cbd.parse_otool_ids("") == set()
+
+
+def _macos_app(tmp_path):
+    app = tmp_path / "ai-usage-clock.app"
+    exe = make(app / "Contents" / "MacOS" / "ai-usage-clock", MACHO)
+    frameworks = app / "Contents" / "Frameworks"
+    # PyInstaller renamed the module (dots in the file name) but the install
+    # name inside still has the original spelling.
+    ext = make(frameworks / "pydantic_core" / "_pydantic_core.cpython-314-darwin.so", MACHO)
+    bundle = make(frameworks / "plain" / "mh_bundle.so", MACHO)
+    dylib = make(frameworks / "libcrypto.3.dylib", MACHO)
+    return app, exe, ext, bundle, dylib
+
+
+def _fake_otool(deps, ids):
+    def fake_run(cmd):
+        path = Path(cmd[-1])
+        if cmd[:2] == ["otool", "-L"]:
+            body = "".join(
+                f"\t{d} (compatibility version 1.0.0, current version 1.0.0)\n" for d in deps[path]
+            )
+            return completed(f"{path}:\n{body}")
+        if cmd[:2] == ["otool", "-D"]:
+            return completed(f"{path}:\n" + "".join(f"{i}\n" for i in ids.get(path, [])))
+        return completed("")  # otool -l: no rpaths
+
+    return fake_run
+
+
+def test_check_macos_ignores_a_binarys_own_install_name(tmp_path):
+    app, exe, ext, bundle, dylib = _macos_app(tmp_path)
+    own = "@rpath/pydantic_core._pydantic_core.cpython-314-darwin.so"
+    deps = {
+        exe: ["/usr/lib/libSystem.B.dylib"],
+        # otool -L lists the ID first; a different file name than the ID.
+        ext: [own, "/usr/lib/libSystem.B.dylib"],
+        bundle: ["/usr/lib/libSystem.B.dylib"],  # MH_BUNDLE has no ID line
+        dylib: ["@rpath/libcrypto.3.dylib", "/usr/lib/libSystem.B.dylib"],
+    }
+    ids = {ext: [own], dylib: ["@rpath/libcrypto.3.dylib"]}
+    warnings: list[str] = []
+    missing, count = cbd.check_macos([app], run=_fake_otool(deps, ids), warnings=warnings)
+    assert missing == {}
+    assert count == 4
+    assert warnings == []  # the old path-tail warning for self IDs is gone too
+
+
+def test_check_macos_real_missing_rpath_dep_still_fails_next_to_own_id(tmp_path):
+    app, exe, ext, bundle, dylib = _macos_app(tmp_path)
+    own = "@rpath/pydantic_core._pydantic_core.cpython-314-darwin.so"
+    deps = {
+        exe: ["/usr/lib/libSystem.B.dylib"],
+        ext: [own, "@rpath/libgone.dylib"],
+        bundle: ["@rpath/libgone.dylib"],
+        dylib: ["@rpath/libcrypto.3.dylib"],
+    }
+    ids = {ext: [own], dylib: ["@rpath/libcrypto.3.dylib"]}
+    missing, _ = cbd.check_macos([app], run=_fake_otool(deps, ids))
+    assert set(missing) == {"@rpath/libgone.dylib"}
+    assert sorted(missing["@rpath/libgone.dylib"]) == sorted([str(ext), str(bundle)])
+
+
+def test_check_macos_one_files_id_is_not_another_files_free_pass(tmp_path):
+    app, exe, ext, bundle, dylib = _macos_app(tmp_path)
+    own = "@rpath/pydantic_core._pydantic_core.cpython-314-darwin.so"
+    deps = {exe: [], ext: [own], bundle: [own], dylib: []}
+    missing, _ = cbd.check_macos([app], run=_fake_otool(deps, {ext: [own]}))
+    assert missing == {own: [str(bundle)]}
+
+
+def test_check_macos_otool_d_failure_is_a_tool_error(tmp_path):
+    app, exe, ext, bundle, dylib = _macos_app(tmp_path)
+    inner = _fake_otool({f: [] for f in (exe, ext, bundle, dylib)}, {})
+
+    def run(cmd):
+        if cmd[:2] == ["otool", "-D"]:
+            return completed("", returncode=1, stderr="boom")
+        return inner(cmd)
+
+    with pytest.raises(cbd.CheckError):
+        cbd.check_macos([app], run=run)
 
 
 # --- Linux -------------------------------------------------------------------

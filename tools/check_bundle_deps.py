@@ -104,12 +104,39 @@ _WIN_RUNTIME = re.compile(
 _WIN_API_SET = re.compile(r"^(?:api-ms-win-|ext-ms-)[a-z0-9\-]+\.dll$")
 
 
-def is_windows_system_dll(name: str, system_dirs: Iterable[Path]) -> bool:
-    """Whether *name* may be left to the operating system."""
+def system_dll_names(system_dirs: Iterable[Path]) -> set[str]:
+    """Lower-cased names of the regular files in *system_dirs*.
+
+    Windows matches DLL names case-insensitively, so the comparison is done on
+    this set instead of asking the file system, which on Linux (where the
+    checker's own tests also run) would be case-sensitive.
+    """
+    names: set[str] = set()
+    for directory in system_dirs:
+        try:
+            entries = os.listdir(directory)
+        except OSError:
+            continue
+        names.update(e.lower() for e in entries if (Path(directory) / e).is_file())
+    return names
+
+
+def is_windows_system_dll(
+    name: str,
+    system_dirs: Iterable[Path],
+    system_names: set[str] | None = None,
+) -> bool:
+    """Whether *name* may be left to the operating system.
+
+    *system_names* is the precomputed `system_dll_names(system_dirs)`; callers
+    checking many names pass it to avoid listing System32 each time.
+    """
     lowered = name.lower()
     if _WIN_API_SET.match(lowered) or _WIN_RUNTIME.match(lowered):
         return True
-    return any((directory / name).is_file() for directory in system_dirs)
+    if system_names is None:
+        system_names = system_dll_names(system_dirs)
+    return lowered in system_names
 
 
 def pe_imports(path: Path) -> list[str]:
@@ -152,10 +179,11 @@ def check_windows(
         system_dirs = default_windows_system_dirs()
     files = [f for root in roots for f in iter_files(root) if is_pe(f)]
     present = {f.name.lower() for root in roots for f in iter_files(root)}
+    system_names = system_dll_names(system_dirs)
     missing: Missing = defaultdict(list)
     for path in files:
         for dep in imports_of(path):
-            if dep.lower() in present or is_windows_system_dll(dep, system_dirs):
+            if dep.lower() in present or is_windows_system_dll(dep, system_dirs, system_names):
                 continue
             missing[dep].append(str(path))
     return dict(missing), len(files)
@@ -177,6 +205,20 @@ def parse_otool_deps(text: str) -> list[str]:
         if match and match.group(1) not in deps:
             deps.append(match.group(1))
     return deps
+
+
+def parse_otool_ids(text: str) -> set[str]:
+    """Install names (LC_ID_DYLIB) printed by `otool -D`, all architectures.
+
+    Output is a "<file>:" header (or "<file> (architecture x):") followed by
+    the install name; a file with no ID, such as an MH_BUNDLE, has only the
+    header.
+    """
+    return {
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.rstrip().endswith(":")
+    }
 
 
 def parse_otool_rpaths(text: str) -> list[str]:
@@ -290,7 +332,16 @@ def check_macos(
         if proc.returncode != 0:
             continue  # not a Mach-O file after all (e.g. a Java class)
         rpaths = parse_otool_rpaths(run(["otool", "-l", str(path)]).stdout) + exec_rpaths
+        # `otool -L` lists a dylib's own install name among its dependencies.
+        # PyInstaller renames extension modules but leaves the ID, so the ID
+        # never resolves inside the bundle; it is not something the file needs.
+        id_proc = run(["otool", "-D", str(path)])
+        if id_proc.returncode != 0:
+            raise CheckError(f"otool -D failed on {path}: {id_proc.stderr.strip()}")
+        own_ids = parse_otool_ids(id_proc.stdout)
         for dep in parse_otool_deps(proc.stdout):
+            if dep in own_ids:
+                continue
             verdict = resolve_macho_dep(
                 dep,
                 loader=path,
