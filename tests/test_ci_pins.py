@@ -11,6 +11,13 @@ Floating references that this test rejects:
 * an installation that bypasses ``uv.lock`` (pip, npm install, brew, uvx, ...),
 * a ``uv sync`` / ``uv run`` without ``--frozen``.
 
+Known exception: the Linux ``apt-get install`` of system libraries and the runner
+images themselves (``runs-on`` is an exact label, but the image behind it is
+updated by GitHub) cannot be pinned, so apt-get is deliberately not checked.
+
+It also checks that no job or WebEngine self-test step can run into the default
+6-hour limit (``timeout-minutes``), and that ``if:`` conditions use
+``runner.os`` instead of comparing ``matrix.os`` with a hard-coded runner label.
 The workflows are read as text, line by line, so that the test needs no YAML
 library. How to upgrade the pinned versions: docs/build.md.
 """
@@ -176,3 +183,89 @@ def test_release_runs_the_packaged_webengine_worker_selftest_on_every_platform()
     assert "dist/ai-usage-clock.app/Contents/MacOS/ai-usage-clock --webengine-worker --selftest" in code
     # Linux: no display on the runner, so a virtual one.
     assert "xvfb-run -a dist/ai-usage-clock/ai-usage-clock --webengine-worker --selftest" in code
+
+def _jobs(text: str) -> dict[str, list[str]]:
+    """Job name -> its lines (text-based, no YAML library)."""
+    jobs: dict[str, list[str]] = {}
+    current = None
+    in_jobs = False
+    for line in text.splitlines():
+        if re.match(r"^jobs:\s*$", line):
+            in_jobs = True
+            continue
+        if in_jobs and re.match(r"^\S", line):
+            in_jobs = False
+        if in_jobs:
+            head = re.match(r"^  ([\w-]+):\s*$", line)
+            if head:
+                current = head.group(1)
+                jobs[current] = []
+                continue
+            if current is not None:
+                jobs[current].append(line)
+    return jobs
+
+
+def _steps(job_lines: list[str]) -> list[list[str]]:
+    steps: list[list[str]] = []
+    for line in job_lines:
+        if re.match(r"^      - ", line):
+            steps.append([line])
+        elif steps:
+            steps[-1].append(line)
+    return steps
+
+
+_JOB_TIMEOUT = re.compile(r"^    timeout-minutes:\s*\d+\s*$")
+_STEP_TIMEOUT = re.compile(r"^        timeout-minutes:\s*\d+\s*$")
+
+
+def missing_timeouts(text: str) -> list[str]:
+    problems = []
+    for name, lines in _jobs(text).items():
+        if not any(_JOB_TIMEOUT.match(line) for line in lines):
+            problems.append(f"job {name!r} has no timeout-minutes")
+        for step in _steps(lines):
+            body = "\n".join(step)
+            if "--webengine-worker" in body and "--selftest" in body:
+                if not any(_STEP_TIMEOUT.match(line) for line in step):
+                    problems.append(f"job {name!r}: self-test step {step[0].strip()!r} has no timeout-minutes")
+    return problems
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_every_job_and_webengine_selftest_step_has_a_timeout(path: Path):
+    """A hung Chromium start would otherwise hold a runner for the 360-minute default."""
+    assert not missing_timeouts(path.read_text(encoding="utf-8"))
+
+
+def test_timeout_detector_finds_missing_timeouts():
+    text = (
+        "jobs:\n  a:\n    runs-on: x\n    steps:\n"
+        "      - name: s\n        run: prog --webengine-worker --selftest\n"
+    )
+    assert len(missing_timeouts(text)) == 2
+    fixed = text.replace("    runs-on: x\n", "    runs-on: x\n    timeout-minutes: 35\n").replace(
+        "      - name: s\n", "      - name: s\n        timeout-minutes: 10\n"
+    )
+    assert missing_timeouts(fixed) == []
+
+
+_IF_COMPARES_RUNNER_LABEL = re.compile(r"\bif:.*matrix\.os\s*[!=]=\s*['\"]")
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_if_conditions_use_runner_os_not_hard_coded_labels(path: Path):
+    """A runner label changed in the matrix but not in an ``if:`` skips the step silently."""
+    bad = [
+        f"line {number}: {line.strip()}"
+        for number, line in _code_lines(path.read_text(encoding="utf-8"))
+        if _IF_COMPARES_RUNNER_LABEL.search(line)
+    ]
+    assert not bad, "\n".join(bad)
+
+
+def test_runner_label_comparison_detector():
+    assert _IF_COMPARES_RUNNER_LABEL.search("        if: matrix.os == 'macos-26'")
+    assert _IF_COMPARES_RUNNER_LABEL.search("        if: matrix.os != 'windows-2025-vs2026'")
+    assert not _IF_COMPARES_RUNNER_LABEL.search("        if: runner.os == 'macOS'")

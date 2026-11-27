@@ -14,6 +14,7 @@ jobs:
   test:
     name: test (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -72,7 +73,7 @@ jobs:
         run: node --version
 
       - name: Install Linux Qt runtime libs
-        if: matrix.os == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -106,7 +107,8 @@ jobs:
       # Not the offscreen platform: that has no GL context for Chromium. The
       # pytest step above already covers the worker handshake without a browser.
       - name: WebEngine worker self-test
-        if: matrix.os != 'ubuntu-22.04'
+        timeout-minutes: 10
+        if: runner.os != 'Linux'
         env:
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
@@ -115,7 +117,8 @@ jobs:
         run: uv run --frozen --no-sync python -m aiusageclock --webengine-worker --selftest
 
       - name: WebEngine worker self-test (Linux, virtual display)
-        if: matrix.os == 'ubuntu-22.04'
+        timeout-minutes: 10
+        if: runner.os == 'Linux'
         env:
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
@@ -125,6 +128,7 @@ jobs:
 
   mcp-helper-smoke:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:

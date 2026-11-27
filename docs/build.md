@@ -66,6 +66,11 @@ that a new (possibly compromised) upstream release is never picked up
 automatically. `tests/test_ci_pins.py` fails when a workflow uses a floating
 reference.
 
+Two things cannot be pinned and are not checked: the Linux system packages
+installed with `apt-get install` (the distribution repository decides the
+version), and the runner image behind each `runs-on` label (GitHub updates the
+image contents without changing the label).
+
 | What | Where it is pinned |
 | --- | --- |
 | Python packages | `uv.lock` (installed with `uv sync --frozen`) |

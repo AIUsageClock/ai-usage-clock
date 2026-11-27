@@ -12,6 +12,7 @@ permissions:
 jobs:
   resolve-version:
     runs-on: ubuntu-22.04
+    timeout-minutes: 35
     outputs:
       tag: ${{ steps.ver.outputs.tag }}
       version: ${{ steps.ver.outputs.version }}
@@ -61,6 +62,7 @@ jobs:
             archive_ext: tar.gz
             build_cmd: ./build.sh
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -95,7 +97,7 @@ jobs:
         run: uv sync --frozen --extra dev
 
       - name: Install Linux Qt runtime libs
-        if: matrix.os == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           # Minimum runtime libs PyQt6's xcb plugin links against on Ubuntu
@@ -107,7 +109,7 @@ jobs:
               libxkbfile1 libxshmfence1
 
       - name: Run tests (Windows)
-        if: matrix.os == 'windows-2025-vs2026'
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
@@ -122,7 +124,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests (macOS / Linux)
-        if: matrix.os != 'windows-2025-vs2026'
+        if: runner.os != 'Windows'
         shell: bash
         env:
           QT_QPA_PLATFORM: offscreen
@@ -135,41 +137,41 @@ jobs:
           .venv/bin/python -m pytest -q
 
       - name: Build (Windows)
-        if: matrix.os == 'windows-2025-vs2026'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: ${{ matrix.build_cmd }}
 
       - name: Build (macOS / Linux)
-        if: matrix.os != 'windows-2025-vs2026'
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           chmod +x ./build.sh
           ${{ matrix.build_cmd }}
 
       - name: Smoke test MCP helper (Windows)
-        if: matrix.os == 'windows-2025-vs2026'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: .\.venv\Scripts\python.exe tools\smoke_test_mcp.py dist\ai-usage-clock\ai-usage-clock-mcp.exe
 
       - name: Smoke test MCP helper (macOS)
-        if: matrix.os == 'macos-26'
+        if: runner.os == 'macOS'
         run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-usage-clock-mcp
 
       - name: Smoke test MCP helper (Linux)
-        if: matrix.os == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         run: .venv/bin/python tools/smoke_test_mcp.py dist/ai-usage-clock/ai-usage-clock-mcp
 
       - name: Smoke test packaged GUI (Windows)
-        if: matrix.os == 'windows-2025-vs2026'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: .\.venv\Scripts\python.exe tools\smoke_test_gui.py dist\ai-usage-clock
 
       - name: Smoke test packaged GUI (macOS)
-        if: matrix.os == 'macos-26'
+        if: runner.os == 'macOS'
         run: .venv/bin/python tools/smoke_test_gui.py dist/ai-usage-clock.app
 
       - name: Smoke test packaged GUI (Linux)
-        if: matrix.os == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         run: .venv/bin/python tools/smoke_test_gui.py dist/ai-usage-clock
 
       # The GUI smoke test above turns every provider off, so it never starts
@@ -178,7 +180,8 @@ jobs:
       # packaged program: it loads a data: page, runs one line of JavaScript
       # and exits 0 on success (3 if the session has no OpenGL).
       - name: Smoke test packaged WebEngine worker (Windows)
-        if: matrix.os == 'windows-2025-vs2026'
+        timeout-minutes: 10
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           HTTP_PROXY: http://127.0.0.1:9
@@ -192,7 +195,8 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "packaged WebEngine worker self-test failed (exit code $($process.ExitCode))" }
 
       - name: Smoke test packaged WebEngine worker (macOS)
-        if: matrix.os == 'macos-26'
+        timeout-minutes: 10
+        if: runner.os == 'macOS'
         env:
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
@@ -201,7 +205,8 @@ jobs:
         run: dist/ai-usage-clock.app/Contents/MacOS/ai-usage-clock --webengine-worker --selftest
 
       - name: Smoke test packaged WebEngine worker (Linux, virtual display)
-        if: matrix.os == 'ubuntu-22.04'
+        timeout-minutes: 10
+        if: runner.os == 'Linux'
         env:
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
@@ -211,7 +216,7 @@ jobs:
 
       - name: Package (Windows zip + sha256)
         id: pack_win
-        if: matrix.os == 'windows-2025-vs2026'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $version = "${{ needs.resolve-version.outputs.version }}"
@@ -238,14 +243,14 @@ jobs:
 
       - name: Package (macOS / Linux tar.gz + sha256)
         id: pack_unix
-        if: matrix.os != 'windows-2025-vs2026'
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           version="${{ needs.resolve-version.outputs.version }}"
           archive="ai-usage-clock-${version}-${{ matrix.label }}.tar.gz"
           sha="${archive}.sha256"
           # On mac, archive the .app bundle. On Linux, archive the dist folder.
-          if [ "${{ matrix.os }}" = "macos-26" ]; then
+          if [ "${{ runner.os }}" = "macOS" ]; then
               tar -C dist -czf "$archive" ai-usage-clock.app ai-usage-clock-mcp LICENSE THIRD_PARTY_NOTICES.txt
               prefix=""
           else
@@ -277,6 +282,7 @@ jobs:
     needs: [resolve-version, build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
+    timeout-minutes: 35
     permissions:
       contents: write
     steps:
