@@ -311,7 +311,7 @@ _CHROMIUM_EPOCH_OFFSET_S = 11_644_473_600
 def _profile_loaded_in_process(account_id: str) -> bool:
     """Whether this process already has the account's profile open."""
     module = sys.modules.get("aiusageclock.webview.profile")
-    return module is not None and account_id in getattr(module, "_profiles", {})
+    return module is not None and account_id in module.loaded_account_ids()
 
 
 def _auth_cookie_rows(kind: str, db_path: Path) -> bool:

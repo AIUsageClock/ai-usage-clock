@@ -210,12 +210,11 @@ def fake_profile_module(monkeypatch):
     module = types.ModuleType("aiusageclock.webview.profile")
     events: list[str] = []
 
-    class _Profiles(dict):
-        def clear(self):
-            events.append("profiles dropped")
-            super().clear()
+    def take_all_profiles():
+        events.append("profiles dropped")
+        return [object()]
 
-    module._profiles = _Profiles({"claude": object()})
+    module.take_all_profiles = take_all_profiles
     module.events = events
     monkeypatch.setitem(sys.modules, "aiusageclock.webview.profile", module)
     return module
@@ -430,3 +429,25 @@ def test_the_worker_gives_its_windows_the_application_icon(qtbot):
         qt_app.setWindowIcon(saved[0])
         qt_app.setApplicationName(saved[1])
         qt_app.setOrganizationName(saved[2])
+
+def test_profile_module_public_accessors_replace_the_private_dict(monkeypatch):
+    """loaded_account_ids / take_all_profiles behave as the old direct dict access did."""
+    from aiusageclock.webview import profile
+
+    first, second = object(), object()
+    monkeypatch.setattr(profile, "_profiles", {"claude": first, "codex": second})
+
+    assert profile.loaded_account_ids() == frozenset({"claude", "codex"})
+    taken = profile.take_all_profiles()
+    assert sorted(map(id, taken)) == sorted([id(first), id(second)])
+    assert profile.loaded_account_ids() == frozenset()
+    assert profile.take_all_profiles() == []
+
+def test_error_code_constants_keep_their_wire_values():
+    """The host, the worker, the logs and the tests all depend on these strings."""
+    assert ipc.ERR_UNKNOWN_JOB == "unknown_job"
+    assert ipc.ERR_WORKER_ERROR == "worker_error"
+    assert ipc.ERR_PROFILE_LOCKED == "profile_locked"
+    assert ipc.ERR_SELFTEST_TIMEOUT == "selftest_timeout"
+    assert ipc.ERR_SELFTEST_LOAD == "selftest_load"
+    assert ipc.ERR_SELFTEST_MISMATCH == "selftest_mismatch"

@@ -423,7 +423,7 @@ def test_hydration_leaves_a_profile_alone_that_this_process_already_has_open(mon
 
     _write_cookies_db("claude-open", [])
     module = types.ModuleType("aiusageclock.webview.profile")
-    module._profiles = {"claude-open": object()}
+    module.loaded_account_ids = lambda: frozenset({"claude-open"})
     monkeypatch.setitem(sys.modules, "aiusageclock.webview.profile", module)
 
     assert _hydrate(monkeypatch, "claude", "claude-open") == []

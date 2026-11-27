@@ -47,6 +47,12 @@ ERR_TIMEOUT = "worker_timeout"
 ERR_CRASHED = "worker_crashed"
 ERR_START_FAILED = "worker_start_failed"
 ERR_CANCELLED = "cancelled"
+ERR_UNKNOWN_JOB = "unknown_job"  # worker: a job kind it does not know
+ERR_WORKER_ERROR = "worker_error"  # worker: a job raised an exception
+ERR_PROFILE_LOCKED = "profile_locked"  # worker: the profile folder could not be deleted yet
+ERR_SELFTEST_TIMEOUT = "selftest_timeout"  # worker: the self-test page never finished loading
+ERR_SELFTEST_LOAD = "selftest_load"  # worker: the self-test page failed to load
+ERR_SELFTEST_MISMATCH = "selftest_mismatch"  # worker: the JavaScript result was not the expected one
 
 # Seconds a single job may run before the host kills the worker.
 SCRAPE_TIMEOUT_S = 120.0

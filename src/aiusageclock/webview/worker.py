@@ -132,7 +132,7 @@ class JobRunner(QObject):
         }
         handler = handlers.get(kind)
         if handler is None:
-            finish({"ok": False, "error": "unknown_job", "detail": kind})
+            finish({"ok": False, "error": ipc.ERR_UNKNOWN_JOB, "detail": kind})
             return
         if self._closing:
             finish({"ok": False, "error": ipc.ERR_CANCELLED, "detail": "worker is shutting down"})
@@ -152,7 +152,7 @@ class JobRunner(QObject):
             handler(params, _once, events)
         except Exception as exc:  # noqa: BLE001 - report instead of dying silently
             log.exception("job failed kind=%s", kind)
-            _once({"ok": False, "error": "worker_error", "detail": f"{type(exc).__name__}: {exc}"})
+            _once({"ok": False, "error": ipc.ERR_WORKER_ERROR, "detail": f"{type(exc).__name__}: {exc}"})
 
     def focus_login(self) -> None:
         if self._login_dialog is not None:
@@ -171,7 +171,7 @@ class JobRunner(QObject):
             return False
         # Report first: tearing the login window down would otherwise report
         # the job as closed normally.
-        finish({"ok": False, "error": "worker_error", "detail": detail})
+        finish({"ok": False, "error": ipc.ERR_WORKER_ERROR, "detail": detail})
         self.abort_active()
         return True
 
@@ -224,8 +224,7 @@ class JobRunner(QObject):
         module = sys.modules.get("aiusageclock.webview.profile")
         if module is None:
             return
-        profiles = list(module._profiles.values())
-        module._profiles.clear()
+        profiles = module.take_all_profiles()
         # Dropping the references is not enough: the Python wrappers of a
         # sign-in window and its pages can outlive their C++ objects (signal
         # connections hold them), and with them the profile they were built on,
@@ -261,7 +260,7 @@ class JobRunner(QObject):
             finish(
                 {
                     "ok": False,
-                    "error": "profile_locked",
+                    "error": ipc.ERR_PROFILE_LOCKED,
                     "detail": problem,
                 }
             )
@@ -415,13 +414,13 @@ class JobRunner(QObject):
         timeout = QTimer(self)
         timeout.setSingleShot(True)
         timeout.timeout.connect(
-            lambda: _end({"ok": False, "error": "selftest_timeout", "detail": "page did not finish loading"})
+            lambda: _end({"ok": False, "error": ipc.ERR_SELFTEST_TIMEOUT, "detail": "page did not finish loading"})
         )
         timeout.start(30_000)
 
         def _loaded(ok: bool) -> None:
             if not ok:
-                _end({"ok": False, "error": "selftest_load", "detail": "data page failed to load"})
+                _end({"ok": False, "error": ipc.ERR_SELFTEST_LOAD, "detail": "data page failed to load"})
                 return
             page.runJavaScript(
                 "document.getElementById('x').textContent + ':' + (6 * 7)",
@@ -429,7 +428,7 @@ class JobRunner(QObject):
                     {
                         "ok": value == "hello:42",
                         "result": value,
-                        "error": "" if value == "hello:42" else "selftest_mismatch",
+                        "error": "" if value == "hello:42" else ipc.ERR_SELFTEST_MISMATCH,
                     }
                 ),
             )

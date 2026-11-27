@@ -99,7 +99,6 @@ class CookieDialog(QDialog):
         self._provider = provider
         self._account_id = account_id or provider
         self._verify_url = verify_url
-        self._job = None
         self._closed = False
         title, instructions_html = INSTRUCTIONS[provider]
         # Not stays-on-top: the user has to switch to their normal browser to
@@ -196,7 +195,9 @@ class CookieDialog(QDialog):
             )
         # The browser lives in a worker process: it injects the saved cookie
         # into the profile and (when the provider has a check) loads the page.
-        self._job = get_host().submit(
+        # The host keeps the job (and its callback) until it has delivered a
+        # result, so the dialog does not need to hold on to it.
+        get_host().submit(
             worker_ipc.JOB_INJECT_VERIFY,
             {
                 "kind": self._provider,
@@ -247,6 +248,7 @@ class CookieDialog(QDialog):
             self.accept()
             return
         self._on_verify_done(bool(result.get("verified")), str(result.get("verify_error") or ""))
+
     def _on_verify_done(self, ok: bool, error: str) -> None:
         if ok:
             log.info("cookie verify ok for %s", self._provider)

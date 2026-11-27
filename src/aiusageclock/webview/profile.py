@@ -24,6 +24,18 @@ _REALISTIC_UA = (
 _profiles: dict[str, QWebEngineProfile] = {}
 
 
+def loaded_account_ids() -> frozenset[str]:
+    """Accounts whose profile this process currently has open."""
+    return frozenset(_profiles)
+
+
+def take_all_profiles() -> list[QWebEngineProfile]:
+    """Forget every cached profile and hand them to the caller to destroy."""
+    profiles = list(_profiles.values())
+    _profiles.clear()
+    return profiles
+
+
 def get_profile(provider: str) -> QWebEngineProfile:
     """Return a per-provider persistent QWebEngineProfile.
 
