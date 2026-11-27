@@ -59,6 +59,22 @@ if [ "$ONEFILE" -eq 1 ]; then
     PYINSTALLER_ARGS+=(--onefile)
 fi
 
+# Modules imported by name at run time (lazy_module in src/aiusageclock/_lazy.py)
+# are invisible to PyInstaller's analysis; tools/lazy_modules.txt lists them and
+# check_lazy_modules.py fails the build below if one did not get packed.
+LAZY_CHECKER="$SCRIPT_DIR/tools/check_lazy_modules.py"
+lazy_hidden_import_args() {
+    local name
+    "$VENV_PY" "$LAZY_CHECKER" --list-hidden "$1" | while IFS= read -r name; do
+        printf '%s\n' "--hidden-import" "${name%$'\r'}"
+    done
+}
+LAZY_GUI_ARGS=()
+while IFS= read -r line; do LAZY_GUI_ARGS+=("$line"); done < <(lazy_hidden_import_args gui)
+LAZY_MCP_ARGS=()
+while IFS= read -r line; do LAZY_MCP_ARGS+=("$line"); done < <(lazy_hidden_import_args mcp)
+PYINSTALLER_ARGS+=("${LAZY_GUI_ARGS[@]}")
+
 "$VENV_PY" "${PYINSTALLER_ARGS[@]}"
 
 # mcp pulls in httpx, whose optional CLI path reaches pygments, whose img
@@ -90,7 +106,13 @@ fi
     --exclude-module pkg_resources \
     --exclude-module _distutils_hack \
     --paths src \
+    ${LAZY_MCP_ARGS[@]+"${LAZY_MCP_ARGS[@]}"} \
     pyinstaller_mcp_entry.py
+
+# Every lazily imported module must be in each executable's PYZ archive; a miss
+# would only surface as ModuleNotFoundError on a user's machine.
+"$VENV_PY" "$LAZY_CHECKER" gui "$SCRIPT_DIR/build/ai-usage-clock/PYZ-00.toc"
+"$VENV_PY" "$LAZY_CHECKER" mcp "$SCRIPT_DIR/build/ai-usage-clock-mcp/PYZ-00.toc"
 
 # macOS ships the helper beside the .app because there is no folder bundle to
 # put it in; every other layout nests it next to the GUI binary.

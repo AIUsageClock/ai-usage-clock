@@ -57,6 +57,17 @@ $args = @(
 )
 if ($OneFile) { $args += "--onefile" }
 
+# Modules imported by name at run time (lazy_module in src\aiusageclock\_lazy.py)
+# are invisible to PyInstaller's analysis; tools\lazy_modules.txt lists them and
+# check_lazy_modules.py fails the build below if one did not get packed.
+$lazyChecker = Join-Path $PSScriptRoot "tools\check_lazy_modules.py"
+function Get-LazyHiddenImportArgs([string]$Target) {
+    $names = @(& $venvPython $lazyChecker --list-hidden $Target)
+    if ($LASTEXITCODE -ne 0) { Write-Error "Could not read tools\lazy_modules.txt." }
+    foreach ($name in $names) { "--hidden-import"; $name }
+}
+$args += @(Get-LazyHiddenImportArgs "gui")
+
 function Get-ProcessPathState {
     @(
         [Environment]::GetEnvironmentVariables('Process').GetEnumerator() |
@@ -176,6 +187,7 @@ $mcpArgs = @(
     "--paths", "src",
     "pyinstaller_mcp_entry.py"
 )
+$mcpArgs += @(Get-LazyHiddenImportArgs "mcp")
 try {
     Invoke-PyInstaller $mcpArgs
 } catch {
@@ -189,6 +201,13 @@ if (-not $OneFile) {
     } catch {
         Write-Error "Cannot place dist\ai-usage-clock\ai-usage-clock-mcp.exe. Close any MCP client using the helper, then build again. ($_)"
     }
+}
+
+# Every lazily imported module must be in each executable's PYZ archive; a miss
+# would only surface as ModuleNotFoundError on a user's machine.
+foreach ($lazyTarget in @(@("gui", "ai-usage-clock"), @("mcp", "ai-usage-clock-mcp"))) {
+    & $venvPython $lazyChecker $lazyTarget[0] (Join-Path $PSScriptRoot "build\$($lazyTarget[1])\PYZ-00.toc")
+    if ($LASTEXITCODE -ne 0) { Write-Error "Lazily imported modules are missing from the $($lazyTarget[1]) build; see above." }
 }
 
 # release.yml smoke-tests and packages the helper at a fixed path. Fail here,

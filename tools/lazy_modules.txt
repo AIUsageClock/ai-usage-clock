@@ -1,0 +1,37 @@
+# Modules the app imports by name at run time (src/aiusageclock/_lazy.py), so
+# PyInstaller's static analysis cannot see them. This file is the single source
+# of truth:
+#   * build.ps1 / build.sh pass every "hidden" line of a target to PyInstaller
+#     as --hidden-import (tools/check_lazy_modules.py --list-hidden <target>);
+#   * after the build, tools/check_lazy_modules.py reads the executable's
+#     build/<name>/PYZ-00.toc and fails if any listed module is missing;
+#   * tests/test_lazy_modules.py fails if a lazy_module("x") call in src/ names
+#     a module that has no "hidden gui" line here.
+#
+# Line format:   <kind> <target>[@<platform>] <module>
+#   kind      hidden   lazily imported by the code: hand to PyInstaller AND check
+#             require  pulled in by a hidden module (a dependency or a keyring
+#                      backend found through entry points): check only
+#   target    gui = ai-usage-clock (also runs the WebEngine worker, the same exe)
+#             mcp = ai-usage-clock-mcp
+#   platform  optional sys.platform prefix: win32, darwin, linux
+#
+# The MCP helper reads usage-cache.json and config.json only: no provider and
+# no stored secret is touched on its path, so it needs none of these.
+
+hidden gui requests
+hidden gui keyring
+
+require gui requests.sessions
+require gui requests.adapters
+require gui urllib3
+require gui charset_normalizer
+require gui certifi
+require gui idna
+require gui keyring.backends
+require gui keyring.errors
+require gui@win32 keyring.backends.Windows
+require gui@win32 win32ctypes
+require gui@darwin keyring.backends.macOS
+require gui@linux keyring.backends.SecretService
+require gui@linux keyring.backends.kwallet
