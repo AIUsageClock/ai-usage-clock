@@ -13,11 +13,13 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
-import requests
 import websocket
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from ..config import COOKIE_DOMAINS, COOKIE_NAME_ALIASES, app_data_dir
+from .._lazy import lazy_module
+
+requests = lazy_module("requests")
 
 log = logging.getLogger("aiusageclock.webview.external_login")
 

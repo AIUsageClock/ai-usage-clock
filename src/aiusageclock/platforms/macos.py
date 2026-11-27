@@ -16,10 +16,11 @@ import plistlib
 import subprocess
 from pathlib import Path
 
-import keyring
-
 from ..identity import KEYRING_SERVICE, MACOS_LAUNCH_AGENT_LABEL
 from .base import APP_NAME, Platform, UIMode, autostart_command
+from .._lazy import lazy_module
+
+keyring = lazy_module("keyring")
 
 log = logging.getLogger("aiusageclock.platforms.macos")
 

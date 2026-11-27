@@ -33,6 +33,7 @@ from aiusageclock.local_usage.windows import (
 )
 from aiusageclock.models import SnapshotStatus, UsageMetric, UsageSnapshot
 from aiusageclock.ratio_dialog import RatioHistoryDialog
+from tests.symbol_fonts import assert_symbol_fonts
 
 FIXTURES = Path(__file__).parent / "fixtures" / "local_usage"
 UTC = timezone.utc
@@ -325,6 +326,7 @@ def test_clicking_a_day_shows_its_models_with_a_removable_chip(qtbot, service):
 
     assert tab.current_view() == "model"
     assert not tab.day_chip.isHidden()
+    assert_symbol_fonts(tab)
     assert _model_rows(tab)[0][0] == "● Opus 5"
     tab.day_chip.click()
     assert tab.day_chip.isHidden()

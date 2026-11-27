@@ -5,11 +5,12 @@ import math
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
-import requests
-
 from ..config import Config, get_opencode_go_key
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
+from .._lazy import lazy_module
+
+requests = lazy_module("requests")
 
 OPENCODE_GO_USAGE_API = "https://opencode.ai/zen/go/v1/usage"
 

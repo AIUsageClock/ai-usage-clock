@@ -8,12 +8,13 @@ import math
 from urllib.parse import urlsplit
 from typing import Callable
 
-import requests
-
 from .. import __version__
 from ..identity import REPO_URL, SLUG
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
+from .._lazy import lazy_module
+
+requests = lazy_module("requests")
 
 
 RESET_ANNOUNCEMENT_PROVIDERS = frozenset({"codex_resets", "claude_resets"})

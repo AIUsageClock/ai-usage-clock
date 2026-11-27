@@ -40,6 +40,7 @@ from PyQt6.QtWidgets import (
 
 from ..models import UsageSnapshot
 from ..ratio import MIN_COUNTABLE_PCT
+from ..ui_fonts import set_symbol_text
 from .limit_changes_dialog import LimitChangesDialog
 from .rates import (
     CostSummary,
@@ -1750,13 +1751,13 @@ class UsageCostTab(QWidget):
             and report.dollars_change * report.output_change < 0
         )
         if mixed:
-            self.trend_warning_label.setText("Mixed signal ⓘ")
+            set_symbol_text(self.trend_warning_label, "Mixed signal ⓘ")
             warning_tip = (
                 "API-equivalent value and output moved in opposite directions. This usually "
                 "means the model or cache mix changed, so treat the percentages as ballpark."
             )
         elif warnings:
-            self.trend_warning_label.setText("Usage mix changed ⓘ")
+            set_symbol_text(self.trend_warning_label, "Usage mix changed ⓘ")
             warning_tip = "\n".join(warnings)
         else:
             self.trend_warning_label.setText("")
@@ -1943,7 +1944,7 @@ class UsageCostTab(QWidget):
             arrow = "▾" if self._trend_skipped_open else "▸"
             noun = "window" if len(skipped) == 1 else "windows"
             reasons = " · ".join(f"{label} {count}" for label, count in counts.most_common())
-            self.trend_skipped_btn.setText(f"{arrow} {len(skipped)} {noun} not compared ({reasons})")
+            set_symbol_text(self.trend_skipped_btn, f"{arrow} {len(skipped)} {noun} not compared ({reasons})")
             skipped_table.setRowCount(len(skipped))
             for index, row in enumerate(skipped):
                 summary = row.summary
@@ -1972,7 +1973,7 @@ class UsageCostTab(QWidget):
         if row >= len(self._daily_days):
             return
         self._day_filter = self._daily_days[row]
-        self.day_chip.setText(f"{self._day_filter:%b %d}  ✕")
+        set_symbol_text(self.day_chip, f"{self._day_filter:%b %d}  ✕")
         self.show_view(VIEW_MODEL)
         self.refresh()
 

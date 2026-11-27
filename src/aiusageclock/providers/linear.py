@@ -4,11 +4,12 @@ import logging
 import re
 from typing import Any, Callable
 
-import requests
-
 from ..config import Config, get_linear_key
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
+from .._lazy import lazy_module
+
+requests = lazy_module("requests")
 
 LINEAR_API = "https://api.linear.app/graphql"
 

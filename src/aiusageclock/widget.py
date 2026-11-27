@@ -73,6 +73,7 @@ from .ratio import (
     MIN_WEEKLY_DELTA,
     RatioEstimate,
 )
+from .ui_fonts import apply_symbol_font, set_symbol_text
 
 ROW_BAR_HEIGHT = 8
 # Narrowest a percentage gauge may be squeezed before the panel refuses to
@@ -1155,6 +1156,7 @@ class _ProviderTile(QFrame):
         )
 
         self.expand_btn = QPushButton("▸")  # right-pointing chevron
+        apply_symbol_font(self.expand_btn)
         self.expand_btn.setVisible(False)
         self.expand_btn.setFixedSize(16, 16)
         self.expand_btn.setStyleSheet(
@@ -1167,6 +1169,7 @@ class _ProviderTile(QFrame):
         self.expand_btn.clicked.connect(self._on_expand_clicked)
 
         self.dismiss_btn = QPushButton("✕")
+        apply_symbol_font(self.dismiss_btn)
         self.dismiss_btn.setFixedSize(16, 16)
         self.dismiss_btn.setStyleSheet(self.expand_btn.styleSheet())
         self.dismiss_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1722,7 +1725,7 @@ class _ProviderTile(QFrame):
         self.set_expanded(not self._expanded, emit=True)
 
     def _update_expand_btn_glyph(self) -> None:
-        self.expand_btn.setText("▾" if self._expanded else "▸")
+        set_symbol_text(self.expand_btn, "▾" if self._expanded else "▸")
         if self._supports_compact_collapse():
             self.expand_btn.setToolTip(
                 "Collapse to summary" if self._expanded else "Show details"
@@ -2136,6 +2139,7 @@ class UsageWidget(QWidget):
 
     def _mini_button(self, glyph: str, tooltip: str) -> QPushButton:
         btn = QPushButton(glyph)
+        apply_symbol_font(btn)
         btn.setToolTip(tooltip)
         btn.setFixedSize(20, 20)
         btn.setStyleSheet(

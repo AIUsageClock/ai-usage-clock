@@ -5,11 +5,12 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Callable
 
-import requests
-
 from ..config import Config, get_openrouter_key, get_openrouter_mgmt_key
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
+from .._lazy import lazy_module
+
+requests = lazy_module("requests")
 
 OPENROUTER_API = "https://openrouter.ai/api/v1"
 log = logging.getLogger("aiusageclock.providers.openrouter")

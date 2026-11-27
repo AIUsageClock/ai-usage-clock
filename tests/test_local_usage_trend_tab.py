@@ -16,6 +16,8 @@ from aiusageclock.local_usage.summaries import (
 )
 from aiusageclock.local_usage.tokens import TokenCounts
 from aiusageclock.local_usage.trend import build_trend
+from tests.symbol_fonts import assert_symbol_fonts
+
 from aiusageclock.local_usage.usage_tab import (
     UsageCostTab,
     rolling_average_points,
@@ -174,8 +176,10 @@ def test_skipped_windows_fold_into_one_line(qtbot, service):
     assert "limit reached" in _column(tab.trend_table, 0)[0]
     assert _column(tab.trend_table, 2) == ["$10.00", "$10.00"]
     assert tab.trend_skipped_table.isHidden()
+    assert_symbol_fonts(tab)
     tab.trend_skipped_btn.click()
     assert not tab.trend_skipped_table.isHidden()
+    assert_symbol_fonts(tab)
     assert _column(tab.trend_skipped_table, 2) == [
         "too little of the limit used to compare",
     ]
@@ -252,6 +256,7 @@ def test_mix_warning_when_recent_windows_used_other_models(qtbot, service):
     assert tab.trend_answer.isHidden()
     assert tab.compare_change_btn.isHidden()
     assert tab.trend_warning_label.text() == "Usage mix changed ⓘ"
+    assert_symbol_fonts(tab)
     assert "Mostly claude-opus-5 in the recent windows" in tab.trend_warning_label.toolTip()
 
 
@@ -293,6 +298,7 @@ def test_opposing_metrics_collapse_explanation_into_mixed_signal_tooltip(qtbot, 
     assert tab.trend_comparison.metrics[0].change < 0
     assert tab.trend_comparison.metrics[1].change > 0
     assert tab.trend_warning_label.text() == "Mixed signal ⓘ"
+    assert_symbol_fonts(tab)
     assert "opposite directions" in tab.trend_warning_label.toolTip()
 
 

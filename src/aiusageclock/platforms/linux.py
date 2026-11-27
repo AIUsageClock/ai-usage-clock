@@ -14,10 +14,11 @@ import os
 import shlex
 from pathlib import Path
 
-import keyring
-
 from ..identity import KEYRING_SERVICE, LINUX_DESKTOP_FILENAME, PRODUCT_NAME
 from .base import APP_NAME, Platform, autostart_command
+from .._lazy import lazy_module
+
+keyring = lazy_module("keyring")
 
 log = logging.getLogger("aiusageclock.platforms.linux")
 

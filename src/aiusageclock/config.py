@@ -7,11 +7,13 @@ import uuid
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-import keyring
 from pydantic import BaseModel, Field
 
 from .identity import KEYRING_SERVICE
 from .platforms import APP_NAME, get_platform
+from ._lazy import lazy_module
+
+keyring = lazy_module("keyring")
 
 log = logging.getLogger("aiusageclock.config")
 

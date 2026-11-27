@@ -5,11 +5,12 @@ from datetime import datetime, timezone
 from typing import Callable
 from urllib.parse import parse_qsl, urlparse
 
-import requests
-
 from ..config import Config, get_github_pat
 from ..models import SnapshotStatus, UsageMetric, UsageSnapshot
 from .base import Provider
+from .._lazy import lazy_module
+
+requests = lazy_module("requests")
 
 GITHUB_API = "https://api.github.com"
 GITHUB_API_VERSION = "2026-03-10"
