@@ -92,7 +92,21 @@ class SessionVerifier(QObject):
         self.done.emit(ok, error)
         QTimer.singleShot(0, self._cleanup)
 
+    def abort(self) -> None:
+        """Tear the page down now, without reporting a result (worker shutdown)."""
+        self._finished = True
+        timeout = getattr(self, "_timeout", None)
+        if timeout is not None:
+            timeout.stop()
+        self._cleanup()
+
     def _cleanup(self) -> None:
+        if getattr(self, "_cleaned", False):
+            return
+        self._cleaned = True
+        if not hasattr(self, "_page"):  # no verify target: nothing was created
+            self.deleteLater()
+            return
         try:
             self._page.loadFinished.disconnect(self._on_load_finished)
         except (TypeError, RuntimeError):

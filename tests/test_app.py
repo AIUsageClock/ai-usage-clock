@@ -1160,3 +1160,175 @@ def test_schedule_pulls_stale_error_refresh_forward():
     assert app._timer.started_ms is not None  # noqa: SLF001
     scheduled_minutes = app._timer.started_ms / 60_000  # noqa: SLF001
     assert 0 < scheduled_minutes <= 1.2
+
+
+# ----- a sign-in window holds the browser worker, not the whole refresh round -----
+
+
+class _CountingProvider:
+    def __init__(self):
+        self.refreshed = 0
+
+    def refresh(self, emit):
+        self.refreshed += 1
+
+
+def _sign_in_open_app(*, sign_in_open=True):
+    app = App.__new__(App)
+    app._config = Config()  # noqa: SLF001
+    app._providers = {  # noqa: SLF001
+        "claude": _CountingProvider(),
+        "copilot": _CountingProvider(),
+        "openrouter": _CountingProvider(),
+    }
+    app._inflight = set()  # noqa: SLF001
+    app._refresh_queue = []  # noqa: SLF001
+    app._login_job = object() if sign_in_open else None  # noqa: SLF001
+    app._cycle_signatures = {}  # noqa: SLF001
+    app._last_cycle_signatures = {"claude": ("last reading",)}  # noqa: SLF001
+    app._unmarked = []  # noqa: SLF001
+    app._cycles_finished = 0  # noqa: SLF001
+    app._widget = SimpleNamespace(  # noqa: SLF001
+        unmark_loading=app._unmarked.append,
+        set_refreshing=lambda value: None,
+        mark_loading=lambda names: None,
+        restore_always_on_top=lambda: None,
+    )
+    app._finish_refresh_cycle = lambda: setattr(  # noqa: SLF001
+        app, "_cycles_finished", app._cycles_finished + 1
+    )
+    return app
+
+
+def test_providers_without_a_browser_keep_refreshing_while_a_sign_in_window_is_open():
+    app = _sign_in_open_app()
+    app._refresh_queue = ["claude", "copilot", "openrouter"]  # noqa: SLF001
+
+    app._start_next_refresh()  # noqa: SLF001
+
+    assert app._providers["copilot"].refreshed == 1  # noqa: SLF001
+    assert app._providers["claude"].refreshed == 0  # noqa: SLF001
+    assert app._inflight == {"copilot"}  # noqa: SLF001
+    assert app._refresh_queue == ["openrouter"]  # noqa: SLF001
+    assert app._deferred_browser_refresh == ["claude"]  # noqa: SLF001
+    assert app._unmarked == ["claude"]  # noqa: SLF001
+    assert app._cycle_signatures == {"claude": ("last reading",)}  # noqa: SLF001
+
+
+def test_a_round_that_only_has_browser_accounts_left_ends_instead_of_stalling():
+    app = _sign_in_open_app()
+    app._refresh_queue = ["claude"]  # noqa: SLF001
+
+    app._start_next_refresh()  # noqa: SLF001
+
+    assert app._cycles_finished == 1  # noqa: SLF001
+    assert app._refresh_queue == []  # noqa: SLF001
+    assert app._inflight == set()  # noqa: SLF001
+
+
+def test_a_browser_scrape_already_queued_behind_the_sign_in_does_not_hold_up_the_rest():
+    app = _sign_in_open_app()
+    app._inflight = {"claude"}  # noqa: SLF001 - submitted before the window opened
+    app._refresh_queue = ["copilot"]  # noqa: SLF001
+
+    app._start_next_refresh()  # noqa: SLF001
+
+    assert app._providers["copilot"].refreshed == 1  # noqa: SLF001
+
+
+def test_without_a_sign_in_window_the_round_is_still_one_provider_at_a_time():
+    app = _sign_in_open_app(sign_in_open=False)
+    app._inflight = {"copilot"}  # noqa: SLF001
+    app._refresh_queue = ["claude"]  # noqa: SLF001
+
+    app._start_next_refresh()  # noqa: SLF001
+
+    assert app._providers["claude"].refreshed == 0  # noqa: SLF001
+    assert app._refresh_queue == ["claude"]  # noqa: SLF001
+
+    app._inflight = set()  # noqa: SLF001
+    app._start_next_refresh()  # noqa: SLF001
+
+    assert app._providers["claude"].refreshed == 1  # noqa: SLF001
+    assert app._deferred_browser_refresh is None  # noqa: SLF001
+
+
+def test_accounts_set_aside_for_the_sign_in_refresh_when_the_window_closes(monkeypatch):
+    monkeypatch.setattr(app_module.QTimer, "singleShot", lambda delay, callback: callback())
+    app = _sign_in_open_app()
+    app._deferred_browser_refresh = ["claude"]  # noqa: SLF001
+    started = []
+    app._start_next_refresh = lambda: started.append(list(app._refresh_queue))  # noqa: SLF001
+    app._timer = SimpleNamespace(stop=lambda: None)  # noqa: SLF001
+    app._cleared_sessions = set()  # noqa: SLF001
+
+    app._on_login_finished(  # noqa: SLF001
+        "claude", "Claude", {"ok": True, "accepted": False, "session_may_have_changed": False}
+    )
+
+    assert app._login_job is None  # noqa: SLF001
+    assert started == [["claude"]]
+    assert app._deferred_browser_refresh is None  # noqa: SLF001
+
+
+def test_a_sign_in_refresh_joins_a_round_that_is_already_running(monkeypatch):
+    app = _sign_in_open_app(sign_in_open=False)
+    app._inflight = {"copilot"}  # noqa: SLF001
+    app._refresh_queue = ["openrouter"]  # noqa: SLF001
+
+    app._refresh_after_login("claude")  # noqa: SLF001
+    app._refresh_after_login("claude")  # noqa: SLF001
+    app._refresh_after_login("copilot")  # noqa: SLF001
+
+    assert app._refresh_queue == ["openrouter", "claude"]  # noqa: SLF001
+
+
+def test_pasting_a_cookie_closes_an_open_sign_in_window_first(monkeypatch):
+    events = []
+    login_job = object()
+
+    class _Host:
+        def cancel(self, job):
+            events.append(("cancel", job))
+
+    class _Dialog:
+        def __init__(self, *args, **kwargs):
+            events.append("dialog created")
+
+        def exec(self):
+            events.append("dialog shown")
+            return 0
+
+    monkeypatch.setattr(app_module, "get_host", lambda: _Host())
+    monkeypatch.setattr(app_module, "CookieDialog", _Dialog)
+    app = App.__new__(App)
+    app._config = Config()  # noqa: SLF001
+    app._settings_dialog = None  # noqa: SLF001
+    app._login_job = login_job  # noqa: SLF001
+    app._widget = SimpleNamespace(  # noqa: SLF001
+        suspend_always_on_top=lambda: None, restore_always_on_top=lambda: None
+    )
+
+    app.open_cookie_paste("claude")
+
+    assert events == ["dialog created", ("cancel", login_job), "dialog shown"]
+
+
+def test_restart_stops_the_browser_worker_before_the_new_process_starts(monkeypatch):
+    events = []
+    monkeypatch.setattr(app_module, "_flush_log_handlers", lambda: None)
+    monkeypatch.setattr(
+        app_module.subprocess, "Popen", lambda *a, **k: events.append("new process started")
+    )
+    monkeypatch.setattr(
+        app_module,
+        "QApplication",
+        SimpleNamespace(instance=lambda: SimpleNamespace(quit=lambda: events.append("quit"))),
+    )
+    app = App.__new__(App)
+    app._instance_lock = None  # noqa: SLF001
+    app._stop_worker_host = lambda: events.append("worker stopped")  # noqa: SLF001
+
+    app.restart()
+
+    assert events == ["worker stopped", "new process started", "quit"]

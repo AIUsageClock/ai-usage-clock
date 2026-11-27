@@ -35,6 +35,13 @@ IDLE_SHUTDOWN_MS = 1500
 CONNECT_TIMEOUT_MS = 30_000
 # How long a worker may take to exit after being asked to.
 SHUTDOWN_GRACE_MS = 8_000
+# How long a worker may take to close its windows and flush its profiles when
+# a job is cancelled or has run out of time, before it is killed.
+STOP_GRACE_MS = 8_000
+# How long a call that deletes a profile directory waits for the worker that may
+# hold it to flush and exit (the caller blocks; a real browser that a sign-in
+# started can take a few seconds to close).
+RELEASE_WAIT_MS = 8_000
 
 Result = dict[str, Any]
 ResultCallback = Callable[[Result], None]
@@ -85,6 +92,9 @@ class WorkerHost(QObject):
         self._ever_ready = False
         self._shutting_down = False
         self._kill_reason: str | None = None
+        # Profiles the current worker has been given work for: the only ones
+        # it can have open, so the only ones whose release needs it to stop.
+        self._worker_accounts: set[str] = set()
 
         self._watchdog = QTimer(self)
         self._watchdog.setSingleShot(True)
@@ -155,33 +165,41 @@ class WorkerHost(QObject):
             self._deliver_later(job, _failure(ipc.ERR_CANCELLED))
             return
         if job is self._current and self._proc is not None:
-            self._kill_worker(ipc.ERR_CANCELLED)
+            # The worker closes its windows (and the real browser a sign-in
+            # started) and writes its cookies out before it is allowed to die.
+            self._request_stop(ipc.ERR_CANCELLED)
 
     def focus_job(self, kind: str) -> bool:
         """Ask the worker to bring a running job's window to the front."""
         current = self._current
         if current is None or current.kind != kind or not self._ready:
             return False
+        # Same permission the first dispatch got: without it Windows may only
+        # flash the taskbar button for a window the user asked to see again.
+        self._allow_worker_foreground()
         self._send({"type": ipc.MSG_FOCUS, "id": current.id})
         return True
 
     def release_profile(self, account_id: str) -> None:
         """Make sure no worker holds ``account_id``'s profile open.
 
-        Queued jobs for the account are cancelled. A live worker is killed
-        (its profile directory is about to be deleted, so there is nothing
-        worth flushing); a running job for a different account is put back at
+        Queued jobs for the account are cancelled. A worker that was never
+        given work for this account cannot have its profile open, so it is left
+        alone (it may be signing another account in, or holding that account's
+        cookies that are not on disk yet). One that was is asked to close
+        everything and write its profiles out, and is killed only if it does
+        not exit in time; a running job for a different account is put back at
         the front of the queue to run on the next worker.
         """
         for job in [j for j in self._queue if j.account_id == account_id]:
             self._queue.remove(job)
             self._deliver_later(job, _failure(ipc.ERR_CANCELLED))
-        if self._proc is None:
+        if self._proc is None or account_id not in self._worker_accounts:
             return
         current = self._current
         self._current = None
         self._watchdog.stop()
-        self._terminate_worker(graceful=False, wait_ms=3000)
+        self._terminate_worker(graceful=True, wait_ms=RELEASE_WAIT_MS)
         if current is not None:
             if current.account_id == account_id:
                 self._deliver_later(current, _failure(ipc.ERR_CANCELLED))
@@ -232,6 +250,8 @@ class WorkerHost(QObject):
         job = self._queue.popleft()
         self._current = job
         job.acked = False
+        if job.account_id:
+            self._worker_accounts.add(job.account_id)
         if job.kind == ipc.JOB_LOGIN:
             self._allow_worker_foreground()
         self._send(
@@ -414,7 +434,7 @@ class WorkerHost(QObject):
         if self._proc is None:
             self._finish_current(_failure(ipc.ERR_TIMEOUT))
             return
-        self._kill_worker(ipc.ERR_TIMEOUT)
+        self._request_stop(ipc.ERR_TIMEOUT)
 
     def _on_connect_timeout(self) -> None:
         if self._proc is not None and not self._ever_ready:
@@ -425,7 +445,29 @@ class WorkerHost(QObject):
         proc = self._proc
         if proc is None:
             return
-        self._kill_reason = reason
+        if self._kill_reason is None:
+            self._kill_reason = reason
+        proc.kill()
+
+    def _request_stop(self, reason: str) -> None:
+        """End the worker in the middle of a job, politely first.
+
+        A worker that can still hear us closes its windows (including the real
+        browser a sign-in started and its temporary profile) and writes its
+        cookies out; one that cannot, or does not answer within
+        ``STOP_GRACE_MS``, is killed. The job ends with ``reason`` either way.
+        """
+        proc = self._proc
+        if proc is None:
+            return
+        if self._kill_reason is None:
+            self._kill_reason = reason
+        if self._ready and self._sock is not None:
+            if not self._shutting_down:
+                self._shutting_down = True
+                self._send({"type": ipc.MSG_SHUTDOWN})
+                self._kill_timer.start(STOP_GRACE_MS)
+            return
         proc.kill()
 
     def _begin_shutdown(self) -> None:
@@ -441,7 +483,7 @@ class WorkerHost(QObject):
     def _on_shutdown_overdue(self) -> None:
         if self._proc is not None and self._shutting_down:
             log.warning("worker did not exit after shutdown; killing it")
-            self._kill_worker(ipc.ERR_CANCELLED)
+            self._kill_worker(self._kill_reason or ipc.ERR_CANCELLED)
 
     def _on_proc_error(self, proc: QProcess, error: QProcess.ProcessError) -> None:
         if proc is not self._proc:
@@ -501,6 +543,7 @@ class WorkerHost(QObject):
         self._ever_ready = False
         self._shutting_down = False
         self._kill_reason = None
+        self._worker_accounts = set()
         if sock is not None:
             sock.abort()
             sock.deleteLater()
@@ -526,6 +569,7 @@ class WorkerHost(QObject):
         self._ever_ready = False
         self._shutting_down = False
         self._kill_reason = None
+        self._worker_accounts = set()
         try:
             if graceful and sock is not None:
                 if not proc.waitForFinished(wait_ms):
@@ -663,3 +707,14 @@ class WorkerScraper(QObject):
             self.done.emit(payload, error)
         except RuntimeError:
             pass  # the owner was destroyed while the worker was busy
+        # One scraper per scrape and its parent is long-lived: without this each
+        # scrape would stay a child (with its closure, runner and extractor
+        # script) for as long as the application runs.
+        self._release()
+
+    def _release(self) -> None:
+        self._job = None
+        try:
+            self.deleteLater()
+        except RuntimeError:
+            pass  # already deleted

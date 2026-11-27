@@ -13,6 +13,7 @@ parent process, for CI and for checking a packaged build.
 from __future__ import annotations
 
 import faulthandler
+import gc
 import json
 import logging
 import os
@@ -20,14 +21,15 @@ import sys
 from logging.handlers import RotatingFileHandler
 from typing import Any, Callable
 
+from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QTimer
 from PyQt6.QtNetwork import QLocalSocket
 from PyQt6.QtWidgets import QApplication, QDialog
 
 from ..config import COOKIE_NAMES, Config, account_kind, app_data_dir, get_provider_cookie
+from ..icons import app_icon
 from ..identity import LOGGER_NAME, QT_APPLICATION_NAME, QT_ORGANIZATION_NAME
-from . import ipc
-from . import runtime
+from . import ipc, profile_cleanup, runtime
 
 log = logging.getLogger("aiusageclock.webview.worker")
 
@@ -44,6 +46,8 @@ _CONNECT_DEADLINE_MS = 20_000
 # A cookie written to the store reaches disk a moment later; give it that
 # moment before the process (and with it the store) goes away.
 _COOKIE_COMMIT_MS = 800
+# Time given to a profile's destruction (which writes its cookies) before exit.
+_EXIT_DELAY_MS = 300
 
 Finish = Callable[[dict[str, Any]], None]
 
@@ -111,6 +115,10 @@ class JobRunner(QObject):
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self._login_dialog: QDialog | None = None
+        self._scrapers: list[Any] = []
+        self._verifier: Any = None
+        self._active_finish: Finish | None = None
+        self._closing = False
 
     # ----- dispatch -----
 
@@ -126,14 +134,20 @@ class JobRunner(QObject):
         if handler is None:
             finish({"ok": False, "error": "unknown_job", "detail": kind})
             return
+        if self._closing:
+            finish({"ok": False, "error": ipc.ERR_CANCELLED, "detail": "worker is shutting down"})
+            return
         done = {"flag": False}
 
         def _once(result: dict[str, Any]) -> None:
             if done["flag"]:
                 return
             done["flag"] = True
+            if self._active_finish is _once:
+                self._active_finish = None
             finish(result)
 
+        self._active_finish = _once
         try:
             handler(params, _once, events)
         except Exception as exc:  # noqa: BLE001 - report instead of dying silently
@@ -144,13 +158,86 @@ class JobRunner(QObject):
         if self._login_dialog is not None:
             _bring_to_front(self._login_dialog)
 
+    # ----- ending work -----
+
+    def fail_active(self, detail: str) -> bool:
+        """End the running job with an error and tear its browser pieces down.
+
+        Used when something inside the job raised where nothing could catch it
+        (a Qt slot): the job reports the failure and the worker stays alive.
+        """
+        finish = self._active_finish
+        if finish is None:
+            return False
+        # Report first: tearing the login window down would otherwise report
+        # the job as closed normally.
+        finish({"ok": False, "error": "worker_error", "detail": detail})
+        self.abort_active()
+        return True
+
+    def abort_active(self) -> None:
+        """Stop every page and window the running job owns, without a result.
+
+        Order matters for what follows (the profiles being released): pages
+        first, then the sign-in window, whose ``done`` also stops the real
+        browser a sign-in started and waits until that browser and its
+        temporary profile are gone.
+        """
+        scrapers, self._scrapers = self._scrapers, []
+        for scraper in scrapers:
+            try:
+                scraper.abort()
+            except RuntimeError:
+                pass  # already deleted
+            except Exception:  # noqa: BLE001
+                log.exception("could not abort a scraper")
+        verifier, self._verifier = self._verifier, None
+        if verifier is not None:
+            try:
+                verifier.abort()
+            except RuntimeError:
+                pass
+            except Exception:  # noqa: BLE001
+                log.exception("could not abort a session verifier")
+        dialog, self._login_dialog = self._login_dialog, None
+        if dialog is not None:
+            try:
+                dialog.reject()
+            except RuntimeError:
+                pass
+            except Exception:  # noqa: BLE001
+                log.exception("could not close the sign-in window")
+
     def release_browser_state(self) -> None:
-        """Destroy cached profiles so Chromium flushes them before exit."""
+        """End all browser work and destroy the cached profiles before exit.
+
+        A profile hands its cookies to disk when it is destroyed, and may only
+        be destroyed once every page that uses it is gone. So: stop what is
+        running (nothing may fire into half-destroyed objects), run the queued
+        deferred deletes of those pages and windows, and only then drop the
+        profiles.
+        """
+        self._closing = True
+        self.abort_active()
+        for _ in range(3):  # deleting a window can queue the deletion of its pages
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
         module = sys.modules.get("aiusageclock.webview.profile")
         if module is None:
             return
-        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+        profiles = list(module._profiles.values())
         module._profiles.clear()
+        # Dropping the references is not enough: the Python wrappers of a
+        # sign-in window and its pages can outlive their C++ objects (signal
+        # connections hold them), and with them the profile they were built on,
+        # so the profile would be destroyed only at process exit, i.e. never.
+        # Every page is gone by now; delete the profiles themselves.
+        for profile in profiles:
+            try:
+                sip.delete(profile)
+            except (TypeError, RuntimeError):
+                pass  # not a live Qt object (already deleted)
+        del profiles
+        gc.collect()
 
     # ----- helpers -----
 
@@ -161,6 +248,26 @@ class JobRunner(QObject):
             finish({"ok": False, "error": ipc.ERR_NO_GL, "reason": reason})
         return available
 
+    @staticmethod
+    def _profile_free(account_id: str, finish: Finish) -> bool:
+        """Refuse an account whose profile is still waiting to be deleted.
+
+        The profile directory of a signed-out account must not be used again:
+        a scrape would sign in with what was meant to be gone, and a new
+        sign-in would be erased by the pending deletion at the next start.
+        """
+        problem = profile_cleanup.ensure_not_pending(account_id)
+        if problem is not None:
+            finish(
+                {
+                    "ok": False,
+                    "error": "profile_locked",
+                    "detail": problem,
+                }
+            )
+            return False
+        return True
+
     # ----- jobs -----
 
     def _ping(self, params: dict[str, Any], finish: Finish, events: Finish) -> None:
@@ -170,6 +277,8 @@ class JobRunner(QObject):
         if not self._gl_ok(finish):
             return
         provider = str(params["provider"])
+        if not self._profile_free(provider, finish):
+            return
         kind = _account_kind(provider)
         if kind in ("claude", "codex"):
             from .cookies import hydrate_account_from_keyring
@@ -190,20 +299,34 @@ class JobRunner(QObject):
             max_attempts=int(params.get("max_attempts", 1)),
             parent=self,
         )
-        scraper.done.connect(
-            lambda result, error: finish({"ok": True, "result": result, "error": error})
-        )
+        self._scrapers.append(scraper)
+
+        def _done(result, error, _scraper=scraper) -> None:
+            if _scraper in self._scrapers:
+                self._scrapers.remove(_scraper)
+            finish({"ok": True, "result": result, "error": error})
+
+        scraper.done.connect(_done)
 
     def _login(self, params: dict[str, Any], finish: Finish, events: Finish) -> None:
         if not self._gl_ok(finish):
             return
+        account_id = str(params["account_id"])
+        if not self._profile_free(account_id, finish):
+            return
+        # A sign-in whose worker was killed leaves its temporary browser profile
+        # behind; one sign-in runs at a time, so anything there now is stale.
+        try:
+            profile_cleanup.cleanup_stale_signin_profiles()
+        except Exception:  # noqa: BLE001
+            log.exception("could not clear stale sign-in profiles")
         from .login_window import LoginWindow
 
         dialog = LoginWindow(
             str(params["kind"]),
             str(params["url"]),
             str(params["title"]),
-            account_id=str(params["account_id"]),
+            account_id=account_id,
             browser_preference=str(params.get("browser_preference", "ask")),
         )
         self._login_dialog = dialog
@@ -212,10 +335,13 @@ class JobRunner(QObject):
         )
 
         def _closed(code: int) -> None:
-            self._login_dialog = None
+            if self._login_dialog is dialog:
+                self._login_dialog = None
             accepted = code == QDialog.DialogCode.Accepted.value
             changed = bool(getattr(dialog, "session_may_have_changed", False))
             dialog.deleteLater()
+            if self._closing:
+                return  # the worker is going away; there is nobody to tell
             if accepted or changed:
                 # A cookie written just before the window closed still has to
                 # reach disk before the worker is allowed to exit.
@@ -234,10 +360,12 @@ class JobRunner(QObject):
     def _inject_verify(self, params: dict[str, Any], finish: Finish, events: Finish) -> None:
         if not self._gl_ok(finish):
             return
+        account_id = str(params["account_id"])
+        if not self._profile_free(account_id, finish):
+            return
         from .cookies import inject_session_cookie
 
         kind = str(params["kind"])
-        account_id = str(params["account_id"])
         value = get_provider_cookie(account_id) or ""
         injected = bool(inject_session_cookie(kind, value, account_id=account_id)) if value else False
         if not injected or not params.get("verify", True):
@@ -247,6 +375,8 @@ class JobRunner(QObject):
             return
 
         def _start_verify() -> None:
+            if self._closing:
+                return
             from .verify import verify_session
 
             self._verifier = verify_session(
@@ -319,6 +449,7 @@ class Worker(QObject):
         self._runner = JobRunner(self)
         self._job_id: int | None = None
         self._connected = False
+        self._quitting = False
         self.exit_code = EXIT_OK
 
         self._sock = QLocalSocket(self)
@@ -351,34 +482,43 @@ class Worker(QObject):
     def _on_socket_error(self, _error) -> None:
         if not self._connected:
             log.error("could not connect to the parent: %s", self._sock.errorString())
-            self._quit(EXIT_NO_PARENT)
+            self._quit(EXIT_NO_PARENT, flush=False)
 
     def _on_deadline(self) -> None:
         if not self._connected:
             log.error("parent did not answer in time")
-            self._quit(EXIT_NO_PARENT)
+            self._quit(EXIT_NO_PARENT, flush=False)
 
     def _on_disconnected(self) -> None:
+        # The parent is gone (it quit or crashed). Nobody is waiting for us any
+        # more, but a sign-in window may still have a real browser and a
+        # temporary profile open, and cookies may not be on disk yet: clean up
+        # exactly as for a shutdown request.
         log.info("parent disconnected; exiting")
-        self._quit(EXIT_OK, flush=False)
+        self._quit(EXIT_OK)
 
     def _on_ready(self) -> None:
         for message in self._buffer.feed(bytes(self._sock.readAll())):
             kind = message.get("type")
-            if kind == ipc.MSG_WELCOME:
+            if kind == ipc.MSG_SHUTDOWN:
+                log.info("shutdown requested")
+                self._quit(EXIT_OK)
+            elif self._quitting:
+                continue  # leaving: take no new work, acknowledge nothing
+            elif kind == ipc.MSG_WELCOME:
                 self._deadline.stop()
                 self._idle.start(int(ipc.WORKER_IDLE_EXIT_S * 1000))
             elif kind == ipc.MSG_JOB:
                 self._start_job(message)
             elif kind == ipc.MSG_FOCUS:
                 self._runner.focus_login()
-            elif kind == ipc.MSG_SHUTDOWN:
-                log.info("shutdown requested")
-                self._quit(EXIT_OK)
 
     def _start_job(self, message: dict[str, Any]) -> None:
         job_id = message.get("id")
-        if not isinstance(job_id, int) or self._job_id is not None:
+        if self._quitting or not isinstance(job_id, int) or self._job_id is not None:
+            # A job that is not acknowledged is run again by the host on the
+            # next worker; one acknowledged here and then dropped would be
+            # reported as a crash.
             return
         self._job_id = job_id
         self._idle.stop()
@@ -388,6 +528,9 @@ class Worker(QObject):
         log.info("job start id=%s kind=%s", job_id, kind)
 
         def _finish(result: dict[str, Any]) -> None:
+            if self._quitting:
+                log.info("job abandoned id=%s kind=%s (worker is leaving)", job_id, kind)
+                return
             log.info("job done id=%s kind=%s ok=%s error=%s", job_id, kind, result.get("ok"), result.get("error"))
             self._send({"type": ipc.MSG_RESULT, "id": job_id, "result": result})
             self._job_id = None
@@ -398,6 +541,11 @@ class Worker(QObject):
 
         self._runner.run(kind, params, _finish, _event)
 
+    def fail_current_job(self, detail: str) -> None:
+        """Report an exception that escaped a callback as the job's error."""
+        if not self._runner.fail_active(detail):
+            log.error("exception outside any job: %s", detail)
+
     # ----- exit -----
 
     def _on_idle(self) -> None:
@@ -405,16 +553,48 @@ class Worker(QObject):
         self._quit(EXIT_OK)
 
     def _quit(self, code: int, *, flush: bool = True) -> None:
+        if self._quitting:
+            return
+        self._quitting = True
         self.exit_code = code
         self._idle.stop()
         self._deadline.stop()
         if flush:
+            # Pages and windows first, then the profiles: Chromium hands the
+            # cookies to disk when a profile is destroyed.
             self._runner.release_browser_state()
-            # Chromium commits cookies on its own schedule and when a profile
-            # is destroyed; the short wait lets the destruction finish.
-            QTimer.singleShot(300, lambda: QCoreApplication.exit(code))
+            # The short wait lets that destruction finish.
+            QTimer.singleShot(_EXIT_DELAY_MS, lambda: QCoreApplication.exit(code))
         else:
             QCoreApplication.exit(code)
+
+
+_active_worker: Worker | None = None
+
+
+def _install_excepthook() -> None:
+    """Log exceptions that escape Qt callbacks, and fail the running job.
+
+    PyQt aborts the whole process when a slot raises and ``sys.excepthook`` is
+    still the default; the sign-in window then vanished with no trace, because
+    the worker's stderr goes nowhere. With a hook installed the traceback lands
+    in ``worker.log`` and the worker stays alive.
+    """
+    previous = sys.excepthook
+
+    def _hook(exc_type, exc, tb) -> None:
+        try:
+            log.error("uncaught exception in the worker", exc_info=(exc_type, exc, tb))
+            worker = _active_worker
+            if worker is not None:
+                worker.fail_current_job(f"{exc_type.__name__}: {exc}")
+        except Exception:  # noqa: BLE001 - the hook itself must never raise
+            try:
+                previous(exc_type, exc, tb)
+            except Exception:  # noqa: BLE001
+                pass
+
+    sys.excepthook = _hook
 
 
 def _parse_args(argv: list[str]) -> dict[str, Any]:
@@ -451,13 +631,22 @@ def _run_selftest(allow_no_gl: bool) -> int:
             except OSError:
                 pass
         runner.release_browser_state()
-        QTimer.singleShot(300, lambda: QCoreApplication.exit(code))
+        QTimer.singleShot(_EXIT_DELAY_MS, lambda: QCoreApplication.exit(code))
 
     QTimer.singleShot(
         0, lambda: runner.run(ipc.JOB_SELFTEST, {}, _finish, lambda _payload: None)
     )
     QCoreApplication.exec()
     return outcome["code"]
+
+
+def _configure_application(qt_app: QApplication) -> None:
+    qt_app.setQuitOnLastWindowClosed(False)
+    qt_app.setApplicationName(QT_APPLICATION_NAME)
+    qt_app.setOrganizationName(QT_ORGANIZATION_NAME)
+    # The sign-in window is created here, so it needs the icon the main
+    # process gives its windows (a window without one shows a generic icon).
+    qt_app.setWindowIcon(app_icon())
 
 
 def run(argv: list[str]) -> int:
@@ -477,14 +666,15 @@ def run(argv: list[str]) -> int:
     _apply_ui_scale_env()
 
     qt_app = QApplication([sys.argv[0]])
-    qt_app.setQuitOnLastWindowClosed(False)
-    qt_app.setApplicationName(QT_APPLICATION_NAME)
-    qt_app.setOrganizationName(QT_ORGANIZATION_NAME)
+    _configure_application(qt_app)
+    _install_excepthook()
 
     if args["selftest"]:
         code = _run_selftest(bool(args["allow_no_gl"]))
     else:
+        global _active_worker
         worker = Worker(str(args["ipc"]), str(args["token"]))
+        _active_worker = worker
         QTimer.singleShot(0, worker.start)
         qt_app.exec()
         code = worker.exit_code

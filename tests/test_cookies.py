@@ -319,3 +319,132 @@ def test_cookie_hydration_does_nothing_without_a_stored_cookie(monkeypatch):
     )
 
     assert cookies.hydrate_account_from_keyring("claude", "claude") is False
+
+
+# ----- hydration decides from the auth cookie itself, not from the file size -----
+
+
+def _write_cookies_db(account_id: str, rows: list[tuple[str, str, int]]) -> None:
+    """A Chromium-shaped ``Cookies`` database: (host_key, name, expires_utc)."""
+    import sqlite3
+
+    from aiusageclock.config import webview_profile_dir
+
+    profile_dir = webview_profile_dir(account_id)
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(profile_dir / "Cookies")
+    connection.execute(
+        "CREATE TABLE cookies (host_key TEXT, name TEXT, expires_utc INTEGER, value TEXT)"
+    )
+    connection.executemany(
+        "INSERT INTO cookies (host_key, name, expires_utc, value) VALUES (?, ?, ?, '')", rows
+    )
+    connection.commit()
+    connection.close()
+
+
+def _chromium_time(seconds_from_now: int) -> int:
+    import time
+
+    return int((time.time() + 11_644_473_600 + seconds_from_now) * 1_000_000)
+
+
+def _hydrate(monkeypatch, kind: str, account_id: str) -> list[tuple]:
+    injected: list[tuple] = []
+    monkeypatch.setattr(
+        cookies, "get_provider_cookie", lambda name: "sessionKey=from-keyring" if name == account_id else None
+    )
+    monkeypatch.setattr(
+        cookies,
+        "inject_session_cookie",
+        lambda provider, value, *, account_id=None: injected.append((provider, account_id)) or True,
+    )
+    cookies.hydrate_account_from_keyring(kind, account_id)
+    return injected
+
+
+def test_hydration_reseeds_a_profile_whose_cookies_file_is_not_empty_but_holds_no_session(
+    monkeypatch,
+):
+    # What a worker that died right after hydrating leaves behind: the file has
+    # a size (SQLite header, schema) but the table is empty. A size check called
+    # this "has live cookies" for ever.
+    _write_cookies_db("claude-crash", [])
+
+    assert _hydrate(monkeypatch, "claude", "claude-crash") == [("claude", "claude-crash")]
+
+
+def test_hydration_reseeds_when_the_only_cookies_are_for_other_sites_or_not_auth_cookies(
+    monkeypatch,
+):
+    _write_cookies_db(
+        "claude-other",
+        [
+            (".example.com", "sessionKey", _chromium_time(3600)),
+            (".claude.ai", "lastActiveOrg", _chromium_time(3600)),
+        ],
+    )
+
+    assert _hydrate(monkeypatch, "claude", "claude-other") == [("claude", "claude-other")]
+
+
+def test_hydration_reseeds_when_the_auth_cookie_has_expired(monkeypatch):
+    _write_cookies_db("claude-old", [(".claude.ai", "sessionKey", _chromium_time(-3600))])
+
+    assert _hydrate(monkeypatch, "claude", "claude-old") == [("claude", "claude-old")]
+
+
+def test_hydration_never_overwrites_a_session_cookie_the_site_has_rotated(monkeypatch):
+    # The keyring copy is from the original paste; the profile's cookie is
+    # newer. Pushing the old one over it would sign the account out.
+    _write_cookies_db("claude-live", [(".claude.ai", "sessionKey", _chromium_time(3600))])
+
+    assert _hydrate(monkeypatch, "claude", "claude-live") == []
+
+
+def test_hydration_reads_a_database_left_with_a_hot_journal_without_touching_it(monkeypatch):
+    from aiusageclock.config import webview_profile_dir
+
+    _write_cookies_db("claude-journal", [(".claude.ai", "sessionKey", _chromium_time(3600))])
+    original = (webview_profile_dir("claude-journal") / "Cookies").read_bytes()
+    journal = webview_profile_dir("claude-journal") / "Cookies-journal"
+    journal.write_bytes(b"\x00" * 512)  # an unusable leftover journal
+
+    assert _hydrate(monkeypatch, "claude", "claude-journal") == []
+    assert (webview_profile_dir("claude-journal") / "Cookies").read_bytes() == original
+    assert journal.exists()
+
+
+def test_hydration_leaves_a_profile_alone_that_this_process_already_has_open(monkeypatch):
+    # Its newest cookies may not have reached the file yet, so the file can
+    # look empty while the live profile holds a rotated session.
+    import sys
+    import types
+
+    _write_cookies_db("claude-open", [])
+    module = types.ModuleType("aiusageclock.webview.profile")
+    module._profiles = {"claude-open": object()}
+    monkeypatch.setitem(sys.modules, "aiusageclock.webview.profile", module)
+
+    assert _hydrate(monkeypatch, "claude", "claude-open") == []
+
+
+def test_hydration_for_codex_recognises_its_split_session_cookies(monkeypatch):
+    _write_cookies_db(
+        "codex-live", [("chatgpt.com", "__Secure-next-auth.session-token.0", _chromium_time(3600))]
+    )
+    injected: list[tuple] = []
+    monkeypatch.setattr(
+        cookies,
+        "get_provider_cookie",
+        lambda name: "__Secure-next-auth.session-token=x" if name == "codex-live" else None,
+    )
+    monkeypatch.setattr(
+        cookies,
+        "inject_session_cookie",
+        lambda provider, value, *, account_id=None: injected.append(1) or True,
+    )
+
+    cookies.hydrate_account_from_keyring("codex", "codex-live")
+
+    assert injected == []

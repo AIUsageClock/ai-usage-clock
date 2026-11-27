@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import sqlite3
+import sys
+import tempfile
+import time
 from http.cookies import SimpleCookie
+from pathlib import Path
 
 from PyQt6.QtCore import QByteArray, QDateTime, QUrl
 from PyQt6.QtNetwork import QNetworkCookie
@@ -287,7 +293,9 @@ def clear_browser_session(account_id: str) -> None:
         host = existing_host()
         if host is not None:
             host.release_profile(account_id)
-        profile_cleanup.delete_profile(account_id)
+        # A directory that stays locked is queued for later, but the sign-out
+        # is not complete until it is gone: raise so the caller says so.
+        profile_cleanup.delete_profile(account_id, raise_if_locked=True)
     except Exception as exc:  # noqa: BLE001 - report partial cleanup to the UI
         errors.append(f"browser profile: {exc}")
 
@@ -296,16 +304,89 @@ def clear_browser_session(account_id: str) -> None:
     log.info("browser session cleared provider=%s", account_id)
 
 
-def _profile_has_persistent_cookies(account_id: str) -> bool:
-    """Whether QtWebEngine has already persisted cookies for this profile.
+# Chromium stores expiry as microseconds since 1601-01-01 UTC.
+_CHROMIUM_EPOCH_OFFSET_S = 11_644_473_600
 
-    Chromium writes the SQLite ``Cookies`` file once it starts persisting (any
-    cookie write, including our own first paste). If the file is non-empty,
-    the profile owns a copy of whatever session cookies the site has rotated
-    to, and we should not overwrite them with the keyring's stored blob.
+
+def _profile_loaded_in_process(account_id: str) -> bool:
+    """Whether this process already has the account's profile open."""
+    module = sys.modules.get("aiusageclock.webview.profile")
+    return module is not None and account_id in getattr(module, "_profiles", {})
+
+
+def _auth_cookie_rows(kind: str, db_path: Path) -> bool:
+    """Whether the Cookies database holds an unexpired auth cookie for ``kind``."""
+    domain = COOKIE_DOMAINS.get(kind, "").lstrip(".").lower()
+    now_chromium = int((time.time() + _CHROMIUM_EPOCH_OFFSET_S) * 1_000_000)
+    connection = sqlite3.connect(db_path)
+    try:
+        rows = connection.execute(
+            "SELECT host_key, name, expires_utc FROM cookies"
+        ).fetchall()
+    finally:
+        connection.close()
+    for host_key, name, expires_utc in rows:
+        host = str(host_key).lstrip(".").lower()
+        if domain and host != domain and not host.endswith("." + domain):
+            continue
+        if expires_utc and int(expires_utc) <= now_chromium:
+            continue
+        if _has_auth_cookie(kind, [(str(name), "")]):
+            return True
+    return False
+
+
+def _profile_auth_cookie_state(kind: str, account_id: str) -> bool | None:
+    """Whether the profile on disk really holds the account's auth cookie.
+
+    True/False when the Cookies database could be read, None when it could not.
+    The database is read from a copy (with its journal) so a database left
+    mid-write by a killed worker is rolled back on the copy, never on the
+    original, and so nothing here can lock the file Chromium is about to open.
     """
     cookies_path = webview_profile_dir(account_id) / "Cookies"
+    if not cookies_path.exists():
+        return False
     try:
+        with tempfile.TemporaryDirectory(prefix="aiuc-cookies-") as scratch:
+            copy = Path(scratch) / "Cookies"
+            shutil.copy2(cookies_path, copy)
+            for suffix in ("-journal", "-wal"):
+                extra = cookies_path.with_name(cookies_path.name + suffix)
+                if extra.exists():
+                    shutil.copy2(extra, copy.with_name(copy.name + suffix))
+            return _auth_cookie_rows(kind, copy)
+    except (OSError, sqlite3.Error):
+        return None
+
+
+def _profile_has_persistent_cookies(kind: str, account_id: str) -> bool:
+    """Whether the profile already owns a usable session, so the keyring's copy
+    must not be pushed over it.
+
+    The file's size says nothing: a worker that dies right after hydrating
+    leaves a non-empty ``Cookies`` file whose table is empty, and a size check
+    would then treat the account as "has live cookies" forever. So the decision
+    looks for the auth cookie itself (name, domain, not expired):
+
+    * an unexpired auth cookie is present: the profile owns the session, and
+      the site may have rotated it since the user pasted the stored copy, so
+      the stored (older) value must not overwrite it;
+    * the database is readable but holds no auth cookie: nothing worth keeping,
+      so the stored value is pushed in;
+    * the database cannot be read: fall back to the old size check, which errs
+      toward leaving the profile alone.
+
+    A profile this very process already has open is never re-seeded either:
+    its newest cookies may not have reached the file yet.
+    """
+    if _profile_loaded_in_process(account_id):
+        return True
+    state = _profile_auth_cookie_state(kind, account_id)
+    if state is not None:
+        return state
+    try:
+        cookies_path = webview_profile_dir(account_id) / "Cookies"
         return cookies_path.exists() and cookies_path.stat().st_size > 0
     except OSError:
         return False
@@ -326,7 +407,7 @@ def hydrate_account_from_keyring(kind: str, account_id: str) -> bool:
     pairs = _parse_cookie_pairs(kind, value) if value else []
     names = sorted({name for name, _ in pairs})
     has_auth = _has_auth_cookie(kind, pairs) if pairs else False
-    profile_has_cookies = _profile_has_persistent_cookies(account_id)
+    profile_has_cookies = _profile_has_persistent_cookies(kind, account_id)
 
     if not value:
         injected = False

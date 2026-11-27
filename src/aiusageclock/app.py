@@ -360,6 +360,9 @@ class App(QObject):
     # Class-level default so App stubs built without __init__ read None.
     _local_usage = None
     _login_job = None
+    # Browser accounts skipped from a refresh round because a sign-in window
+    # was open; they run once it closes (None until something is deferred).
+    _deferred_browser_refresh = None
 
     def __init__(self):
         super().__init__()
@@ -402,6 +405,13 @@ class App(QObject):
         # before the scrape that needs them. Anything a sign-out could not
         # delete last time (a locked folder) goes now, before a worker starts.
         self._login_job = None
+        try:
+            # A sign-in that never got to clean up (the worker was killed, or
+            # this process crashed) leaves its temporary browser profile, which
+            # holds a live session once the user has signed in.
+            profile_cleanup.cleanup_stale_signin_profiles()
+        except Exception:  # noqa: BLE001 - never block startup over cleanup
+            log.exception("stale sign-in profile cleanup failed")
         try:
             removed = profile_cleanup.process_pending()
         except Exception:  # noqa: BLE001 - never block startup over cleanup
@@ -801,10 +811,86 @@ class App(QObject):
         )
         self._start_next_refresh()
 
-    def _start_next_refresh(self) -> None:
-        if self._inflight or not self._refresh_queue:
+    # While a sign-in window is open the browser worker is busy with it for as
+    # long as the person takes, so a scrape queued behind it would stall the
+    # round for every provider after it. Accounts that need the browser are set
+    # aside (and run when the window closes); everything else refreshes as usual.
+
+    def _needs_browser(self, name: str) -> bool:
+        try:
+            return account_kind(self._config, name) in ("claude", "codex")
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _browser_paused(self) -> bool:
+        return self._login_job is not None
+
+    def _defer_browser_refresh(self, name: str) -> None:
+        deferred = self._deferred_browser_refresh
+        if deferred is None:
+            deferred = self._deferred_browser_refresh = []
+        if name not in deferred:
+            deferred.append(name)
+        # Keep its last reading in this round's comparison, so setting it aside
+        # does not look like a change.
+        previous = (self._last_cycle_signatures or {}).get(name)
+        if previous is not None:
+            self._cycle_signatures[name] = previous
+        self._widget.unmark_loading(name)
+
+    def _take_deferred_browser_refresh(self) -> list[str]:
+        deferred, self._deferred_browser_refresh = self._deferred_browser_refresh, None
+        return list(deferred or [])
+
+    def _queue_refresh_of(self, names: list[str]) -> None:
+        """Refresh ``names`` now, or join the round that is already running."""
+        names = [name for name in names if name in self._providers]
+        if not names:
             return
-        name = self._refresh_queue.pop(0)
+        if self._inflight or self._refresh_queue:
+            for name in names:
+                if name not in self._inflight and name not in self._refresh_queue:
+                    self._refresh_queue.append(name)
+            return
+        self._timer.stop()
+        self._current_refresh_manual = False
+        self._cycle_signatures = {}
+        self._widget.set_refreshing(True)
+        self._refresh_queue = list(names)
+        self._widget.mark_loading(
+            {name: display_name_for_account(self._config, name) for name in names}
+        )
+        self._start_next_refresh()
+
+    def _refresh_after_login(self, provider: str) -> None:
+        state = vars(self)
+        if state.get("_inflight") or state.get("_refresh_queue"):
+            self._queue_refresh_of([provider])
+            return
+        self.refresh_provider(provider)
+
+    def _start_next_refresh(self) -> None:
+        if not self._refresh_queue:
+            return
+        if self._inflight and not (
+            self._browser_paused()
+            and all(self._needs_browser(name) for name in self._inflight)
+        ):
+            # One provider at a time; the exception is a browser scrape that is
+            # only waiting behind the sign-in window and holds nothing up.
+            return
+        name = None
+        while self._refresh_queue:
+            candidate = self._refresh_queue.pop(0)
+            if self._browser_paused() and self._needs_browser(candidate):
+                self._defer_browser_refresh(candidate)
+                continue
+            name = candidate
+            break
+        if name is None:
+            if not self._inflight:
+                self._finish_refresh_cycle()
+            return
         provider = self._providers.get(name)
         if provider is None:
             QTimer.singleShot(0, self._start_next_refresh)
@@ -895,20 +981,23 @@ class App(QObject):
 
         if self._refresh_queue:
             QTimer.singleShot(0, self._start_next_refresh)
-        else:
-            changed = self._cycle_changed()
-            if changed:
-                self._active_until = datetime.now() + timedelta(
-                    minutes=_ACTIVE_MODE_MINUTES
-                )
-                self._unchanged_cycles = 0
-            elif not self._current_refresh_manual:
-                self._unchanged_cycles += 1
-            self._last_cycle_signatures = dict(self._cycle_signatures)
-            self._current_refresh_manual = False
-            self._widget.set_refreshing(False)
-            self._update_tray()
-            self._schedule_next_refresh()
+        elif not self._inflight:
+            self._finish_refresh_cycle()
+
+    def _finish_refresh_cycle(self) -> None:
+        changed = self._cycle_changed()
+        if changed:
+            self._active_until = datetime.now() + timedelta(
+                minutes=_ACTIVE_MODE_MINUTES
+            )
+            self._unchanged_cycles = 0
+        elif not self._current_refresh_manual:
+            self._unchanged_cycles += 1
+        self._last_cycle_signatures = dict(self._cycle_signatures)
+        self._current_refresh_manual = False
+        self._widget.set_refreshing(False)
+        self._update_tray()
+        self._schedule_next_refresh()
 
     def _on_reset_event(self, name: str) -> None:
         provider = self._providers.get(name)
@@ -1246,6 +1335,15 @@ class App(QObject):
             self._remember_sign_in_browser(str(message.get("value", "")))
 
     def _on_login_finished(self, provider: str, display_name: str, result: dict) -> None:
+        deferred = self._take_deferred_browser_refresh()
+        try:
+            self._handle_login_result(provider, display_name, result)
+        finally:
+            if deferred:
+                # Browser accounts that were set aside while the window was open.
+                QTimer.singleShot(0, lambda: self._queue_refresh_of(deferred))
+
+    def _handle_login_result(self, provider: str, display_name: str, result: dict) -> None:
         self._login_job = None
         self._widget.restore_always_on_top()
         if result.get("error") == worker_ipc.ERR_NO_GL:
@@ -1270,7 +1368,8 @@ class App(QObject):
             # Embedded sessions already live in this profile; imported external
             # cookies commit asynchronously. Either way, refresh now instead of
             # leaving a valid sign-in stale until the five-minute active timer.
-            QTimer.singleShot(750, lambda: self.refresh_provider(provider))
+            QTimer.singleShot(750, lambda: self._refresh_after_login(provider))
+
     def open_cookie_paste(self, provider: str) -> None:
         draft = self._draft_browser_account(provider)
         kind = draft.kind if draft is not None else account_kind(self._config, provider)
@@ -1291,6 +1390,12 @@ class App(QObject):
             )
         except ValueError:
             return
+        if self._login_job is not None:
+            # The browser worker is busy with a sign-in window, and the paste
+            # dialog's check needs it. Pasting a cookie replaces signing in, so
+            # close the window (the worker cleans up after it) rather than
+            # leave this dialog waiting behind it.
+            get_host().cancel(self._login_job)
         self._widget.suspend_always_on_top()
         try:
             accepted = bool(dlg.exec())
@@ -1561,6 +1666,13 @@ class App(QObject):
         change only applies on a fresh process.
         """
         log.info("restarting to apply new UI scale")
+        # The new process starts its own browser worker. End this one's first,
+        # so the two can never have the same profile open (a refresh may be in
+        # the middle of a scrape right now); the wait is bounded.
+        try:
+            self._stop_worker_host()
+        except Exception:  # noqa: BLE001 - restarting matters more
+            log.exception("could not stop the browser worker before restarting")
         # Release the single-instance lock first so the relaunched process can
         # acquire it without racing this one's shutdown.
         if self._instance_lock is not None:

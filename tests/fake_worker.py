@@ -9,6 +9,8 @@ quickly and on any machine. Behaviour per job comes from the job's params
 * FAKE_WORKER_NO_HELLO=1    connect but never say hello
 * FAKE_WORKER_EXIT_AT_START=1  exit immediately without connecting
 * FAKE_WORKER_IDLE_EXIT_MS=n   exit n ms after the welcome / last result
+* FAKE_WORKER_SHUTDOWN_MARK=path  write a file when a shutdown message arrives
+* FAKE_WORKER_IGNORE_SHUTDOWN=1   keep running after a shutdown message (a hung worker)
 * FAKE_WORKER_DIE_ONCE=path  the first worker to get a job exits before acknowledging it
   (it creates `path`; later workers see the file and behave normally)
 """
@@ -105,6 +107,11 @@ def main() -> int:
             elif kind == ipc.MSG_JOB:
                 run_job(message)
             elif kind == ipc.MSG_SHUTDOWN:
+                mark = os.environ.get("FAKE_WORKER_SHUTDOWN_MARK")
+                if mark:
+                    Path(mark).write_text("shutdown", encoding="utf-8")
+                if os.environ.get("FAKE_WORKER_IGNORE_SHUTDOWN") == "1":
+                    continue
                 app.exit(0)
 
     def on_connected() -> None:

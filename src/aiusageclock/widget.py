@@ -2270,6 +2270,13 @@ class UsageWidget(QWidget):
         self.layout().activate()
         self._do_refit_height()
 
+    def unmark_loading(self, provider: str) -> None:
+        """Undo ``mark_loading`` for a tile whose refresh was set aside."""
+        tile = self._tiles.get(provider)
+        if tile is not None:
+            tile.set_refreshing(False)
+        self._refresh_collapsed_summary()
+
     def _refit_height(self) -> None:
         """Refit automatic height after content or responsive layout changes."""
         QTimer.singleShot(0, self._do_refit_height)

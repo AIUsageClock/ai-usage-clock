@@ -111,6 +111,7 @@ class HeadlessScraper(QObject):
         self._max_progress = 0
         self._render_terminated = False
         self._extractor_reruns = 0
+        self._cleaned = False
 
         profile = get_profile(provider)
         self._page = QuietWebEnginePage(profile, self, provider=provider)
@@ -339,7 +340,22 @@ class HeadlessScraper(QObject):
         # chance to clear their Python references.
         QTimer.singleShot(0, self._cleanup)
 
+    def abort(self) -> None:
+        """Tear the page down now, without reporting a result.
+
+        Used when the worker is about to release its profiles: the page and its
+        view must be gone before the profile is, and nothing may fire into this
+        object afterwards (a ``loadFinished`` reaching a half-destroyed
+        scraper was an access violation).
+        """
+        self._finished = True
+        self._timeout.stop()
+        self._cleanup()
+
     def _cleanup(self) -> None:
+        if self._cleaned:
+            return
+        self._cleaned = True
         try:
             self._page.loadFinished.disconnect(self._on_load_finished)
             self._page.loadProgress.disconnect(self._on_load_progress)

@@ -224,18 +224,101 @@ def test_release_profile_cancels_that_accounts_jobs_and_keeps_the_others(qtbot, 
     assert other[0]["ok"] is True
 
 
-def test_release_profile_requeues_a_running_job_of_another_account(qtbot, make_host):
+def test_release_profile_leaves_a_worker_alone_that_never_held_that_profile(qtbot, make_host):
     host = make_host()
     other: list[dict] = []
-    host.submit(ipc.JOB_PING, {"op": "sleep", "ms": 5000}, other.append, timeout_s=60.0, account_id="b")
+    host.submit(ipc.JOB_PING, {"op": "sleep", "ms": 1500}, other.append, timeout_s=60.0, account_id="b")
+    qtbot.waitUntil(lambda: host._current is not None and host._current.acked, timeout=WAIT_MS)
+    proc = host._proc
+
+    host.release_profile("a")  # a was never given to this worker
+
+    assert host._proc is proc, "the worker, and the other account's job, are not disturbed"
+    _wait(qtbot, other)
+    assert other[0]["ok"] is True
+
+
+def test_release_profile_asks_a_worker_that_held_it_to_shut_down_first(
+    qtbot, make_host, monkeypatch, tmp_path
+):
+    mark = tmp_path / "shutdown-mark"
+    monkeypatch.setenv("FAKE_WORKER_SHUTDOWN_MARK", str(mark))
+    host = make_host()
+    first: list[dict] = []
+    host.submit(ipc.JOB_PING, {"op": "echo"}, first.append, timeout_s=60.0, account_id="a")
+    _wait(qtbot, first)
+    other: list[dict] = []
+    host.submit(ipc.JOB_PING, {"op": "sleep", "ms": 1500}, other.append, timeout_s=60.0, account_id="b")
     qtbot.waitUntil(lambda: host._current is not None and host._current.acked, timeout=WAIT_MS)
 
     host.release_profile("a")
 
+    assert mark.exists(), "the worker was asked to flush and exit, not killed"
     assert host.worker_running is False
     _wait(qtbot, other)
     assert other[0]["ok"] is True, "the other account's job runs again on a new worker"
+    assert other[0]["pid"] != first[0]["pid"]
 
+
+def test_cancelling_a_running_job_asks_the_worker_to_shut_down_first(
+    qtbot, make_host, monkeypatch, tmp_path
+):
+    mark = tmp_path / "shutdown-mark"
+    monkeypatch.setenv("FAKE_WORKER_SHUTDOWN_MARK", str(mark))
+    host = make_host()
+    results: list[dict] = []
+    job = host.submit(ipc.JOB_PING, {"op": "hang"}, results.append, timeout_s=60.0)
+    qtbot.waitUntil(lambda: host._current is not None and host._current.acked, timeout=WAIT_MS)
+
+    host.cancel(job)
+    _wait(qtbot, results)
+
+    assert results[0]["error"] == ipc.ERR_CANCELLED
+    assert mark.exists()
+
+
+def test_a_job_that_runs_out_of_time_is_shut_down_politely_and_reports_a_timeout(
+    qtbot, make_host, monkeypatch, tmp_path
+):
+    mark = tmp_path / "shutdown-mark"
+    monkeypatch.setenv("FAKE_WORKER_SHUTDOWN_MARK", str(mark))
+    host = make_host()
+    results: list[dict] = []
+    host.submit(ipc.JOB_PING, {"op": "hang"}, results.append, timeout_s=0.5)
+    _wait(qtbot, results)
+
+    assert results[0]["error"] == ipc.ERR_TIMEOUT
+    assert mark.exists()
+
+
+def test_a_worker_that_ignores_the_shutdown_request_is_killed_after_the_grace_period(
+    qtbot, make_host, monkeypatch
+):
+    monkeypatch.setenv("FAKE_WORKER_IGNORE_SHUTDOWN", "1")
+    monkeypatch.setattr(host_module, "STOP_GRACE_MS", 300)
+    host = make_host()
+    results: list[dict] = []
+    job = host.submit(ipc.JOB_PING, {"op": "hang"}, results.append, timeout_s=60.0)
+    qtbot.waitUntil(lambda: host._current is not None and host._current.acked, timeout=WAIT_MS)
+
+    host.cancel(job)
+    _wait(qtbot, results)
+
+    assert results[0]["error"] == ipc.ERR_CANCELLED, "the reason survives the later kill"
+    qtbot.waitUntil(lambda: not host.worker_running, timeout=WAIT_MS)
+
+
+def test_focus_job_lets_the_worker_take_the_foreground_again(qtbot, make_host, monkeypatch):
+    host = make_host()
+    allowed: list[bool] = []
+    monkeypatch.setattr(host, "_allow_worker_foreground", lambda: allowed.append(True))
+    host.submit(ipc.JOB_LOGIN, {"op": "hang"}, lambda result: None, timeout_s=60.0)
+    qtbot.waitUntil(lambda: host._current is not None and host._current.acked, timeout=WAIT_MS)
+    allowed.clear()  # the dispatch itself asked once
+
+    assert host.focus_job(ipc.JOB_LOGIN) is True
+
+    assert allowed == [True]
 
 def test_stop_cancels_everything_and_ends_the_worker(qtbot, make_host):
     host = make_host()
@@ -402,3 +485,79 @@ def test_clear_browser_session_stops_the_worker_then_deletes_the_profile(monkeyp
 
     assert events == ["secret", "release:claude:True"]
     assert not path.exists()
+
+
+# ----- review fixes: the scraper stand-in is deleted, sign-out is reported -----
+
+
+def test_worker_scraper_is_deleted_once_it_has_reported(qtbot, make_host, monkeypatch):
+    from PyQt6.QtCore import QCoreApplication, QEvent, QObject
+
+    host = make_host()
+    monkeypatch.setattr(host_module, "_host", host)
+    monkeypatch.setattr(host, "submit", lambda *a, **k: None)
+    owner = QObject()  # stands in for the long-lived App the providers hang off
+
+    for result in (
+        {"ok": True, "result": {"a": 1}, "error": ""},
+        {"ok": False, "error": ipc.ERR_CRASHED},
+        {"ok": False, "error": ipc.ERR_NO_GL, "reason": "none"},
+    ):
+        WorkerScraper("claude", "https://example.test", "1+1", parent=owner)._finish(result)
+    assert len(owner.findChildren(WorkerScraper)) == 3
+
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+
+    assert owner.findChildren(WorkerScraper) == []
+
+
+def test_clear_browser_session_reports_a_profile_that_stays_locked(monkeypatch):
+    path = _make_profile("claude")
+    monkeypatch.setattr(host_module, "_host", None)
+    monkeypatch.setattr(cookies, "set_provider_cookie", lambda account_id, value: None)
+    monkeypatch.setattr(profile_cleanup, "_RETRIES", 1)
+
+    def locked(target, *args, **kwargs):
+        raise PermissionError("the file is in use by another process")
+
+    monkeypatch.setattr(profile_cleanup.shutil, "rmtree", locked)
+
+    with pytest.raises(RuntimeError, match="in use by another process"):
+        cookies.clear_browser_session("claude")
+
+    assert path.exists()
+    assert profile_cleanup.read_pending() == ["claude"], "still queued for the next start"
+
+
+def test_ensure_not_pending_finishes_a_queued_deletion_or_reports_why_not(monkeypatch):
+    path = _make_profile("claude-work")
+    profile_cleanup._write_pending(["claude-work"])
+    real_rmtree = profile_cleanup.shutil.rmtree
+
+    def locked(target, *args, **kwargs):
+        raise PermissionError("still locked")
+
+    monkeypatch.setattr(profile_cleanup.shutil, "rmtree", locked)
+    monkeypatch.setattr(profile_cleanup, "_RETRIES", 1)
+    assert "still locked" in profile_cleanup.ensure_not_pending("claude-work")
+    assert path.exists()
+
+    monkeypatch.setattr(profile_cleanup.shutil, "rmtree", real_rmtree)
+    assert profile_cleanup.ensure_not_pending("claude-work") is None
+    assert not path.exists()
+    assert profile_cleanup.read_pending() == []
+    assert profile_cleanup.ensure_not_pending("never-listed") is None
+
+
+def test_stale_sign_in_profiles_are_removed(tmp_path):
+    from aiusageclock.config import app_data_dir
+
+    root = app_data_dir() / "browser-signin"
+    (root / "claude-abc123" / "Default").mkdir(parents=True)
+    (root / "claude-abc123" / "Default" / "Cookies").write_bytes(b"session")
+    (root / "codex-xyz").mkdir()
+
+    assert profile_cleanup.cleanup_stale_signin_profiles() == 2
+
+    assert list(root.iterdir()) == []
+    assert profile_cleanup.cleanup_stale_signin_profiles() == 0
