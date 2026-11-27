@@ -451,10 +451,20 @@ def test_login_without_gl_shows_the_unavailable_dialog_with_the_reason(monkeypat
     assert app._calls == ["suspend", "restore"]  # noqa: SLF001
 
 
-def test_login_worker_failure_is_reported_but_cancel_is_silent(monkeypatch):
+def _capture_warnings(monkeypatch):
     shown = []
+    monkeypatch.setattr(
+        app_module.QMessageBox,
+        "warning",
+        staticmethod(lambda parent, title, text: shown.append((title, text))),
+    )
+    return shown
+
+
+def test_login_worker_failure_is_reported_but_cancel_is_silent(monkeypatch):
+    # The real dialog methods run; only QMessageBox.warning is intercepted.
+    shown = _capture_warnings(monkeypatch)
     app, host = _login_app(monkeypatch)
-    app._show_webengine_unavailable = lambda name, reason: shown.append(reason)  # noqa: SLF001
 
     app.open_login("claude")
     host.submitted[0].on_result({"ok": False, "error": "worker_crashed", "detail": "exit code 7"})
@@ -462,7 +472,57 @@ def test_login_worker_failure_is_reported_but_cancel_is_silent(monkeypatch):
     host.submitted[1].on_result({"ok": False, "error": "cancelled"})
 
     assert len(shown) == 1
-    assert "exited unexpectedly" in shown[0]
+    title, text = shown[0]
+    assert title == "Sign-in did not complete"
+    assert text == (
+        "Signing in to Claude did not finish: the browser helper process "
+        "exited unexpectedly (exit code 7)."
+    )
+    assert "OpenGL" not in text and "FORCE" not in text
+
+
+def test_login_timeout_says_the_window_was_open_too_long(monkeypatch):
+    shown = _capture_warnings(monkeypatch)
+    app, host = _login_app(monkeypatch)
+
+    app.open_login("claude")
+    host.submitted[0].on_result({"ok": False, "error": "worker_timeout"})
+
+    minutes = int(app_module.worker_ipc.LOGIN_TIMEOUT_S // 60)
+    assert shown == [
+        (
+            "Sign-in did not complete",
+            f"The sign-in window for Claude was closed because it was open for more "
+            f"than {minutes} minutes. Open it again to finish signing in.",
+        )
+    ]
+    assert "OpenGL" not in shown[0][1] and "FORCE" not in shown[0][1]
+
+
+def test_login_without_gl_still_uses_the_original_dialog_text(monkeypatch):
+    shown = _capture_warnings(monkeypatch)
+    app, host = _login_app(monkeypatch)
+
+    app.open_login("claude")
+    host.submitted[0].on_result({"ok": False, "error": "no_gl", "reason": "no GLX/EGL"})
+
+    assert len(shown) == 1
+    assert shown[0][0] == "Browser sign-in unavailable"
+    assert "OpenGL" in shown[0][1] and "no GLX/EGL" in shown[0][1]
+
+
+def test_login_failure_reason_ending_in_a_period_is_not_doubled(monkeypatch):
+    shown = _capture_warnings(monkeypatch)
+    app, host = _login_app(monkeypatch)
+
+    app.open_login("claude")
+    host.submitted[0].on_result(
+        {"ok": False, "error": "profile_locked", "detail": "The file is in use."}
+    )
+
+    assert shown == [
+        ("Sign-in did not complete", "Signing in to Claude did not finish: The file is in use.")
+    ]
 
 
 def test_login_remembers_the_browser_choice_made_in_the_worker(monkeypatch):

@@ -360,6 +360,10 @@ class App(QObject):
     # Class-level default so App stubs built without __init__ read None.
     _local_usage = None
     _login_job = None
+    # Likewise: a stub without __init__ reads "no refresh running or queued".
+    # __init__ replaces both with a real set and list.
+    _inflight: set[str] | frozenset[str] = frozenset()
+    _refresh_queue: list[str] | tuple[()] = ()
     # Browser accounts skipped from a refresh round because a sign-in window
     # was open; they run once it closes (None until something is deferred).
     _deferred_browser_refresh = None
@@ -863,8 +867,7 @@ class App(QObject):
         self._start_next_refresh()
 
     def _refresh_after_login(self, provider: str) -> None:
-        state = vars(self)
-        if state.get("_inflight") or state.get("_refresh_queue"):
+        if self._inflight or self._refresh_queue:
             self._queue_refresh_of([provider])
             return
         self.refresh_provider(provider)
@@ -1268,6 +1271,21 @@ class App(QObject):
             f"{ENV_FORCE_WEBENGINE}=1 to skip this check.",
         )
 
+    def _show_sign_in_incomplete(self, display_name: str, result: dict) -> None:
+        if result.get("error") == worker_ipc.ERR_TIMEOUT:
+            minutes = int(worker_ipc.LOGIN_TIMEOUT_S // 60)
+            text = (
+                f"The sign-in window for {display_name} was closed because it was "
+                f"open for more than {minutes} minutes. Open it again to finish "
+                "signing in."
+            )
+        else:
+            reason = failure_reason(result).rstrip()
+            if reason.endswith("."):
+                reason = reason[:-1]
+            text = f"Signing in to {display_name} did not finish: {reason}."
+        QMessageBox.warning(self._widget, "Sign-in did not complete", text)
+
     def _remember_sign_in_browser(self, browser_id: str) -> None:
         if browser_id not in {
             "ask",
@@ -1359,7 +1377,7 @@ class App(QObject):
                 result.get("detail"),
             )
             if result.get("error") != worker_ipc.ERR_CANCELLED:
-                self._show_webengine_unavailable(display_name, failure_reason(result))
+                self._show_sign_in_incomplete(display_name, result)
             return
         accepted = bool(result.get("accepted"))
         session_may_have_changed = bool(result.get("session_may_have_changed"))
