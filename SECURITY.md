@@ -69,7 +69,9 @@ On Windows we therefore keep cookies in `secrets.dat`, encrypted with DPAPI
 (`CryptProtectData`), and keep API keys and the GitHub PAT in
 Credential Manager. macOS Keychain and the Linux Secret Service have no
 comparable size limit, so on those platforms everything goes through
-`keyring`.
+`keyring`. On Windows the main process and the browser helper process can both
+read and change `secrets.dat`, so access is serialized with a lock file, `secrets.dat.lock`,
+next to it; the lock file holds no data.
 
 ### What the OS credential stores do and do not protect against
 
@@ -114,11 +116,32 @@ model described above.
 
 ## Embedded Browser Fallback
 
-The fallback sign-in window uses an in-process `QWebEngineView` with a per-account
-profile under `<app-data>/profiles/{account-id}/`. Cookies it acquires are
-kept inside that account profile and are not shared with your real Chrome or
-Edge browser. Multiple Claude/Codex accounts are isolated from each other by
-using separate profile directories and separate stored cookie secrets.
+The embedded browser (Qt WebEngine) never runs inside the main application
+process. The fallback sign-in window, the page reads that fetch Claude and Codex
+usage, and the check of a pasted cookie all run in a separate, short-lived helper
+process: the same executable started with `--webengine-worker`. The main process
+does not load Qt WebEngine at all, and the helper exits when it has nothing left
+to do.
+
+The helper uses a per-account profile under `<app-data>/profiles/{account-id}/`.
+Cookies it acquires are kept inside that account profile and are not shared with
+your real Chrome or Edge browser. Multiple Claude/Codex accounts are isolated from
+each other by using separate profile directories and separate stored cookie
+secrets. **Clear sign-in** deletes the account's whole profile folder, not only
+its cookies; if a file in it is still locked (this can happen briefly on Windows),
+the deletion is queued in `<app-data>/pending-profile-delete.json` and retried
+before the next helper starts and at the next launch.
+
+The main process and the helper talk over a local IPC channel, not the network.
+The main process creates a `QLocalServer` with a random name and the
+`UserAccessOption` socket option (access limited to the current OS user), starts
+the helper, and passes it a one-time random token (`secrets.token_urlsafe`) on the
+command line. The helper's first message must carry that token; the main process
+compares it in constant time (`secrets.compare_digest`), drops any connection whose
+first message does not match, and stops listening once the helper is connected.
+As with the DevTools port above, another process running as the same OS user could
+read the helper's command line; this is within the same-user threat model
+described above.
 
 Navigation in the embedded browser is restricted to an allowlist of
 provider auth domains (Claude, ChatGPT, and their known
@@ -140,8 +163,10 @@ claude-resets.com, at most once every 15 minutes while the app is running. Those
 sites can see your IP address and the User-Agent
 `ai-usage-clock/<version> (+https://github.com/AIUsageClock/ai-usage-clock)`.
 
-Diagnostic logs are written locally to `<app-data>/ai-usage-clock.log`. Logs
-are intended to avoid recording
+Diagnostic logs are written locally in `<app-data>`: `ai-usage-clock.log` for the
+main process and `worker.log` for the browser helper process (each with rotated
+older copies), plus `worker.log.crash`, where the helper records native crash
+stacks. Logs are intended to avoid recording
 raw cookies, personal access tokens, OpenCode/OpenRouter/Linear keys, and sensitive response
 bodies. Review logs before sharing them in an issue.
 
