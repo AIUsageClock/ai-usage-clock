@@ -818,6 +818,41 @@ def test_exit_code_3_print_timeout_without_tokens_is_a_timeout(monkeypatch):
     assert _short_error_reason(snapshots[0].error) == "timeout"
 
 
+def test_exit_code_3_print_timeout_without_usage_fields_latches(monkeypatch):
+    # Nothing confirms that no model turn was spent, so polling stops, exactly
+    # as for any other output without usage fields.
+    payload = {"status": "ERROR", "finished_reason": "print_timeout"}
+    snapshots, calls = _refresh_twice(
+        monkeypatch, _exit_result(3, json.dumps(payload))
+    )
+
+    assert len(calls) == 1
+    assert antigravity._PROCESS_LATCHED_ERROR
+    assert snapshots[0].error == LATCH_ERROR
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"num_turns": 0},
+        {"usage": {"total_tokens": 0}},
+        {"num_turns": 0, "usage": {}},
+        {"num_turns": None, "usage": {"total_tokens": 0}},
+        {"num_turns": "0", "usage": {"total_tokens": 0}},
+    ],
+)
+def test_exit_code_3_print_timeout_with_unconfirmed_usage_is_not_called_a_timeout(
+    monkeypatch, extra
+):
+    # Not "explicitly zero turns and zero tokens": the normal parser decides.
+    payload = {"status": "ERROR", "finished_reason": "print_timeout", **extra}
+    snapshots, _calls = _refresh_twice(
+        monkeypatch, _exit_result(3, json.dumps(payload))
+    )
+
+    assert snapshots[0].error != antigravity._PRINT_TIMEOUT_ERROR
+
+
 def test_exit_code_3_print_timeout_with_tokens_still_latches(monkeypatch):
     payload = {
         "status": "ERROR",

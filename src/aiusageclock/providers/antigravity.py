@@ -133,10 +133,11 @@ def _decode_output(stdout: str) -> dict[str, Any]:
 def _recoverable_exit_error(result: subprocess.CompletedProcess[str]) -> str | None:
     """Error text for agy exit codes that must not latch polling, else None.
 
-    Exit 2 (API-key sign-in) and exit 3 with finished_reason "print_timeout"
-    are recoverable when the output shows no model turns or tokens were spent.
-    If tokens were spent, or the output is unrecognised for any other code,
-    return None so the normal parser decides (and may still latch).
+    Exit 2 (API-key sign-in) is recoverable unless the output shows model turns
+    or tokens were spent. Exit 3 with finished_reason "print_timeout" is
+    recoverable only when the output explicitly shows zero turns and zero
+    tokens. Otherwise (spent, unconfirmed, or unrecognised) return None so the
+    normal parser decides (and may still latch).
     """
     if result.returncode not in (2, 3):
         return None
@@ -148,7 +149,11 @@ def _recoverable_exit_error(result: subprocess.CompletedProcess[str]) -> str | N
         return None
     if result.returncode == 2:
         return _EXIT_2_ERROR[:200]
-    if payload is not None and payload.get("finished_reason") == "print_timeout":
+    if (
+        payload is not None
+        and payload.get("finished_reason") == "print_timeout"
+        and _confirmed_no_spend(payload)
+    ):
         return _PRINT_TIMEOUT_ERROR
     return None
 
@@ -221,6 +226,25 @@ def _spent_tokens(payload: dict[str, Any]) -> bool:
     total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
     return (isinstance(num_turns, (int, float)) and num_turns > 0) or (
         isinstance(total_tokens, (int, float)) and total_tokens > 0
+    )
+
+
+def _confirmed_no_spend(payload: dict[str, Any]) -> bool:
+    """True only when agy explicitly reports zero turns and zero tokens.
+
+    A missing or non-numeric field cannot confirm that nothing was used, so the
+    caller keeps polling stopped, like any other indeterminate result.
+    """
+    usage = payload.get("usage")
+    num_turns = payload.get("num_turns")
+    total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
+    return (
+        isinstance(num_turns, (int, float))
+        and not isinstance(num_turns, bool)
+        and num_turns == 0
+        and isinstance(total_tokens, (int, float))
+        and not isinstance(total_tokens, bool)
+        and total_tokens == 0
     )
 
 
