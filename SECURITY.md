@@ -130,7 +130,12 @@ each other by using separate profile directories and separate stored cookie
 secrets. **Clear sign-in** deletes the account's whole profile folder, not only
 its cookies; if a file in it is still locked (this can happen briefly on Windows),
 the deletion is queued in `<app-data>/pending-profile-delete.json` and retried
-before the next helper starts and at the next launch.
+before the next helper starts and at the next launch. Access to that file is
+serialized with an empty lock file, `pending-profile-delete.json.lock`, next to it.
+After you paste a cookie, an empty marker file `<app-data>/profiles/{account-id}.reseed`
+is kept until the helper has loaded that cookie into the profile (or you clear the
+sign-in); it holds no data and only tells the next refresh to prefer the pasted cookie
+over an older one left in the profile.
 
 The main process and the helper talk over a local IPC channel, not the network.
 The main process creates a `QLocalServer` with a random name and the

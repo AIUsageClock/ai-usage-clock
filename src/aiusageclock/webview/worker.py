@@ -367,6 +367,11 @@ class JobRunner(QObject):
         kind = str(params["kind"])
         value = get_provider_cookie(account_id) or ""
         injected = bool(inject_session_cookie(kind, value, account_id=account_id)) if value else False
+        if injected:
+            # The saved cookie is in the profile now; nothing is left to re-seed.
+            from .cookies import clear_reseed_request
+
+            clear_reseed_request(account_id)
         if not injected or not params.get("verify", True):
             QTimer.singleShot(
                 _COOKIE_COMMIT_MS, lambda: finish({"ok": True, "injected": injected})

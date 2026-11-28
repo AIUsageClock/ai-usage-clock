@@ -107,6 +107,21 @@ def test_result_after_the_dialog_was_closed_is_ignored(setup):
     assert setup.dialog.result() == QDialog.DialogCode.Rejected
 
 
+def test_a_paste_marks_the_account_for_re_seeding_until_the_worker_has_injected(setup):
+    from aiusageclock.webview import cookies
+
+    setup.dialog._save()  # noqa: SLF001
+    assert cookies.reseed_requested("claude-work")
+
+    # The worker could not start: nothing was injected, so the marker stays and
+    # "the next refresh will try with the new cookie" is true.
+    setup.host.jobs[0].on_result(
+        {"ok": False, "error": "worker_start_failed", "detail": "failed to start"}
+    )
+
+    assert cookies.reseed_requested("claude-work")
+
+
 def test_empty_paste_does_not_start_a_job(setup):
     setup.dialog._cookie_input.setPlainText("   ")  # noqa: SLF001
     setup.dialog._save()  # noqa: SLF001

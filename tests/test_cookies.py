@@ -448,3 +448,48 @@ def test_hydration_for_codex_recognises_its_split_session_cookies(monkeypatch):
     cookies.hydrate_account_from_keyring("codex", "codex-live")
 
     assert injected == []
+
+
+# ----- a freshly pasted cookie beats a stale one the profile still holds -----
+
+
+def test_a_pending_reseed_pushes_the_saved_cookie_over_an_unexpired_profile_cookie(monkeypatch):
+    # The pasted cookie was saved but the worker never injected it, while the
+    # profile still holds an auth cookie the server has revoked.
+    _write_cookies_db("claude-pasted", [(".claude.ai", "sessionKey", _chromium_time(3600))])
+    cookies.request_reseed("claude-pasted")
+
+    assert _hydrate(monkeypatch, "claude", "claude-pasted") == [("claude", "claude-pasted")]
+    assert not cookies.reseed_requested("claude-pasted"), "the marker goes once it is injected"
+    # ... and from then on the rotated session in the profile is left alone.
+    assert _hydrate(monkeypatch, "claude", "claude-pasted") == []
+
+
+def test_without_a_marker_an_unexpired_profile_cookie_is_still_never_overwritten(monkeypatch):
+    _write_cookies_db("claude-nomark", [(".claude.ai", "sessionKey", _chromium_time(3600))])
+
+    assert _hydrate(monkeypatch, "claude", "claude-nomark") == []
+    assert not cookies.reseed_requested("claude-nomark")
+
+
+def test_the_marker_stays_when_the_injection_did_not_happen(monkeypatch):
+    _write_cookies_db("claude-fail", [(".claude.ai", "sessionKey", _chromium_time(3600))])
+    cookies.request_reseed("claude-fail")
+    monkeypatch.setattr(
+        cookies, "get_provider_cookie", lambda name: "sessionKey=from-keyring"
+    )
+    monkeypatch.setattr(
+        cookies, "inject_session_cookie", lambda provider, value, *, account_id=None: False
+    )
+
+    assert cookies.hydrate_account_from_keyring("claude", "claude-fail") is False
+    assert cookies.reseed_requested("claude-fail")
+
+
+def test_clear_browser_session_removes_the_reseed_marker(monkeypatch):
+    cookies.request_reseed("claude-clear")
+    monkeypatch.setattr(cookies, "set_provider_cookie", lambda account_id, value: None)
+
+    cookies.clear_browser_session("claude-clear")
+
+    assert not cookies.reseed_requested("claude-clear")

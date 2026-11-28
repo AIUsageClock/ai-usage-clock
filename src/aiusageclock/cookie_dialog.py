@@ -16,7 +16,7 @@ from .config import COOKIE_DOMAINS, COOKIE_NAMES, set_provider_cookie
 from .config import get_provider_cookie
 from .providers._codex_page import CODEX_USAGE_URL
 from .webview import ipc as worker_ipc
-from .webview.cookies import _parse_cookie_pairs
+from .webview.cookies import _parse_cookie_pairs, request_reseed
 from .webview.host import failure_reason, get_host
 from .webview.targets import VERIFY_TARGETS
 
@@ -193,6 +193,10 @@ class CookieDialog(QDialog):
                 f"<span style='color:#9ca3af;'>Saved. Verifying that the cookie loads "
                 f"a signed-in {self._provider} page…</span>"
             )
+        # Until the worker has injected it, the saved cookie is newer than the
+        # browser profile: have the next hydration push it in even if the
+        # profile still holds an older (maybe revoked) auth cookie.
+        request_reseed(self._account_id)
         # The browser lives in a worker process: it injects the saved cookie
         # into the profile and (when the provider has a check) loads the page.
         # The host keeps the job (and its callback) until it has delivered a

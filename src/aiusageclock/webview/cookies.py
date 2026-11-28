@@ -270,6 +270,45 @@ def import_browser_cookies(
     return True
 
 
+# A freshly pasted cookie is saved first and only then handed to the worker. If
+# the worker never gets to inject it (it failed to start, crashed, or the app
+# was quit meanwhile), the profile may still hold an older auth cookie that the
+# site has already revoked, and the "never overwrite a rotated session" rule
+# would then keep that dead cookie for ever. An empty marker file beside the
+# profile folder says "the saved cookie is newer than the profile": the next
+# hydration pushes it in regardless, then removes the marker. Only ever created
+# or deleted, never read-modified-written, so two processes cannot race on it.
+
+
+def reseed_marker_path(account_id: str) -> Path:
+    profile = webview_profile_dir(account_id)
+    return profile.with_name(profile.name + ".reseed")
+
+
+def request_reseed(account_id: str) -> None:
+    """Record that the saved cookie must replace whatever the profile holds."""
+    try:
+        marker = reseed_marker_path(account_id)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+    except (OSError, ValueError):
+        log.warning("could not mark account for re-seeding account=%s", account_id, exc_info=True)
+
+
+def reseed_requested(account_id: str) -> bool:
+    try:
+        return reseed_marker_path(account_id).exists()
+    except (OSError, ValueError):
+        return False
+
+
+def clear_reseed_request(account_id: str) -> None:
+    try:
+        reseed_marker_path(account_id).unlink(missing_ok=True)
+    except (OSError, ValueError):
+        log.warning("could not remove re-seed marker account=%s", account_id, exc_info=True)
+
+
 def clear_browser_session(account_id: str) -> None:
     """Remove an account's saved secret and its whole browser profile.
 
@@ -284,6 +323,7 @@ def clear_browser_session(account_id: str) -> None:
     a file error leave a secret that would be restored on restart.
     """
     errors: list[str] = []
+    clear_reseed_request(account_id)
     try:
         set_provider_cookie(account_id, None)
     except Exception as exc:  # noqa: BLE001 - report partial cleanup to the UI
@@ -408,11 +448,14 @@ def hydrate_account_from_keyring(kind: str, account_id: str) -> bool:
     names = sorted({name for name, _ in pairs})
     has_auth = _has_auth_cookie(kind, pairs) if pairs else False
     profile_has_cookies = _profile_has_persistent_cookies(kind, account_id)
+    reseed = reseed_requested(account_id)
 
     if not value:
         injected = False
         skip_reason = "no_stored_cookie"
-    elif profile_has_cookies:
+        if reseed:
+            clear_reseed_request(account_id)
+    elif profile_has_cookies and not reseed:
         injected = False
         skip_reason = "profile_has_live_cookies"
     else:
@@ -421,6 +464,8 @@ def hydrate_account_from_keyring(kind: str, account_id: str) -> bool:
             injected = inject_session_cookie(kind, value, account_id=account_id)
         else:
             injected = bool(inject_session_cookie(kind, value))
+        if injected and reseed:
+            clear_reseed_request(account_id)
 
     log.info(
         "cookie hydration provider=%s kind=%s stored=%s parsed_cookie_names=%s "

@@ -164,6 +164,23 @@ def test_inject_without_verify_finishes_after_the_cookie_commit_wait(runner, qtb
     assert results == [{"ok": True, "injected": True}]
 
 
+def test_a_successful_injection_removes_the_reseed_marker(runner, qtbot, monkeypatch):
+    monkeypatch.setattr(worker, "get_provider_cookie", lambda account_id: "sessionKey=x")
+    monkeypatch.setattr(cookies, "inject_session_cookie", lambda kind, value, *, account_id=None: True)
+    monkeypatch.setattr(worker, "_COOKIE_COMMIT_MS", 10)
+    cookies.request_reseed("claude-marked")
+
+    results, _ = _run(
+        runner,
+        ipc.JOB_INJECT_VERIFY,
+        {"kind": "claude", "account_id": "claude-marked", "verify": False},
+    )
+    qtbot.waitUntil(lambda: bool(results), timeout=3000)
+
+    assert results == [{"ok": True, "injected": True}]
+    assert not cookies.reseed_requested("claude-marked")
+
+
 def test_inject_verify_reports_the_verifier_outcome(runner, qtbot, monkeypatch):
     monkeypatch.setattr(worker, "get_provider_cookie", lambda account_id: "sessionKey=x")
     monkeypatch.setattr(cookies, "inject_session_cookie", lambda kind, value, *, account_id=None: True)
