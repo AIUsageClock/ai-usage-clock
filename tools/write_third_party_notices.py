@@ -27,6 +27,10 @@ is used (see ARCHIVED_LICENSES). On Windows and macOS the libffi that the
 bundled Python's _ctypes module uses is listed as a component of its own, with
 its archived license text (see collect_libffi); on Linux the libffi.so that is
 packed into the build is covered by the system libraries section below. The
+other third-party components that CPython itself bundles (expat, libmpdec,
+mimalloc, HACL*, OpenSSL on macOS) are components of their own as well, per
+platform, together with the notices of CPython's own incorporated code from
+Doc/license.rst (see PYTHON_BUNDLED_LICENSES and collect_python_components). The
 output is UTF-8 with LF
 line endings and carries no timestamp, so the same environment always yields
 the same bytes.
@@ -143,8 +147,13 @@ _PYOBJC_CORE = ArchivedLicense(
     ),
     ref="tag v12.2.2",
 )
-# libffi, which CPython's _ctypes module uses. CPython's own LICENSE does not
-# carry libffi's notice, so the text is archived here, one file per platform
+# libffi, which CPython's _ctypes module uses. The LICENSE of CPython installs
+# that this build relies on is not known to carry libffi's notice (on Windows,
+# python.org's LICENSE.txt is concatenated from several texts by
+# PCbuild/regen.targets, which per that build rule includes libffi, bzip2, zstd,
+# OpenSSL and the MS CRT; that is inferred from the rule alone, the installed
+# file was not read). The text is archived here anyway, so that nothing depends
+# on that inference: one file per platform
 # because what the release builds ship differs (checked against release run
 # 44103626977, CPython 3.14.10 from actions/setup-python, UV_PYTHON_DOWNLOADS
 # never):
@@ -215,6 +224,275 @@ LIBFFI_NOTES = {
         f"{_LIBFFI_MACOS.source_url}"
     ),
 }
+# Components that CPython itself bundles inside the runtime, whose notices
+# neither CPython's LICENSE file nor (outside Windows) any other file of the
+# installation reproduces. Found by reading CPython v3.14.10's build files
+# (Misc/sbom.spdx.json, Misc/externals.spdx.json, PCbuild/*, Mac/BuildScript,
+# the Ubuntu builder of actions/python-versions). What each platform carries:
+#   * Windows (python.org build): expat, libmpdec 4.0.0, mimalloc and HACL*,
+#     linked statically into pyexpat.pyd, _decimal.pyd and python314.dll.
+#   * macOS (python.org universal2 build): OpenSSL, expat, libmpdec 4.0.1 and
+#     HACL*. mimalloc is switched off there (--with-mimalloc=no) and is not
+#     listed. cpython-source-deps has no tag for libmpdec 4.0.1; bytereef.org's
+#     changelog lists only build/install fixes for it, but its own COPYRIGHT.txt
+#     was not read, so the archived text is 4.0.0's and the note says so
+#     instead of claiming the two are identical.
+#   * Linux (actions/python-versions, built on Ubuntu 22.04): expat, libmpdec
+#     2.5.1, mimalloc and HACL* are built into CPython. OpenSSL and the other
+#     libraries it links are system libraries, covered by the Debian copyright
+#     section, so there is no OpenSSL entry.
+# Left out because they need no text: zlib-ng (the zlib License only governs
+# source code), SQLite and xz (public domain). Entries are kept even where the
+# exact build is not known for sure (a local python-build-standalone Python
+# carries other versions): the terms are the same, so the labels name a role,
+# never a release (see LIBFFI_VERSION_LABEL); the versions appear only in the
+# notes and in the source URLs. The notices of the small pieces of code inside
+# CPython itself (Mersenne Twister, SipHash, dtoa, the Unicode Character
+# Database and others) that "Licenses and Acknowledgements for Incorporated
+# Software" (Doc/license.rst) lists come with every platform, but only those
+# sections whose code is in the bundle (see _INCORPORATED_NOTICES). The user's
+# rule (2026-11-28) is the minimum the licenses ask for: a license that wants a
+# notice gets its notice, one that asks for nothing gets no entry.
+_GITHUB = "https://github.com"
+_CPYTHON_COMMIT = "b703b2c5e704341d61e367b9b940b77ed11dded0"  # tag v3.14.10
+_SOURCE_DEPS = f"{_GITHUB}/python/cpython-source-deps/blob"
+
+
+@dataclass(frozen=True)
+class PythonComponent:
+    """A third-party component inside CPython, with its archived license text.
+
+    *note* is written with a ``{url}`` placeholder for the source URL of
+    *license*. *license* is None for a component whose license text is
+    reproduced elsewhere in the file (see _OPENSSL); *more_licenses* are further
+    archived texts of the same component.
+    """
+
+    name: str
+    version_label: str  # one word naming the role, never a release
+    declaration: str
+    license: ArchivedLicense | None
+    note: str
+    more_licenses: tuple[ArchivedLicense, ...] = ()
+
+    @property
+    def licenses(self) -> tuple[ArchivedLicense, ...]:
+        return (() if self.license is None else (self.license,)) + self.more_licenses
+
+
+def _archived(project: str, file: str, url: str, ref: str) -> ArchivedLicense:
+    return ArchivedLicense(
+        file=f"{THIRD_PARTY_LICENSE_DIR}/{file}", project=project, source_url=url, ref=ref
+    )
+
+
+_EXPAT = PythonComponent(
+    name="expat",
+    version_label="(used-by-CPython-pyexpat)",
+    declaration="MIT",
+    license=_archived(
+        "expat",
+        "expat-2.9.0-COPYING.txt",
+        f"{_GITHUB}/python/cpython/blob/{_CPYTHON_COMMIT}/Modules/expat/COPYING",
+        "CPython tag v3.14.10, expat 2.9.0",
+    ),
+    note=(
+        "The Python runtime carries the expat XML parser, which its pyexpat module\n"
+        "(and with it xml.parsers.expat and xml.etree) uses. CPython 3.14.10\n"
+        "bundles expat 2.9.0. Python's own license text does not reproduce\n"
+        "expat's notice. The text below is the license of expat, copied word for\n"
+        "word from:\n"
+        "{url}"
+    ),
+)
+_HACL = PythonComponent(
+    name="HACL*",
+    version_label="(used-by-CPython-hashlib)",
+    declaration="MIT",
+    license=_archived(
+        "HACL*",
+        "hacl-star-8ba599b-LICENSE.txt",
+        f"{_GITHUB}/hacl-star/hacl-star/blob/8ba599b2f6c9701b3dc961db895b0856a2210f76/"
+        "dist/LICENSE.txt",
+        "commit 8ba599b, the one CPython 3.14.10 bundles",
+    ),
+    note=(
+        "The Python runtime carries C code generated from HACL* (a library of\n"
+        "formally verified cryptography), which its built-in hash modules (the\n"
+        "algorithms behind hashlib, such as SHA-2 and SHA-3) use. The HACL*\n"
+        "repository as a whole is licensed under Apache-2.0, but the generated C\n"
+        "code that CPython bundles comes with the MIT license of the repository's\n"
+        "dist folder, which is the text below. Python's own license text does not\n"
+        "reproduce it. Copied word for word from:\n"
+        "{url}"
+    ),
+)
+_MIMALLOC = PythonComponent(
+    name="mimalloc",
+    version_label="(used-by-CPython-memory-allocator)",
+    declaration="MIT",
+    license=_archived(
+        "mimalloc",
+        "mimalloc-2.5.2-LICENSE.txt",
+        f"{_GITHUB}/microsoft/mimalloc/blob/2406cc5f3ab6d6e54fe560cdd66fa46eee775312/LICENSE",
+        "tag v2.5.2",
+    ),
+    note=(
+        "The Python runtime carries the mimalloc memory allocator, which CPython\n"
+        "bundles in its source tree (Objects/mimalloc) for its memory management.\n"
+        "The Windows and Linux builds include it; the python.org macOS build\n"
+        "switches it off, so it is not listed there. Python's own license text\n"
+        "does not reproduce mimalloc's notice. The text below is the license of\n"
+        "mimalloc 2.5.2, the version CPython 3.14.10 bundles, copied word for\n"
+        "word from:\n"
+        "{url}"
+    ),
+)
+# OpenSSL is Apache-2.0. Redistributing it needs the license text and, under
+# section 4(d), the content of a NOTICE file if the project has one. The text
+# is already in every notices file (several cross-platform dependencies, for
+# example requests and cryptography, are Apache-2.0 and ship it), so no copy of
+# it is archived here: the entry names the component and points there, and a
+# test makes sure the text really is in any output that carries this entry.
+# The source tree of openssl-3.5.9 has no NOTICE file (checked in the root
+# listing of that tag, 2026-11-28), so nothing else is owed.
+_OPENSSL = PythonComponent(
+    name="OpenSSL",
+    version_label="(used-by-CPython-ssl-and-hashlib)",
+    declaration="Apache-2.0",
+    license=None,
+    note=(
+        "The python.org build of CPython for macOS builds its own OpenSSL\n"
+        "(OpenSSL 3.5.9 in CPython 3.14.10: libssl and libcrypto) for the ssl and\n"
+        "hashlib modules. Whether the application bundle ends up with those\n"
+        "libraries was not confirmed; the component is listed anyway. OpenSSL 3.x\n"
+        "is licensed under the Apache License 2.0, the full text of which is\n"
+        "reproduced in this file under other components that carry it. The source\n"
+        "tree of OpenSSL 3.5.9 has no NOTICE file."
+    ),
+)
+# What of CPython's Doc/license.rst ("Licenses and Acknowledgements for
+# Incorporated Software") the bundled runtime needs, decided section by section
+# (2026-11-28; "in the bundle" is read from the local PyInstaller build's
+# PYZ/Analysis tables, the C code from the extension modules and the core):
+#   reproduced (in the bundle, and the terms require the notice to travel with
+#   copies or binaries): Mersenne Twister (_random), Cookie management
+#   (http.cookies), UUencode (encodings.uu_codec), XML Remote Procedure Calls
+#   (xmlrpc.client), SipHash24 (Python/pyhash.c), strtod and dtoa
+#   (Python/dtoa.c), cfuhash (tracemalloc), asyncio, Global Unbounded Sequences
+#   (Python/qsbr.c), Zstandard bindings (_zstd), Unicode Character Database
+#   (unicodedata, str); Select kqueue (macOS only: it is compiled only where
+#   kqueue exists).
+#   left out: OpenSSL, expat, libffi, libmpdec and mimalloc (components of
+#   their own, above), zlib (zlib-ng; the zlib License asks nothing of binaries
+#   in this case), Sockets (WIDE getaddrinfo.c/getnameinfo.c are compiled only
+#   where the platform has no getaddrinfo, which is none of the three),
+#   Execution tracing (trace is not in the bundle), Asynchronous socket
+#   services (test.support), test_epoll and the W3C C14N test suite (tests).
+# The sections are copied word for word from the upstream file into the two
+# files below (the second one for macOS only); the line endings are upstream's.
+_INCORPORATED_URL = f"{_GITHUB}/python/cpython/blob/{_CPYTHON_COMMIT}/Doc/license.rst"
+_INCORPORATED_NOTICES = _archived(
+    "CPython Doc/license.rst",
+    "cpython-3.14.10-incorporated-notices.txt",
+    _INCORPORATED_URL,
+    "CPython tag v3.14.10, sections as listed in the note",
+)
+_INCORPORATED_KQUEUE = _archived(
+    "CPython Doc/license.rst (select kqueue)",
+    "cpython-3.14.10-incorporated-notices-macos.txt",
+    _INCORPORATED_URL,
+    "CPython tag v3.14.10, section Select kqueue",
+)
+_INCORPORATED_NOTE = (
+    "CPython's documentation lists, under \"Licenses and Acknowledgements for\n"
+    "Incorporated Software\", code inside CPython that has license terms of its\n"
+    "own, and reproduces their notices. Python's own license text does not.\n"
+    "The sections below are copied word for word from that page ({url}),\n"
+    "in reStructuredText; they are the ones whose code is in this build:\n"
+    "Mersenne Twister, Cookie management, UUencode and UUdecode functions,\n"
+    "XML Remote Procedure Calls, SipHash24, strtod and dtoa, cfuhash,\n"
+    "asyncio, Global Unbounded Sequences (GUS), Zstandard bindings and Unicode\n"
+    "Character Database{kqueue}. The page's other sections are either components\n"
+    "of their own in this file (OpenSSL, expat, libffi, libmpdec, mimalloc) or\n"
+    "cover code that is not in the build (the Sockets, Execution tracing,\n"
+    "Asynchronous socket services, test_epoll and W3C C14N test suite\n"
+    "sections), or ask nothing of a binary (zlib)."
+)
+_INCORPORATED = PythonComponent(
+    name="CPython-incorporated-software",
+    version_label="(Doc-license.rst)",
+    declaration="various, see text",
+    license=_INCORPORATED_NOTICES,
+    note=_INCORPORATED_NOTE.replace("{kqueue}", ""),
+)
+_INCORPORATED_MACOS = PythonComponent(
+    name="CPython-incorporated-software",
+    version_label="(Doc-license.rst)",
+    declaration="various, see text",
+    license=_INCORPORATED_NOTICES,
+    note=_INCORPORATED_NOTE.replace("{kqueue}", " (the macOS build also: Select kqueue)"),
+    more_licenses=(_INCORPORATED_KQUEUE,),
+)
+
+
+def _mpdecimal(file: str, commit: str, ref: str, note: str) -> PythonComponent:
+    leaf = "COPYRIGHT.txt" if file.endswith("COPYRIGHT.txt") else "LICENSE.txt"
+    return PythonComponent(
+        name="mpdecimal",
+        version_label="(used-by-CPython-_decimal)",
+        declaration="BSD-2-Clause",
+        license=_archived("mpdecimal", file, f"{_SOURCE_DEPS}/{commit}/{leaf}", ref),
+        note=note,
+    )
+
+
+_MPDECIMAL_400 = "48316ec025c1ebe500854c332be0a12c640c7301"
+_MPDECIMAL_WINDOWS = _mpdecimal(
+    "mpdecimal-4.0.0-COPYRIGHT.txt",
+    _MPDECIMAL_400,
+    "cpython-source-deps tag mpdecimal-4.0.0",
+    "The Python runtime carries libmpdec (mpdecimal), which its _decimal\n"
+    "module (the decimal module) uses. CPython 3.14.10 bundles libmpdec 4.0.0\n"
+    "in the Windows build. Python's own license text does not reproduce its\n"
+    "notice. The text below is the license of libmpdec 4.0.0, copied word for\n"
+    "word from:\n"
+    "{url}",
+)
+_MPDECIMAL_MACOS = _mpdecimal(
+    "mpdecimal-4.0.0-COPYRIGHT.txt",
+    _MPDECIMAL_400,
+    "cpython-source-deps tag mpdecimal-4.0.0",
+    "The Python runtime carries libmpdec (mpdecimal), which its _decimal\n"
+    "module (the decimal module) uses. The text below is the text of libmpdec\n"
+    "4.0.0; the macOS build of CPython uses libmpdec 4.0.1, for which\n"
+    "cpython-source-deps has no tag. The changelog of libmpdec 4.0.1 lists only\n"
+    "build and install fixes over 4.0.0, and the project states that its\n"
+    "current releases are under the Simplified BSD License, but the 4.0.1 file\n"
+    "itself was not compared, so this notice does not claim that the two texts\n"
+    "are identical. Python's own license text does not reproduce it. Copied\n"
+    "word for word from:\n"
+    "{url}",
+)
+_MPDECIMAL_LINUX = _mpdecimal(
+    "mpdecimal-2.5.1-LICENSE.txt",
+    "5da6848fbab6bb6dc3aa09646c313fa4d3b5f522",
+    "cpython-source-deps tag mpdecimal-2.5.1",
+    "The Python runtime carries libmpdec (mpdecimal), which its _decimal\n"
+    "module (the decimal module) uses. The Linux build of CPython 3.14.10\n"
+    "builds libmpdec 2.5.1, the copy in its own source tree, into the\n"
+    "runtime. Python's own license text does not reproduce its notice. The\n"
+    "text below is the license of libmpdec 2.5.1, copied word for word from:\n"
+    "{url}",
+)
+
+# By sys.platform; the order is the order in the notices file.
+PYTHON_BUNDLED_LICENSES: dict[str, list[PythonComponent]] = {
+    "win32": [_EXPAT, _MPDECIMAL_WINDOWS, _MIMALLOC, _HACL, _INCORPORATED],
+    "darwin": [_OPENSSL, _EXPAT, _MPDECIMAL_MACOS, _HACL, _INCORPORATED_MACOS],
+    "linux": [_EXPAT, _MPDECIMAL_LINUX, _MIMALLOC, _HACL, _INCORPORATED],
+}
+
 # Keyed by canonical package name (see Package.canonical_name).
 ARCHIVED_LICENSES: dict[str, ArchivedLicense] = {
     "winrt-runtime": _PYWINRT,
@@ -277,15 +555,20 @@ NOTES = {
 
 # Python's own license file covers Python itself and a few pieces of third-party
 # code (for example bzip2 and Tcl/Tk on Windows), but not every library a Python
-# distribution incorporates or links against.
+# distribution incorporates or links against. The notices of the components
+# that the bundled runtime carries (PYTHON_BUNDLED_LICENSES, LIBFFI_LICENSES)
+# follow it as components of their own.
 _PYTHON_DOCS_LICENSE = "https://docs.python.org/3/license.html"
 PYTHON_NOTE = (
     "The Python runtime is bundled with the application. Its license text is\n"
     "taken from the Python installation used for this build. That file does not\n"
     "reproduce the notices of all third-party code that a Python distribution\n"
-    "incorporates (for example OpenSSL, expat, libffi, zlib and libmpdec).\n"
-    "Python's documentation lists that code with its license terms under\n"
-    '"Licenses and Acknowledgements for Incorporated Software":\n'
+    "incorporates. The notices of the components that the runtime carries\n"
+    "(libffi, expat, libmpdec, mimalloc, HACL* and OpenSSL, depending on the\n"
+    "platform) are listed as components of their own below, and so are the\n"
+    "notices of the code incorporated into CPython itself that Python's\n"
+    "documentation lists under \"Licenses and Acknowledgements for Incorporated\n"
+    'Software", which is also online:\n'
     f"{_PYTHON_DOCS_LICENSE}"
 )
 PYTHON_MISSING = (
@@ -316,6 +599,9 @@ class Package:
     detail: str = ""
     note: str = ""
     missing_message: str = ""
+    # No text of its own on purpose: the license text is printed under other
+    # components, and missing_message says so (no warning is due for it).
+    text_elsewhere: bool = False
 
     @property
     def canonical_name(self) -> str:
@@ -583,6 +869,40 @@ def collect_libffi(platform: str, root: Path | None = None) -> Package | None:
         texts=[found[0]],
         note=LIBFFI_NOTES[platform],
     )
+
+
+def collect_python_components(platform: str, root: Path | None = None) -> list[Package]:
+    """The third-party components inside *platform*'s CPython, with their archived texts.
+
+    One package per entry of PYTHON_BUNDLED_LICENSES[*platform*] (sys.platform
+    value; none for a platform without an entry). Fails like archived_license_for()
+    when an archived file cannot be used.
+    """
+    packages = []
+    for component in PYTHON_BUNDLED_LICENSES.get(platform, []):
+        texts = []
+        for entry in component.licenses:
+            found = archived_license_for("component", {"component": entry}, root)
+            assert found is not None  # the mapping above always has the key
+            texts.append(found[0])
+        url = component.license.source_url if component.license is not None else ""
+        packages.append(
+            Package(
+                name=component.name,
+                version=component.version_label,
+                declaration=component.declaration,
+                texts=texts,
+                note=component.note.format(url=url),
+                text_elsewhere=component.license is None,
+                missing_message=(
+                    "The license text is reproduced under other components of this\n"
+                    "file (the Apache License 2.0)."
+                    if component.license is None
+                    else ""
+                ),
+            )
+        )
+    return packages
 
 
 def python_license_dirs() -> list[Path]:
@@ -1205,14 +1525,16 @@ def build_notices(
 
     *system_libraries* adds the Linux section (see collect_system_libraries()).
     *upstream_notice* defaults to the archived file (see render()).
-    *platform* (default sys.platform) decides whether a libffi component follows
-    Python: on "win32" and "darwin" (see LIBFFI_LICENSES), not on Linux.
+    *platform* (default sys.platform) decides which components follow Python:
+    libffi on "win32" and "darwin" (see LIBFFI_LICENSES, not on Linux), then the
+    components CPython bundles (see PYTHON_BUNDLED_LICENSES).
     """
     platform = sys.platform if platform is None else platform
     components = [collect_python(python_dirs)]
     libffi = collect_libffi(platform)
     if libffi is not None:
         components.append(libffi)
+    components.extend(collect_python_components(platform))
     components.extend(collect_packages(project, extras, build_tools))
     return render(components, system_libraries, upstream_notice), components
 
@@ -1271,7 +1593,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     for package in packages:
-        if not package.texts:
+        if not package.texts and not package.text_elsewhere:
             print(f"warning: no license text found for {package.title}", file=sys.stderr)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

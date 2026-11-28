@@ -219,7 +219,10 @@ def test_packages_are_sorted_and_the_output_is_reproducible(site):
     second, _ = build("noticetest-app")
 
     assert first == second
-    assert names_of(packages) == ["Python", "noticetest-alpha", "noticetest-zeta"]
+    # The components CPython bundles (build() asks for Linux) come right after Python.
+    assert [n.lower() for n in names_of(packages)[6:]] == ["noticetest-alpha", "noticetest-zeta"]
+    assert names_of(packages)[0] == "Python"
+    assert len(packages) == 1 + len(CPYTHON_COMPONENTS_BY_PLATFORM["linux"]) + 2
     assert first.index("noticetest-alpha 1.0\n=") < first.index("noticetest-zeta 1.0\n=")
 
 
@@ -261,6 +264,30 @@ ARCHIVED_LICENSE_SHA256 = {
     # LICENSE of Apple's libffi, tag libffi-40 (commit 72e95a49...), 1132 bytes;
     # tags libffi-30 to libffi-40 carry the same bytes.
     "libffi-apple-40-LICENSE.txt": "25d56871423a870487edee68000ef66b1a7ec44a7ab84838ceeb3ce07f734b74",
+}
+
+
+# The texts of the components inside CPython, byte for byte as the upstream
+# sources hold them (CRLF line endings included: the repository stores them
+# with -text). They were fetched from the source URLs in the entries of
+# PYTHON_BUNDLED_LICENSES and match the hashes of the 2026-11-28 research.
+CPYTHON_COMPONENT_SHA256 = {
+    "expat-2.9.0-COPYING.txt": "31b15de82aa19a845156169a17a5488bf597e561b2c318d159ed583139b25e87",
+    "mpdecimal-4.0.0-COPYRIGHT.txt": "2713324211652ce4a60e6e21e54f9dc3004299e591b0933a352f1a89c5fb53c2",
+    "mpdecimal-2.5.1-LICENSE.txt": "b07528d8b1dbf1e2d2741052996f0876e23342ce2d30d0effa39c5457716c25a",
+    "mimalloc-2.5.2-LICENSE.txt": "82ade5d7d9b029044b5fbbc326207fc47c2d44ee4dd71e8a559c36d728217de9",
+    "hacl-star-8ba599b-LICENSE.txt": "998ce04fb8ad9dedb0bc1b44938f8c3dcf1089780fa105ce1c8c30fb5554d78c",
+    # Sections of CPython v3.14.10's Doc/license.rst, copied word for word (CRLF,
+    # as upstream); the upstream file is 8a7329b2...a6dd. Change a hash only
+    # together with the file, after comparing it with the upstream sections.
+    "cpython-3.14.10-incorporated-notices.txt": "4f9830368dad20857bc52820bacc8a9ed5cd97fdde1afb6bf0bb10517e55675f",
+    "cpython-3.14.10-incorporated-notices-macos.txt": "bee62a91de9ee3b4cc42bdf2c72dd9470d90e7a159d9d72b3f01e6df747b34b7",
+}
+# What each platform's notices list after Python (and libffi), in order.
+CPYTHON_COMPONENTS_BY_PLATFORM = {
+    "win32": ["expat", "mpdecimal", "mimalloc", "hacl*", "cpython-incorporated-software"],
+    "darwin": ["openssl", "expat", "mpdecimal", "hacl*", "cpython-incorporated-software"],
+    "linux": ["expat", "mpdecimal", "mimalloc", "hacl*", "cpython-incorporated-software"],
 }
 
 
@@ -318,7 +345,16 @@ def test_every_archived_file_is_used_by_an_entry():
     used = {Path(e.file).name for e in notices.ARCHIVED_LICENSES.values()}
     used |= {Path(e.file).name for e in notices.LIBFFI_LICENSES.values()}
     assert used == set(ARCHIVED_LICENSE_SHA256)
-    assert {path.name for path in ARCHIVED_DIR.glob("*.txt")} == used
+    # The licenses of the components inside CPython (PYTHON_BUNDLED_LICENSES) are
+    # archived in the same folder, so the folder holds their files as well.
+    cpython = {
+        Path(entry.file).name
+        for components in notices.PYTHON_BUNDLED_LICENSES.values()
+        for component in components
+        for entry in component.licenses
+    }
+    assert cpython == set(CPYTHON_COMPONENT_SHA256)
+    assert {path.name for path in ARCHIVED_DIR.glob("*.txt")} == used | cpython
 
 
 @pytest.mark.parametrize(
@@ -346,8 +382,14 @@ def test_windows_and_macos_notices_list_libffi_with_its_full_license_text(
         "noticetest-app", (), (), python_dirs=[], platform=platform
     )
 
-    assert [c.name for c in components] == ["Python", "libffi"]
-    assert notices.listed_component_names(text) == ["python", "libffi"]
+    # Python, libffi, then what CPython itself bundles on that platform (the
+    # list used to end at libffi, before PYTHON_BUNDLED_LICENSES existed).
+    assert [c.name for c in components][:2] == ["Python", "libffi"]
+    assert notices.listed_component_names(text) == [
+        "python",
+        "libffi",
+        *CPYTHON_COMPONENTS_BY_PLATFORM[platform],
+    ]
     assert "libffi (used-by-CPython-_ctypes) - MIT" in text
     assert "statically" not in text  # no claim about how a platform links it
     assert expected in text
@@ -373,9 +415,14 @@ def test_linux_notices_have_no_libffi_component_of_their_own(site):
         "noticetest-app", (), (), python_dirs=[], platform="linux"
     )
 
-    assert [c.name for c in components] == ["Python"]
+    # Python and what CPython itself bundles, but no libffi component (the list
+    # used to be just Python before PYTHON_BUNDLED_LICENSES existed).
+    assert components[0].name == "Python"
     assert "Anthony Green" not in text
-    assert notices.listed_component_names(text) == ["python"]
+    assert notices.listed_component_names(text) == [
+        "python",
+        *CPYTHON_COMPONENTS_BY_PLATFORM["linux"],
+    ]
     assert notices.collect_libffi("linux") is None
 
 
@@ -528,8 +575,12 @@ def test_the_real_winrt_and_pyobjc_core_texts_are_used_and_printed_once(site):
 
     text, packages = build("noticetest-app")
 
-    # build() lists the bundled Python runtime first; it is not a package here.
-    assert {p.canonical_name: bool(p.texts) for p in packages if p.name != "Python"} == {
+    # build() lists the bundled Python runtime first, then the components CPython
+    # bundles; neither is a package here.
+    cpython = {"python", *CPYTHON_COMPONENTS_BY_PLATFORM["linux"]}
+    assert {
+        p.canonical_name: bool(p.texts) for p in packages if p.canonical_name not in cpython
+    } == {
         "pyobjc-core": True,
         "winrt-runtime": True,
         "winrt-windows-foundation": True,
@@ -741,7 +792,11 @@ def test_the_upstream_notice_is_not_mistaken_for_a_component(site):
     lookalike = "Looks Like A 1.0 - MIT\nAnother Entry 2.0 - MIT"
 
     text, packages = build("noticetest-app")
-    assert notices.listed_component_names(text) == ["python", "noticetest-lib"]
+    assert notices.listed_component_names(text) == [
+        "python",
+        *CPYTHON_COMPONENTS_BY_PLATFORM["linux"],
+        "noticetest-lib",
+    ]
     assert len(notices.listed_component_names(text)) == len(packages)
 
     with_lookalike = notices.render([package], upstream_notice=lookalike)
@@ -853,6 +908,7 @@ def test_the_listed_components_are_read_back_from_a_rendered_file(site):
 
     assert notices.listed_component_names(text) == [
         "python",
+        *CPYTHON_COMPONENTS_BY_PLATFORM["linux"],
         "noticetest-lib",
         "noticetest-other",
     ]
@@ -1717,7 +1773,11 @@ def test_the_system_libraries_section_is_written_after_the_packages_and_read_bac
     )
 
     assert text.index("noticetest-lib 1.0\n=") < text.index(notices.SYSTEM_LIBRARIES_TITLE)
-    assert notices.listed_component_names(text) == ["python", "noticetest-lib"]
+    assert notices.listed_component_names(text) == [
+        "python",
+        *CPYTHON_COMPONENTS_BY_PLATFORM["linux"],
+        "noticetest-lib",
+    ]
     assert notices.listed_system_library_names(text) == ["libnss3.so", "libodd.so"]
     assert "\r" not in text and text.endswith("\n") and not text.endswith("\n\n")
 
@@ -1930,3 +1990,122 @@ def test_main_writes_utf8_lf_and_the_same_bytes_twice(tmp_path):
     assert data.endswith(b"\n")
     assert b"PyQt6 " in data and b"GNU GENERAL PUBLIC LICENSE" in data
     assert f"Python {sys.version.split()[0]} - ".encode() in data
+
+
+# --- the components CPython bundles (expat, libmpdec, mimalloc, HACL*, OpenSSL) ---
+
+
+def test_the_cpython_component_files_are_the_pinned_upstream_bytes():
+    for name, expected in CPYTHON_COMPONENT_SHA256.items():
+        raw = (ARCHIVED_DIR / name).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == expected, name
+        raw.decode("utf-8")  # clean UTF-8, as archived_license_for() demands
+        assert b"\0" not in raw, name
+
+
+@pytest.mark.parametrize("platform", sorted(notices.PYTHON_BUNDLED_LICENSES))
+def test_every_cpython_component_entry_has_a_pinned_source_and_a_role_label(platform):
+    for component in notices.PYTHON_BUNDLED_LICENSES[platform]:
+        for entry in component.licenses:
+            assert Path(entry.file).name in CPYTHON_COMPONENT_SHA256, component.name
+            assert (Path(notices.REPO_ROOT) / entry.file).is_file(), component.name
+            # A fixed commit, not a branch or a movable tag.
+            assert re.search(r"/blob/[0-9a-f]{40}/", entry.source_url), component.name
+        # Only a component without an archived text of its own (OpenSSL) has no URL.
+        assert ("{url}" in component.note) == (component.license is not None), component.name
+        # The label names a role: a version belongs in the note and the URL only.
+        assert component.version_label.startswith(("(used-by-CPython-", "(Doc-license"))
+        assert not re.search(r"\d", component.version_label), component.name
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin", "linux"])
+def test_each_platform_lists_its_cpython_components_with_their_full_license_texts(site, platform):
+    make_dist(site, "noticetest-app")
+
+    text, _ = notices.build_notices("noticetest-app", (), (), python_dirs=[], platform=platform)
+
+    for component in notices.PYTHON_BUNDLED_LICENSES[platform]:
+        for entry in component.licenses:
+            raw = (Path(notices.REPO_ROOT) / entry.file).read_bytes()
+            assert notices._normalise_text(raw) in text, component.name
+            assert entry.source_url in text, component.name
+    assert "expat (used-by-CPython-pyexpat) - MIT" in text
+    assert "mpdecimal (used-by-CPython-_decimal) - BSD-2-Clause" in text
+    assert "HACL* (used-by-CPython-hashlib) - MIT" in text
+    assert "CPython-incorporated-software (Doc-license.rst) - various, see text" in text
+
+
+def test_a_platform_carries_only_its_own_cpython_components(site):
+    make_dist(site, "noticetest-app")
+    texts = {
+        platform: notices.build_notices(
+            "noticetest-app", (), (), python_dirs=[], platform=platform
+        )[0]
+        for platform in ("win32", "darwin", "linux")
+    }
+    bundled = notices.PYTHON_BUNDLED_LICENSES
+    mimalloc = bundled["win32"][2].license.source_url
+    mpdecimal_400 = bundled["win32"][1].license.source_url
+    mpdecimal_251 = bundled["linux"][1].license.source_url
+
+    # macOS builds CPython with --with-mimalloc=no; only macOS ships OpenSSL itself.
+    assert mimalloc in texts["win32"] and mimalloc in texts["linux"]
+    assert mimalloc not in texts["darwin"]
+    assert "mimalloc (used-by" not in texts["darwin"]
+    assert "OpenSSL (used-by-CPython-ssl-and-hashlib) - Apache-2.0" in texts["darwin"]
+    assert "OpenSSL (used-by" not in texts["win32"]
+    assert "OpenSSL (used-by" not in texts["linux"]
+    # Linux carries libmpdec 2.5.1, the others the 4.0.0 text.
+    assert mpdecimal_251 in texts["linux"]
+    assert mpdecimal_251 not in texts["win32"] and mpdecimal_251 not in texts["darwin"]
+    assert mpdecimal_400 in texts["win32"] and mpdecimal_400 in texts["darwin"]
+    assert mpdecimal_400 not in texts["linux"]
+    assert "Anthony Green" not in texts["linux"]  # still no libffi text on Linux
+    # The kqueue notice (code compiled only on macOS) is macOS's alone; the
+    # others of CPython's own incorporated code are in all three.
+    assert "Copyright (c) 2000 Doug White" in texts["darwin"]
+    assert "Doug White" not in texts["win32"] and "Doug White" not in texts["linux"]
+    for text in texts.values():
+        assert "Copyright (C) 1997 - 2002, Makoto Matsumoto" in text  # Mersenne Twister
+        assert "UNICODE LICENSE V3" in text
+    # Sections for code that is not shipped, or that asks nothing, are not there.
+    for text in texts.values():
+        assert "Twisted Matrix" not in text  # test_epoll
+        assert "WIDE Project" not in text  # getaddrinfo.c, not compiled
+        assert "Sam Rushing" not in text  # test.support
+        assert "Autonomous Zones" not in text  # trace, not in the bundle
+        assert "W3C(R)" not in text  # the C14N test data
+
+
+def test_the_openssl_entry_is_backed_by_the_apache_license_text_in_the_same_file():
+    # The entry has no text of its own and points at the Apache-2.0 text printed
+    # under other components, so the real notices of this environment (made of
+    # the real dependencies) must carry it whenever the entry is there. A
+    # dependency change that dropped the last Apache-2.0 package would fail here.
+    text, _ = notices.build_notices(platform="darwin")
+
+    assert "OpenSSL (used-by-CPython-ssl-and-hashlib) - Apache-2.0" in text
+    assert "Apache License\n                           Version 2.0, January 2004" in text
+    assert "has no NOTICE file" in text
+
+
+def test_the_macos_libmpdec_note_does_not_claim_the_texts_are_identical():
+    note = " ".join(notices.PYTHON_BUNDLED_LICENSES["darwin"][2].note.split())
+    assert "uses libmpdec 4.0.1" in note
+    assert "is the text of libmpdec 4.0.0" in note
+    assert "does not claim that the two texts are identical" in note
+
+
+def test_the_python_note_points_at_the_components_below_not_only_at_the_docs():
+    note = " ".join(notices.PYTHON_NOTE.split())
+    assert "are listed as components of their own below" in note
+    assert notices._PYTHON_DOCS_LICENSE in note
+
+
+def test_a_platform_without_an_entry_gets_no_cpython_components():
+    assert notices.collect_python_components("freebsd14") == []
+
+
+def test_the_cpython_components_fail_loudly_when_an_archived_file_is_unusable(tmp_path):
+    with pytest.raises(notices.ArchivedLicenseError, match="cannot read the archived license"):
+        notices.collect_python_components("linux", root=tmp_path)
