@@ -155,6 +155,6 @@ AI Usage Clock 免費使用，贊不贊助都一樣。如果它幫你省了一�
 
 [設定指南](docs/setup.zh-Hant.md) · [日常使用](docs/usage.zh-Hant.md) · [MCP 用量防護](docs/mcp.md)（英文） · [從原始碼建置](docs/build.md)（英文） · [參與貢獻](CONTRIBUTING.md) · [安全性](SECURITY.md) · [授權（MIT）](LICENSE)
 
-目前版本：**1.1.0** · [更新紀錄](CHANGELOG.md)
+目前版本：**1.2.0** · [更新紀錄](CHANGELOG.md)
 
 AI Usage Clock 和 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter、Linear 或其他任何服務商都沒有隸屬關係。各產品名稱屬於各自的所有者。

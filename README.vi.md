@@ -145,6 +145,6 @@ Gắn sao cho AI Usage Clock trên GitHub hoặc giới thiệu cho một ngư�
 
 [Hướng dẫn cài đặt](docs/setup.md) (tiếng Anh) · [Dùng hằng ngày](docs/usage.md) (tiếng Anh) · [Bảo vệ mức sử dụng MCP](docs/mcp.md) (tiếng Anh) · [Biên dịch từ mã nguồn](docs/build.md) (tiếng Anh) · [Đóng góp](CONTRIBUTING.md) (tiếng Anh) · [Bảo mật](SECURITY.md) (tiếng Anh) · [Giấy phép (MIT)](LICENSE) (tiếng Anh)
 
-Phiên bản hiện tại: **1.1.0** · [Nhật ký thay đổi](CHANGELOG.md) (tiếng Anh)
+Phiên bản hiện tại: **1.2.0** · [Nhật ký thay đổi](CHANGELOG.md) (tiếng Anh)
 
 AI Usage Clock không liên kết với Anthropic, OpenAI, Google, GitHub, Microsoft, OpenCode, OpenRouter, Linear hay bất kỳ nhà cung cấp nào khác. Tên sản phẩm thuộc về chủ sở hữu của chúng.

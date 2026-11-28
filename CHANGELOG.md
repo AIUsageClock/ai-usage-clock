@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 - Unreleased
+## 1.2.0 - 2026-11-28
 
 ### Added
 
@@ -35,6 +35,10 @@
 ### Documentation
 
 - The setup guides (English, Traditional Chinese, Simplified Chinese) describe the new lookup, the sign-in requirement, and how quota rows may differ by plan. All READMEs describe the Gemini and Claude+GPT groups, whose members `agy` reports.
+
+### Known limitations
+
+- The macOS and Linux builds have only been checked by CI's automated tests and packaged-build smoke tests; they have not been verified on real machines with real accounts.
 
 ## 1.1.0 - 2026-10-22
 

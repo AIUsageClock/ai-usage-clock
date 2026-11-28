@@ -165,6 +165,6 @@ AI Usage Clock 免费使用，赞不赞助都一样。如果它帮你省了些�
 
 [设置指南](docs/setup.zh-Hans.md) · [日常使用](docs/usage.zh-Hans.md) · [MCP 用量防护](docs/mcp.md)（英文） · [从源码构建](docs/build.md)（英文） · [参与贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [许可证（MIT）](LICENSE)
 
-当前版本：**1.1.0** · [更新日志](CHANGELOG.md)
+当前版本：**1.2.0** · [更新日志](CHANGELOG.md)
 
 AI Usage Clock 与 Anthropic、OpenAI、Google、GitHub、Microsoft、OpenCode、OpenRouter、Linear 以及其他任何服务商都没有关联。文中的产品名称归各自的所有者。

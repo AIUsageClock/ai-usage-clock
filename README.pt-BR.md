@@ -145,6 +145,6 @@ Dar uma estrela ao AI Usage Clock no GitHub ou indicá-lo a um amigo também aju
 
 [Guia de configuração](docs/setup.md) (em inglês) · [Uso diário](docs/usage.md) (em inglês) · [Proteção de uso via MCP](docs/mcp.md) (em inglês) · [Compilar a partir do código-fonte](docs/build.md) (em inglês) · [Como contribuir](CONTRIBUTING.md) (em inglês) · [Segurança](SECURITY.md) (em inglês) · [Licença (MIT)](LICENSE) (em inglês)
 
-Versão atual: **1.1.0** · [Changelog](CHANGELOG.md) (em inglês)
+Versão atual: **1.2.0** · [Changelog](CHANGELOG.md) (em inglês)
 
 O AI Usage Clock não é afiliado à Anthropic, OpenAI, Google, GitHub, Microsoft, OpenCode, OpenRouter, Linear nem a qualquer outro provedor. Os nomes de produtos pertencem aos seus respectivos donos.

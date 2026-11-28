@@ -145,6 +145,6 @@ Stelumi AI Usage Clock en GitHub aŭ paroli pri ĝi al amiko ankaŭ helpas.
 
 [Agorda gvidilo](docs/setup.md) (en la angla) · [Ĉiutaga uzo](docs/usage.md) (en la angla) · [MCP-uzgardilo](docs/mcp.md) (en la angla) · [Konstrui el fontkodo](docs/build.md) (en la angla) · [Kontribui](CONTRIBUTING.md) (en la angla) · [Sekureco](SECURITY.md) (en la angla) · [Licenco (MIT)](LICENSE) (en la angla)
 
-Nuna versio: **1.1.0** · [Ŝanĝoprotokolo](CHANGELOG.md) (en la angla)
+Nuna versio: **1.2.0** · [Ŝanĝoprotokolo](CHANGELOG.md) (en la angla)
 
 AI Usage Clock ne estas ligita kun Anthropic, OpenAI, Google, GitHub, Microsoft, OpenCode, OpenRouter, Linear, nek kun iu alia provizanto. Produktaj nomoj apartenas al siaj posedantoj.
