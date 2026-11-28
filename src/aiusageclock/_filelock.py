@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -67,3 +68,25 @@ def file_lock(lock_path: Path, *, wait_s: float = LOCK_WAIT_S):
         except OSError:
             pass
         handle.close()
+
+
+REPLACE_ATTEMPTS = 40
+REPLACE_DELAY_S = 0.05
+
+
+def replace_with_retry(source: Path, target: Path) -> None:
+    """``os.replace`` that waits out Windows' brief "file in use" refusals.
+
+    On Windows a file another process has open (a plain read, without the
+    delete-share right) cannot be replaced for as long as it is open, and the
+    attempt fails with ``PermissionError``. Such a hold lasts milliseconds, so
+    retry for about two seconds before giving up and raising.
+    """
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt + 1 == REPLACE_ATTEMPTS:
+                raise
+            time.sleep(REPLACE_DELAY_S)

@@ -22,7 +22,7 @@ import shutil
 import time
 from pathlib import Path
 
-from .._filelock import file_lock
+from .._filelock import file_lock, replace_with_retry
 from ..config import app_data_dir, webview_profile_dir
 
 log = logging.getLogger("aiusageclock.webview.profile_cleanup")
@@ -56,6 +56,11 @@ def read_pending() -> list[str]:
 
 
 def _write_pending(items: list[str]) -> None:
+    """Store the list; raises ``OSError`` if that still fails after retrying.
+
+    Another process reading the file at that moment makes Windows refuse the
+    replacement for a few milliseconds, which ``replace_with_retry`` waits out.
+    """
     path = pending_path()
     try:
         if not items:
@@ -65,21 +70,33 @@ def _write_pending(items: list[str]) -> None:
         # The main process and the worker both update this file: replace it in
         # one step so neither can read a half-written list.
         temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-        temporary.write_text(json.dumps(sorted(set(items))), encoding="utf-8")
-        os.replace(temporary, path)
+        try:
+            temporary.write_text(json.dumps(sorted(set(items))), encoding="utf-8")
+            replace_with_retry(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
     except OSError:
-        log.warning("could not update %s", path, exc_info=True)
+        log.error("could not update %s", path, exc_info=True)
+        raise
 
 
-def _update_pending(change) -> None:
+def _update_pending(change, *, required: bool = True) -> None:
     """Apply ``change`` (list -> list) to the queued ids as one locked step.
 
     The main process and the worker both add and remove ids; without a lock one
     could read the list, the other could write it, and the first would then
     overwrite that change.
+
+    A failure to store the list is raised when ``required`` (a deletion that
+    could not be queued must not go unnoticed: the caller reports it), and only
+    logged otherwise (dropping an entry that is already done is retried later).
     """
     with file_lock(pending_path().with_name(PENDING_FILENAME + ".lock")):
-        _write_pending(change(read_pending()))
+        try:
+            _write_pending(change(read_pending()))
+        except OSError:
+            if required:
+                raise
 
 
 def _remove_tree(path: Path, *, retries: int, delay_s: float) -> OSError | None:
@@ -117,7 +134,9 @@ def delete_profile(
     path = webview_profile_dir(account_id)
     error = _remove_tree(path, retries=retries, delay_s=delay_s)
     if error is None:
-        _update_pending(lambda items: [item for item in items if item != account_id])
+        _update_pending(
+            lambda items: [item for item in items if item != account_id], required=False
+        )
         log.info("browser profile removed account=%s", account_id)
         return True
     _update_pending(lambda items: items + [account_id])
@@ -141,7 +160,9 @@ def process_pending() -> list[str]:
         if _remove_tree(webview_profile_dir(account_id), retries=1, delay_s=0.0) is None:
             done.append(account_id)
     if done:
-        _update_pending(lambda items: [item for item in items if item not in done])
+        _update_pending(
+            lambda items: [item for item in items if item not in done], required=False
+        )
         log.info("queued browser profile deletions completed: %s", done)
     return done
 
