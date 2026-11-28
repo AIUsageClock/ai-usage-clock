@@ -22,6 +22,7 @@ import shutil
 import time
 from pathlib import Path
 
+from .._filelock import file_lock
 from ..config import app_data_dir, webview_profile_dir
 
 log = logging.getLogger("aiusageclock.webview.profile_cleanup")
@@ -70,6 +71,17 @@ def _write_pending(items: list[str]) -> None:
         log.warning("could not update %s", path, exc_info=True)
 
 
+def _update_pending(change) -> None:
+    """Apply ``change`` (list -> list) to the queued ids as one locked step.
+
+    The main process and the worker both add and remove ids; without a lock one
+    could read the list, the other could write it, and the first would then
+    overwrite that change.
+    """
+    with file_lock(pending_path().with_name(PENDING_FILENAME + ".lock")):
+        _write_pending(change(read_pending()))
+
+
 def _remove_tree(path: Path, *, retries: int, delay_s: float) -> OSError | None:
     """Remove ``path``; return None when it is gone, else the last error."""
     error: OSError | None = None
@@ -105,10 +117,10 @@ def delete_profile(
     path = webview_profile_dir(account_id)
     error = _remove_tree(path, retries=retries, delay_s=delay_s)
     if error is None:
-        _write_pending([item for item in read_pending() if item != account_id])
+        _update_pending(lambda items: [item for item in items if item != account_id])
         log.info("browser profile removed account=%s", account_id)
         return True
-    _write_pending(read_pending() + [account_id])
+    _update_pending(lambda items: items + [account_id])
     log.warning("browser profile is locked; deletion queued account=%s", account_id)
     if raise_if_locked:
         raise ProfileLocked(str(error))
@@ -129,7 +141,7 @@ def process_pending() -> list[str]:
         if _remove_tree(webview_profile_dir(account_id), retries=1, delay_s=0.0) is None:
             done.append(account_id)
     if done:
-        _write_pending([item for item in read_pending() if item not in done])
+        _update_pending(lambda items: [item for item in items if item not in done])
         log.info("queued browser profile deletions completed: %s", done)
     return done
 

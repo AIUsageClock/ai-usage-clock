@@ -25,14 +25,13 @@ import sys
 import time
 from pathlib import Path
 
+from ._filelock import file_lock
 from .config import app_data_dir
 from .identity import ENV_ALLOW_PLAINTEXT_SECRETS
 
 log = logging.getLogger("aiusageclock.secret_storage")
 
 _SECRETS_FILENAME = "secrets.dat"
-_LOCK_WAIT_S = 10.0
-_LOCK_POLL_S = 0.02
 _REPLACE_ATTEMPTS = 20
 _REPLACE_DELAY_S = 0.05
 
@@ -186,47 +185,10 @@ def _file_lock():
     if not _lock_in_use():
         yield
         return
-    path = _secrets_path().with_name(_SECRETS_FILENAME + ".lock")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    handle = open(path, "a+b")  # noqa: SIM115 - closed in the finally below
-    locked = False
-    try:
-        deadline = time.monotonic() + _LOCK_WAIT_S
-        while True:
-            try:
-                handle.seek(0)
-                if sys.platform == "win32":
-                    import msvcrt
-
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    import fcntl
-
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                locked = True
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    # A hung holder must not make every secret unreadable.
-                    log.warning("secret_storage: lock not acquired in time; continuing without it")
-                    break
-                time.sleep(_LOCK_POLL_S)
+    # A hung holder must not make every secret unreadable: file_lock gives up
+    # waiting after a while and carries on.
+    with file_lock(_secrets_path().with_name(_SECRETS_FILENAME + ".lock")):
         yield
-    finally:
-        try:
-            if locked:
-                handle.seek(0)
-                if sys.platform == "win32":
-                    import msvcrt
-
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-                else:
-                    import fcntl
-
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-        except OSError:
-            pass
-        handle.close()
 
 
 def save_secret(name: str, value: str | None) -> None:
