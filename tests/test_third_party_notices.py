@@ -354,7 +354,10 @@ def test_every_archived_file_is_used_by_an_entry():
         for entry in component.licenses
     }
     assert cpython == set(CPYTHON_COMPONENT_SHA256)
-    assert {path.name for path in ARCHIVED_DIR.glob("*.txt")} == used | cpython
+    # (the license texts of the Rust crates have a test of their own, below)
+    assert {
+        path.name for path in ARCHIVED_DIR.glob("*.txt") if not path.name.startswith("rust-")
+    } == used | cpython
 
 
 @pytest.mark.parametrize(
@@ -979,14 +982,24 @@ def library(name, directory=LIB_DIR, typecode="BINARY"):
     return (name, f"{directory}/{name}", typecode)
 
 
-def fake_dpkg(owned, calls=None):
+def fake_dpkg(owned, calls=None, sources=None):
     """subprocess.run stand-in: answers ``dpkg -S`` from *owned* ({path: [packages]}).
 
     Like the real one it prints an owner line per known path, complains on
-    stderr about the others and then exits with status 1.
+    stderr about the others and then exits with status 1. ``dpkg-query -W``
+    (the source packages of copyleft libraries) is answered from *sources*
+    ({binary package: (source package, source version)}; none by default).
     """
 
     def run(command, **_options):
+        if command[0] == "dpkg-query":
+            known = [(n, sources[n]) for n in command[4:] if n in (sources or {})]
+            return subprocess.CompletedProcess(
+                command,
+                0 if len(known) == len(command[4:]) else 1,
+                stdout="".join(f"{n}\t{s}\t{v}\n" for n, (s, v) in known),
+                stderr="",
+            )
         assert command[:2] == ["dpkg", "-S"], command
         paths = command[2:]
         if calls is not None:
@@ -1018,7 +1031,15 @@ REAL_COLLECT = notices.collect_system_libraries
 
 
 def collect(
-    analyses, owned, doc_root, *, calls=None, realpath=lambda path: path, licenses_root=None
+    analyses,
+    owned,
+    doc_root,
+    *,
+    calls=None,
+    realpath=lambda path: path,
+    licenses_root=None,
+    sources=None,
+    os_release=None,
 ):
     """collect_system_libraries with nothing excluded, a fake dpkg and fake copyright files.
 
@@ -1030,10 +1051,12 @@ def collect(
     return REAL_COLLECT(
         analyses,
         roots=[],
-        run=fake_dpkg(owned, calls),
+        run=fake_dpkg(owned, calls, sources),
         realpath=realpath,
         doc_root=doc_root,
         licenses_root=licenses_root,
+        # a folder that does not exist: the machine running the tests is never read
+        os_release=doc_root / "no-such-os-release" if os_release is None else os_release,
     )
 
 

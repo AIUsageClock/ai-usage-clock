@@ -63,18 +63,29 @@ the Debian package that owns it (``dpkg -S``) and that package's
 from /usr/share/common-licenses that those copyright files refer to (each
 once). Windows and macOS builds get no such section. What cannot be found (no
 dpkg, no owning package, no copyright file, no referenced license text) is said
-so in the section rather than left out.
+so in the section rather than left out. In a Debian copyright file in the
+machine-readable format the paragraphs about debian/* and about files that are
+not part of the libraries are left out and a repeated license text is pointed
+at (see trim_debian_copyright); the source packages of the copyleft libraries
+are named in the source section.
+
+The Rust crates linked into the cryptography, pydantic_core and rpds-py wheels
+are read from the SBOM in each installed wheel and matched with the researched
+data in docs/legal/third-party/rust-crates.json; a crate missing there fails
+the build (see collect_rust_crates).
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import subprocess
 import sys
 import sysconfig
+import textwrap
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import metadata
@@ -1258,10 +1269,14 @@ SYSTEM_LIBRARIES_NOTE = (
     "below travel with the Linux build. Each one is listed with the Debian\n"
     "package that owns the file on the build machine (found with dpkg -S),\n"
     "followed by the license information that package ships in\n"
-    "/usr/share/doc/<package>/copyright. Those files may refer to the standard\n"
-    "license texts that a Debian system keeps under /usr/share/common-licenses\n"
-    "instead of reproducing them; the texts they refer to follow the packages,\n"
-    "under \"Referenced license texts\"."
+    "/usr/share/doc/<package>/copyright. In a copyright file in Debian's\n"
+    "machine-readable format, the paragraphs about the Debian packaging and about\n"
+    "files that are not part of the libraries (documentation, tests, examples,\n"
+    "translations, build scripts) are left out, and a license text that an earlier\n"
+    "copyright file already has is not repeated. Those files may refer to the\n"
+    "standard license texts that a Debian system keeps under\n"
+    "/usr/share/common-licenses instead of reproducing them; the texts they refer\n"
+    "to follow the packages, under \"Referenced license texts\"."
 )
 REFERENCED_LICENSES_TITLE = "Referenced license texts"
 REFERENCED_LICENSES_NOTE = (
@@ -1269,6 +1284,13 @@ REFERENCED_LICENSES_NOTE = (
     "system keeps under /usr/share/common-licenses. They are copied from the\n"
     "machine that built the application."
 )
+NOTHING_LEFT = (
+    "The copyright file at {path} covers only the Debian packaging and files\n"
+    "that are not part of the compiled library (documentation, tests, examples,\n"
+    "translations, build scripts); nothing of it is reproduced here."
+)
+SOURCE_UNKNOWN = "dpkg-query could not be used on the build machine"
+OS_RELEASE = Path("/etc/os-release")
 NO_OWNING_PACKAGE = "no Debian package owns this file"
 PACKAGE_UNKNOWN = "package unknown (dpkg could not be used on the build machine)"
 _SYSTEM_LIBRARIES_HEADING = re.compile(r"^System libraries \((\d+)\)$")
@@ -1322,7 +1344,22 @@ class DebianPackage:
     name: str
     libraries: list[str]
     copyright_path: str
-    copyright_text: str | None  # None when the file does not exist
+    # The text as printed (see trim_debian_copyright()); None when the file
+    # does not exist.
+    copyright_text: str | None
+    # The file is in the Debian machine-readable format and no section about
+    # files is left after the trimming: everything it covers is packaging,
+    # documentation, tests or build scripts.
+    nothing_left: bool = False
+
+
+@dataclass(frozen=True)
+class SourcePackage:
+    """A Debian source package that a copyleft system library is built from."""
+
+    name: str
+    version: str | None  # None when dpkg-query could not say
+    packages: tuple[str, ...]  # the binary packages of it that own packed libraries
 
 
 @dataclass
@@ -1343,6 +1380,13 @@ class SystemLibraries:
     # The standard license texts the packages' copyright files refer to,
     # sorted by name, each once.
     licenses: list[ReferencedLicense] = field(default_factory=list)
+    # Source packages of the packages whose copyright files name the GPL, the
+    # LGPL or the MPL, sorted by name (see where the source code is below).
+    copyleft_sources: list[SourcePackage] = field(default_factory=list)
+    # The distribution of the build machine from /etc/os-release, e.g.
+    # "Ubuntu 22.04 LTS (jammy)", and its id ("ubuntu"); empty when unknown.
+    distribution: str = ""
+    distribution_id: str = ""
 
 
 def is_linux() -> bool:
@@ -1525,6 +1569,232 @@ def common_license_references(text: str) -> list[str]:
     return sorted(set(_COMMON_LICENSE_REFERENCE.findall(text)))
 
 
+# --- trimming a Debian copyright file to what the binaries need -------------
+# Debian's machine-readable copyright files (DEP-5, first line "Format:") are
+# made of paragraphs separated by blank lines. A "Files:" paragraph says which
+# files it covers. Of those that matter for the libraries that are copied into
+# the build, the paragraphs about the packaging itself (debian/*) and about
+# files that are not part of the compiled library (documentation, tests,
+# examples, translations, build scripts) are left out, as are repeats of a
+# license text that an earlier paragraph already has. A paragraph is left out
+# only when every one of its file patterns is of that kind; one pattern that is
+# not (or cannot be told) keeps the whole paragraph. A file in another format
+# is never changed.
+_DEP5_FIRST_LINE = "Format:"
+_IN_NO_BINARY = re.compile(
+    r"(?:^|/)(?:doc|docs|test|tests|testsuite|examples?|demos?|po|m4|man)(?:/|$)"
+    r"|(?:^|/)(?:config\.guess|config\.sub|install-sh|ltmain\.sh|missing|compile|depcomp"
+    r"|ylwrap|aclocal\.m4|configure|INSTALL)$"
+    r"|(?:^|/)Makefile[^/]*$"
+    r"|\.(?:am|in|m4)$",
+    re.IGNORECASE,
+)
+_PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n+")
+# A license paragraph that repeats an earlier one is pointed at only when its
+# text is at least this long (whitespace collapsed): a pointer costs about 150
+# characters.
+_MIN_REPEATED_LICENSE = 400
+
+
+def _field_value(paragraph: str, field_name: str) -> str | None:
+    """The value of a field of a DEP-5 paragraph (continuation lines joined by newlines).
+
+    None when the paragraph has no such field; the name is matched without
+    regard to case, at the start of a line only.
+    """
+    lines = paragraph.split("\n")
+    prefix = f"{field_name.lower()}:"
+    for position, line in enumerate(lines):
+        if line.lower().startswith(prefix):
+            value = [line[len(prefix) :].strip()]
+            for following in lines[position + 1 :]:
+                if following[:1] not in (" ", "\t"):
+                    break
+                value.append(following.strip())
+            return "\n".join(value)
+    return None
+
+
+def _is_dep5(text: str) -> bool:
+    return text.split("\n", 1)[0].startswith(_DEP5_FIRST_LINE)
+
+
+def _only_for_the_packaging_or_non_binaries(patterns: Sequence[str]) -> bool:
+    return bool(patterns) and all(
+        pattern == "debian" or pattern.startswith("debian/") or _IN_NO_BINARY.search(pattern)
+        for pattern in patterns
+    )
+
+
+def _license_names(value: str) -> list[str]:
+    """The names a License field value stands for: the first line, split at "or" / "and" / commas."""
+    first = value.split("\n", 1)[0].strip()
+    parts = [part.strip() for part in re.split(r"\s+(?:or|and)\s+|,\s*", first)]
+    return [name for name in [first, *parts] if name]
+
+
+def trim_debian_copyright(text: str) -> tuple[str, bool]:
+    """*text* without the paragraphs of a DEP-5 file that do not concern the binaries.
+
+    Returns ``(text, nothing_left)``; the second is true when the file had
+    "Files:" paragraphs and none of them is left. A text that is not DEP-5, or
+    from which nothing is taken out, is returned as it is. A left-out paragraph
+    that holds the only full text of a license that a paragraph that stays names
+    (Debian writes a license's text once, in the first paragraph that uses it)
+    is put back.
+    """
+    if not _is_dep5(text):
+        return text, False
+    paragraphs = _PARAGRAPH_BREAK.split(text)
+    files = [_field_value(paragraph, "Files") for paragraph in paragraphs]
+    licenses = [_field_value(paragraph, "License") for paragraph in paragraphs]
+    keep = [
+        patterns is None or not _only_for_the_packaging_or_non_binaries(patterns.split())
+        for patterns in files
+    ]
+    while True:
+        wanted: set[str] = set()
+        provided: set[str] = set()
+        for index, value in enumerate(licenses):
+            if value is None or not keep[index]:
+                continue
+            if "\n" in value:
+                provided.update(_license_names(value))
+            else:
+                wanted.update(_license_names(value)[1:] or _license_names(value))
+        restored = False
+        for index, value in enumerate(licenses):
+            if keep[index] or value is None or "\n" not in value:
+                continue
+            if wanted - provided and (set(_license_names(value)) & (wanted - provided)):
+                keep[index] = True
+                restored = True
+                break
+        if not restored:
+            break
+    if all(keep):
+        return text, False
+    kept = [paragraph for paragraph, stays in zip(paragraphs, keep) if stays]
+    nothing_left = any(value is not None for value in files) and not any(
+        value is not None for value, stays in zip(files, keep) if stays
+    )
+    return "\n\n".join(kept), nothing_left
+
+
+def point_at_repeated_licenses(
+    text: str, owner: str, seen: dict[str, tuple[str, str]]
+) -> str:
+    """*text* with each license paragraph that repeats an earlier one replaced by a pointer.
+
+    Only a DEP-5 file's stand-alone license paragraphs (a ``License:`` field
+    and no ``Files:``) count, and only when the text after the first line is at
+    least _MIN_REPEATED_LICENSE characters. *seen* maps the digest of such a
+    text (whitespace collapsed) to ``(license name, package)`` of the paragraph
+    that holds it; paragraphs that are kept are added to it. *owner* is the
+    Debian package of *text*.
+    """
+    if not _is_dep5(text):
+        return text
+    paragraphs = _PARAGRAPH_BREAK.split(text)
+    changed = False
+    for index, paragraph in enumerate(paragraphs):
+        value = _field_value(paragraph, "License")
+        if value is None or "\n" not in value or _field_value(paragraph, "Files") is not None:
+            continue
+        name, _, body = value.partition("\n")
+        wording = _squash(body)
+        if len(wording) < _MIN_REPEATED_LICENSE:
+            continue
+        digest = hashlib.sha256(wording.encode("utf-8")).hexdigest()
+        earlier = seen.get(digest)
+        if earlier is None:
+            seen[digest] = (name, owner)
+            continue
+        other_name, other_owner = earlier
+        where = "above" if other_owner == owner else f"in the copyright file of {other_owner}, above"
+        paragraphs[index] = (
+            f"License: {name}\n"
+            f" The text of this license is word for word the one of \"{other_name}\", {where}."
+        )
+        changed = True
+    return "\n\n".join(paragraphs) if changed else text
+
+
+_COPYLEFT_NAME = re.compile(r"\b(?:A|L)?GPL|\bMPL|General Public License|Mozilla Public License")
+
+
+def names_a_copyleft_license(text: str) -> bool:
+    """Whether a copyright text mentions the GPL, LGPL, AGPL or MPL (by name or by their texts).
+
+    Deliberately wide: a library listed for source code that did not need it
+    does no harm, one that is left out would be missed.
+    """
+    return _COPYLEFT_NAME.search(text) is not None
+
+
+def read_os_release(path: Path | None = None) -> tuple[str, str]:
+    """``(description, id)`` of the build machine's distribution, e.g. ``("Ubuntu 22.04 LTS (jammy)", "ubuntu")``.
+
+    Empty strings when /etc/os-release cannot be read.
+    """
+    try:
+        raw = (OS_RELEASE if path is None else path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "", ""
+    values: dict[str, str] = {}
+    for line in raw.splitlines():
+        key, separator, value = line.partition("=")
+        if separator and not key.startswith("#"):
+            values[key.strip()] = value.strip().strip("\"'")
+    name = values.get("NAME", "")
+    version = values.get("VERSION_ID", "")
+    codename = values.get("VERSION_CODENAME", "")
+    description = " ".join(part for part in (name, version) if part)
+    if codename:
+        description += f" ({codename})" if description else codename
+    return description, values.get("ID", "")
+
+
+def dpkg_sources(
+    names: Sequence[str], run: Runner = subprocess.run
+) -> dict[str, tuple[str, str]]:
+    """``dpkg-query``: binary package -> (source package, source version) for each of *names*.
+
+    Packages dpkg-query does not know are absent. Raises DpkgUnavailable when
+    dpkg-query cannot be run or fails in some other way than for unknown names.
+    """
+    found: dict[str, tuple[str, str]] = {}
+    unique = sorted(set(names))
+    for start in range(0, len(unique), _DPKG_BATCH):
+        batch = unique[start : start + _DPKG_BATCH]
+        try:
+            done = run(
+                [
+                    "dpkg-query",
+                    "-W",
+                    "-f",
+                    "${Package}\t${source:Package}\t${source:Version}\n",
+                    *batch,
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={**os.environ, "LC_ALL": "C"},
+                check=False,
+                timeout=300,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise DpkgUnavailable(f"dpkg-query could not be run: {exc}") from exc
+        if done.returncode not in (0, 1):
+            raise DpkgUnavailable(f"dpkg-query exited with status {done.returncode}")
+        for line in (done.stdout or "").splitlines():
+            parts = line.split("\t")
+            if len(parts) == 3 and all(parts):
+                found.setdefault(parts[0], (parts[1], parts[2]))
+    return found
+
+
 def read_common_license(name: str, licenses_root: Path) -> ReferencedLicense:
     """The standard license text called *name*; its text is None when it cannot be read.
 
@@ -1557,6 +1827,7 @@ def collect_system_libraries(
     realpath: Callable[[str], str] = os.path.realpath,
     doc_root: Path | None = None,
     licenses_root: Path | None = None,
+    os_release: Path | None = None,
 ) -> SystemLibraries:
     """The system libraries packed according to *analyses*, with their Debian packages.
 
@@ -1592,9 +1863,25 @@ def collect_system_libraries(
     if doc_root is None:
         doc_root = DEBIAN_DOC_ROOT
     packages = []
+    # Trimmed text -> the text of the first package that had it, as it is printed.
+    # A package whose trimmed text is the same as an earlier one gets exactly
+    # that text, so render_system_libraries() points at the earlier file as a
+    # whole; only the other texts have their repeated license paragraphs replaced.
+    finals: dict[str, str] = {}
+    licenses_seen: dict[str, tuple[str, str]] = {}
     for package in sorted(by_package):
         copyright_path, text = read_debian_copyright(package, doc_root)
-        packages.append(DebianPackage(package, by_package[package], copyright_path, text))
+        nothing_left = False
+        if text is not None:
+            text, nothing_left = trim_debian_copyright(text)
+            if text in finals:
+                text = finals[text]
+            else:
+                finals[text] = point_at_repeated_licenses(text, package, licenses_seen)
+                text = finals[text]
+        packages.append(
+            DebianPackage(package, by_package[package], copyright_path, text, nothing_left)
+        )
 
     if licenses_root is None:
         licenses_root = DEBIAN_LICENSES_ROOT
@@ -1607,7 +1894,36 @@ def collect_system_libraries(
         }
     )
     licenses = [read_common_license(name, licenses_root) for name in referenced]
-    return SystemLibraries(libraries, packages, problem, licenses)
+
+    # The copyleft packages and the source packages they are built from. The
+    # version comes from the package database of the build machine, never from
+    # a guess: when dpkg-query cannot answer, the package is listed without one.
+    copyleft = sorted(
+        package.name
+        for package in packages
+        if package.copyright_text and names_a_copyleft_license(package.copyright_text)
+    )
+    sources: list[SourcePackage] = []
+    if copyleft and not problem:
+        try:
+            known = dpkg_sources(copyleft, run)
+        except DpkgUnavailable:
+            known = {}
+        grouped: dict[tuple[str, str | None], list[str]] = {}
+        for name in copyleft:
+            source = known.get(name)
+            key = (source[0], source[1]) if source else (name, None)
+            grouped.setdefault(key, []).append(name)
+        sources = [
+            SourcePackage(source, version, tuple(names))
+            for (source, version), names in sorted(
+                grouped.items(), key=lambda item: (item[0][0], item[0][1] or "")
+            )
+        ]
+    distribution, distribution_id = read_os_release(os_release)
+    return SystemLibraries(
+        libraries, packages, problem, licenses, sources, distribution, distribution_id
+    )
 
 
 def _append_text_once(
@@ -1629,7 +1945,9 @@ def _append_text_once(
 
 
 def render_system_libraries(
-    system: SystemLibraries, printed: dict[str, str] | None = None
+    system: SystemLibraries,
+    printed: dict[str, str] | None = None,
+    apache_printed: bool = False,
 ) -> list[str]:
     """The lines of the "System libraries bundled on Linux" section.
 
@@ -1637,6 +1955,9 @@ def render_system_libraries(
     file to where. A copyright file or referenced license text with the same
     digest is not repeated (binary packages built from one source often ship
     the same copyright file). The texts printed here are added to it.
+    *apache_printed* says that the file prints the Apache License 2.0 once under
+    "Shared license texts"; a referenced license text that is that license (the
+    same body, whatever the header) points there instead of being repeated.
     """
     if printed is None:
         printed = {}
@@ -1660,6 +1981,8 @@ def render_system_libraries(
             lines.append(f"No copyright text was found at {package.copyright_path}.")
         else:
             _append_text_once(lines, printed, package.copyright_path, package.copyright_text)
+            if package.nothing_left:
+                lines.extend(["", NOTHING_LEFT.format(path=package.copyright_path)])
     if system.licenses:
         lines.extend(
             ["", _THIN_RULE, REFERENCED_LICENSES_TITLE, _THIN_RULE, REFERENCED_LICENSES_NOTE]
@@ -1668,6 +1991,11 @@ def render_system_libraries(
             lines.append("")
             if referenced.text is None:
                 lines.append(f"Not found at {referenced.path}.")
+            elif apache_printed and is_apache_license_file(referenced.text):
+                lines.append(
+                    f"--- {referenced.path} (the Apache License, Version 2.0, printed once "
+                    f"under \"{SHARED_TEXTS_TITLE}\", above) ---"
+                )
             else:
                 _append_text_once(lines, printed, referenced.path, referenced.text)
     return lines
@@ -1767,6 +2095,309 @@ def apply_text_cuts(
     return text, used_apache
 
 
+# --- Rust crates linked into Python wheels ---------------------------------
+# cryptography, pydantic_core and rpds-py are compiled from Rust, and their
+# extension modules contain the crates they depend on. Each wheel lists those
+# crates in a CycloneDX file under <dist-info>/sboms/, which is the list of what
+# was really built into it. The licenses of the crates (which license of a
+# dual-licensed crate is used, the copyright lines, the license text that has to
+# travel with a binary) are researched once and kept in
+# docs/legal/third-party/rust-crates.json, with the texts next to it; see that
+# file for the evidence. A crate that is in a wheel's SBOM but not in the file
+# stops the build: it is new (a wheel was upgraded) and needs the same research.
+RUST_CRATES_FILE = f"{THIRD_PARTY_LICENSE_DIR}/rust-crates.json"
+RUST_CRATES_TITLE = "Rust crates built into Python packages"
+RUST_CRATES_NOTE = (
+    "Some of the Python packages above are compiled from Rust and contain the\n"
+    "Rust libraries (crates) listed here, each of which comes with its own\n"
+    "license. The list is taken from the bill of materials (SBOM) that each of\n"
+    "those packages carries. Crates that are used only while the package is\n"
+    "compiled (procedural macros and the code that runs only inside them, build\n"
+    "scripts) are not part of the program and are not listed."
+)
+_RUST_OBLIGATIONS = ("none", "shared-apache", "text", "source-offer")
+_CARGO_PURL = re.compile(r"^pkg:cargo/([^@/?#]+)@([^?#]+)")
+_GENERIC_PURL = re.compile(r"^pkg:generic/([^@/?#]+)@([^?#]+)")
+
+
+class RustCratesError(Exception):
+    """The Rust crates of the installed wheels cannot be matched with the license data."""
+
+
+@dataclass(frozen=True)
+class RustCrate:
+    """A Rust crate in the SBOM of an installed wheel that has to be mentioned."""
+
+    name: str
+    version: str
+    wheels: tuple[str, ...]  # the packages whose SBOM lists it
+    obligation: str  # "shared-apache", "text" or "source-offer"
+    chosen: str  # the license it is used under
+    copyright_lines: tuple[str, ...] = ()
+    text: str | None = None  # the license text to print, for obligation "text"
+    notice: str | None = None  # NOTICE file of an Apache-2.0 crate
+    copyright_note: str = ""  # where the copyright lines come from, when not from the text
+    source_url: str = ""
+    # What a non-crate component (SBOM purl "pkg:generic/...") is for; empty for crates.
+    role: str = ""
+
+    @property
+    def title(self) -> str:
+        return f"{self.name} {self.version}"
+
+    @property
+    def needs_apache(self) -> bool:
+        return self.obligation == "shared-apache"
+
+
+def load_rust_crate_data(root: Path | None = None) -> dict[tuple[str, str], dict]:
+    """The researched crate entries, by (name, version); the license texts are read into them.
+
+    Each entry with a ``license_text_file`` gets a ``text`` key. A text whose
+    sha256 differs from the one in the file's ``texts`` table, a missing text,
+    a bad obligation or a file that is not valid JSON raises RustCratesError.
+    """
+    base = REPO_ROOT if root is None else root
+    path = base / RUST_CRATES_FILE
+    try:
+        document = json.loads(path.read_bytes().decode("utf-8"))
+        crates = document["crates"]
+        texts = document["texts"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RustCratesError(f"cannot read the Rust crate license data {path}: {exc}") from exc
+    loaded: dict[str, str] = {}
+    for file_name, pinned in texts.items():
+        text_path = path.parent / file_name
+        try:
+            raw = text_path.read_bytes()
+            raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise RustCratesError(f"cannot read the crate license text {text_path}: {exc}") from exc
+        if hashlib.sha256(raw).hexdigest() != pinned["sha256"]:
+            raise RustCratesError(
+                f"{text_path} does not match the sha256 recorded in {RUST_CRATES_FILE}"
+            )
+        loaded[file_name] = _normalise_text(raw)
+    entries: dict[tuple[str, str], dict] = {}
+    for entry in crates:
+        key = (entry["name"], entry["version"])
+        if entry.get("obligation") not in _RUST_OBLIGATIONS:
+            raise RustCratesError(f"{key[0]} {key[1]} in {RUST_CRATES_FILE} has no valid obligation")
+        entry = dict(entry)
+        file_name = entry.get("license_text_file")
+        if entry["obligation"] == "text":
+            if file_name not in loaded:
+                raise RustCratesError(
+                    f"{key[0]} {key[1]} in {RUST_CRATES_FILE} needs a license text that is not "
+                    "in its 'texts' table"
+                )
+            entry["text"] = loaded[file_name]
+        entries[key] = entry
+    return entries
+
+
+def _sbom_purls(dist: metadata.Distribution) -> list[str]:
+    """The package URLs of all components in the ``sboms/*.json`` files of *dist*."""
+    purls: list[str] = []
+    for file in dist.files or ():
+        if file.parent.name != "sboms" or file.suffix != ".json":
+            continue
+        try:
+            document = json.loads(Path(str(dist.locate_file(file))).read_bytes().decode("utf-8"))
+            components = document.get("components", [])
+        except (OSError, ValueError, AttributeError) as exc:
+            raise RustCratesError(f"cannot read the SBOM {file} of {dist.metadata['Name']}: {exc}")
+        purls.extend(str(component.get("purl", "")) for component in components)
+    return purls
+
+
+def sbom_rust_crates(dist: metadata.Distribution) -> list[tuple[str, str]]:
+    """``(name, version)`` of the Rust crates in the SBOM files of *dist*, sorted.
+
+    Takes the components whose package URL is ``pkg:cargo/<name>@<version>``.
+    """
+    found = {m.groups() for m in map(_CARGO_PURL.match, _sbom_purls(dist)) if m}
+    return sorted(found)
+
+
+def sbom_generic_components(dist: metadata.Distribution) -> list[tuple[str, str]]:
+    """``(name, version)`` of the ``pkg:generic/`` components of the SBOMs of *dist*, sorted.
+
+    These are libraries other than crates that a wheel links in statically (the
+    OpenSSL of the cryptography wheel); see "generic_components" in
+    docs/legal/third-party/rust-crates.json.
+    """
+    found = {m.groups() for m in map(_GENERIC_PURL.match, _sbom_purls(dist)) if m}
+    return sorted(found)
+
+
+def load_generic_components(root: Path | None = None) -> dict[tuple[str, str], dict]:
+    """The researched non-crate components of the data file, by (name, version)."""
+    path = (REPO_ROOT if root is None else root) / RUST_CRATES_FILE
+    try:
+        document = json.loads(path.read_bytes().decode("utf-8"))
+        entries = {(e["name"], e["version"]): e for e in document["generic_components"]}
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RustCratesError(f"cannot read the generic components of {path}: {exc}") from exc
+    for key, entry in entries.items():
+        if entry.get("obligation") not in ("none", "shared-apache") or not entry.get("role"):
+            raise RustCratesError(f"{key[0]} {key[1]} in {RUST_CRATES_FILE} is not usable")
+    return entries
+
+def collect_rust_crates(
+    dists: Iterable[metadata.Distribution], root: Path | None = None
+) -> list[RustCrate]:
+    """The Rust crates of *dists* that the notices have to mention, sorted by name and version.
+
+    A crate that needs nothing (a license without duties for binaries, or one
+    that is only used at build time) is left out. A crate of an SBOM that the
+    data file does not know raises RustCratesError saying so.
+    """
+    dists = list(dists)
+    wheels: dict[tuple[str, str], list[str]] = {}
+    generic_wheels: dict[tuple[str, str], list[str]] = {}
+    for dist in dists:
+        for key in sbom_rust_crates(dist):
+            wheels.setdefault(key, []).append(dist.metadata["Name"])
+        for key in sbom_generic_components(dist):
+            generic_wheels.setdefault(key, []).append(dist.metadata["Name"])
+    if not wheels and not generic_wheels:
+        return []
+    generic = load_generic_components(root) if generic_wheels else {}
+    unknown_generic = sorted(key for key in generic_wheels if key not in generic)
+    if unknown_generic:
+        listed = ", ".join(
+            f"{name} {version} ({'/'.join(generic_wheels[(name, version)])})"
+            for name, version in unknown_generic
+        )
+        raise RustCratesError(
+            f"{len(unknown_generic)} non-crate component(s) (pkg:generic) in the SBOM of an "
+            f"installed wheel are not in \"generic_components\" of {RUST_CRATES_FILE}: {listed}. "
+            "A wheel was probably upgraded: find out its license, whether the upstream project "
+            "ships a NOTICE file, and add it to that table."
+        )
+    data = load_rust_crate_data(root) if wheels else {}
+    unknown = sorted(key for key in wheels if key not in data)
+    if unknown:
+        listed = ", ".join(f"{name} {version} ({'/'.join(wheels[(name, version)])})"
+                           for name, version in unknown)
+        raise RustCratesError(
+            f"{len(unknown)} Rust crate(s) in the SBOM of an installed wheel are not in "
+            f"{RUST_CRATES_FILE}: {listed}. A wheel was probably upgraded: research the "
+            "license of each new crate (which license applies, copyright lines, the license "
+            "text, a NOTICE file) and add it to that file together with its text."
+        )
+    crates = []
+    for key in sorted(generic_wheels):
+        entry = generic[key]
+        if entry["obligation"] == "none":
+            continue
+        crates.append(
+            RustCrate(
+                name=key[0],
+                version=key[1],
+                wheels=tuple(sorted(set(generic_wheels[key]))),
+                obligation=entry["obligation"],
+                chosen=entry.get("chosen", ""),
+                notice=entry.get("notice"),
+                source_url=entry.get("source_url", ""),
+                role=entry["role"],
+            )
+        )
+    for key in sorted(wheels):
+        entry = data[key]
+        if entry["obligation"] == "none":
+            continue
+        crates.append(
+            RustCrate(
+                name=key[0],
+                version=key[1],
+                wheels=tuple(sorted(set(wheels[key]))),
+                obligation=entry["obligation"],
+                chosen=entry.get("chosen", ""),
+                copyright_lines=tuple(entry.get("copyright_lines", ())),
+                text=entry.get("text"),
+                notice=entry.get("notice"),
+                copyright_note=entry.get("copyright_note", ""),
+                source_url=entry.get("source_url", ""),
+            )
+        )
+    return crates
+
+
+def _wrap_list(items: Sequence[str]) -> list[str]:
+    return textwrap.wrap(", ".join(items), width=78, break_long_words=False, break_on_hyphens=False)
+
+
+def _crate_label(crate: RustCrate) -> str:
+    return f"{crate.title} ({'/'.join(crate.wheels)})"
+
+
+def render_rust_crates(
+    crates: Sequence[RustCrate], printed: dict[str, str], terms_printed: dict[str, str]
+) -> list[str]:
+    """The lines of the Rust crates section; *printed* and *terms_printed* as in render()."""
+    lines = ["", _RULE, RUST_CRATES_TITLE, _RULE, RUST_CRATES_NOTE]
+    apache = [crate for crate in crates if crate.needs_apache]
+    if apache:
+        lines.extend(
+            [
+                "",
+                _THIN_RULE,
+                f"Crates used under the Apache License 2.0 ({len(apache)})",
+                _THIN_RULE,
+                "These crates are licensed under the Apache License 2.0 (alone, or as one of\n"
+                "two or three licenses to choose from, in which case this is the one used).\n"
+                f"Its text is printed once, under \"{SHARED_TEXTS_TITLE}\".",
+            ]
+        )
+        for wheel in sorted({wheel for crate in apache for wheel in crate.wheels}):
+            lines.extend(["", f"In {wheel}:"])
+            lines.extend(
+                _wrap_list([crate.title for crate in apache if wheel in crate.wheels])
+            )
+        others = [crate for crate in apache if crate.role]
+        for crate in others:
+            lines.extend(
+                ["", f"{_crate_label(crate)}: {crate.role}. License: {crate.chosen}, see above."]
+            )
+        for crate in apache:
+            if crate.notice:
+                lines.extend(["", f"NOTICE of {crate.title}:", crate.notice])
+    # Crates that print the same license text, copyright lines included, are
+    # shown under one heading; the text of a heading is printed only when no
+    # earlier text has the same wording (render() decides, see _append_deduplicated).
+    groups: dict[tuple[str, tuple[str, ...], str], list[RustCrate]] = {}
+    for crate in crates:
+        if crate.obligation != "text" or crate.text is None:
+            continue
+        # Copyright lines that the text does not carry (its file has none, or
+        # the name was taken from elsewhere) are printed above it.
+        missing = tuple(line for line in crate.copyright_lines if line not in crate.text)
+        note = crate.copyright_note if missing else ""
+        groups.setdefault((crate.text, missing, note), []).append(crate)
+    for (text, missing, note), members in groups.items():
+        lines.extend(["", _THIN_RULE])
+        lines.extend(_wrap_list([_crate_label(member) for member in members]))
+        lines.append(_THIN_RULE)
+        for line in missing:
+            lines.append(f"Copyright: {line}")
+        if missing and note:
+            lines.append(f"({note}.)")
+        if missing:
+            lines.append("")
+        first = members[0]
+        _append_deduplicated(
+            lines,
+            f"license text of {first.title}",
+            text,
+            f"the license text of {first.title}, above",
+            printed,
+            terms_printed,
+        )
+    return lines
+
+
 # --- where the source code of copyleft components is ----------------------
 # GPL-3.0 section 6, LGPL-3.0 section 4(d) and MPL-2.0 section 3.2 want the
 # source code, or where to get it, to go along with the binaries. What is
@@ -1819,8 +2450,57 @@ COPYLEFT_SOURCES: dict[str, Callable[[Package], list[str]]] = {
 }
 
 
-def copyleft_source_lines(packages: Iterable[Package]) -> list[str]:
-    """The lines of the "Source code of copyleft components" section; none without a component."""
+LINUX_SOURCES_NOTE = (
+    "The Linux build carries shared libraries of the build machine (see \"{system}\"). "
+    "The libraries of the Debian packages below are under the GNU GPL, LGPL or MPL "
+    "(their copyright files name one of them). The source code of each is the source "
+    "package (<source>) of the same name and version in the archive of {distribution}. With a "
+    "deb-src entry for that archive in the APT sources, it is downloaded with "
+    "\"apt-get source <source>=<version>\""
+)
+_LAUNCHPAD = "https://launchpad.net/ubuntu/+source"
+
+
+def linux_source_lines(system: SystemLibraries) -> list[str]:
+    """Where the source code of the copyleft system libraries is; none when there are none."""
+    if system.dpkg_problem:
+        return textwrap.wrap(
+            "The Debian packages of the system libraries could not be determined "
+            f"({system.dpkg_problem}), so the source packages of the copyleft libraries "
+            "among them cannot be named here.",
+            width=76,
+        )
+    if not system.copyleft_sources:
+        return []
+    note = LINUX_SOURCES_NOTE.format(
+        system=SYSTEM_LIBRARIES_TITLE,
+        distribution=system.distribution or "the Linux distribution of the build machine",
+    )
+    if system.distribution_id == "ubuntu":
+        note += f" or from {_LAUNCHPAD}/<source>/<version>"
+    lines = textwrap.wrap(note + ".", width=76, break_long_words=False, break_on_hyphens=False)
+    lines.append("")
+    for source in system.copyleft_sources:
+        binaries = ", ".join(source.packages)
+        if source.version is None:
+            lines.append(
+                f"{source.name} - version unknown ({SOURCE_UNKNOWN}); Debian package(s): {binaries}"
+            )
+        else:
+            lines.append(f"{source.name} {source.version} - Debian package(s): {binaries}")
+    return lines
+
+
+def copyleft_source_lines(
+    packages: Iterable[Package],
+    system: SystemLibraries | None = None,
+    rust_crates: Sequence[RustCrate] = (),
+) -> list[str]:
+    """The lines of the "Source code of copyleft components" section; none without a component.
+
+    The Python packages come first, then the Rust crates that ask for their
+    source to be offered, then the copyleft system libraries of a Linux build.
+    """
     entries: list[str] = []
     for package in packages:
         where = COPYLEFT_SOURCES.get(package.canonical_name)
@@ -1828,17 +2508,65 @@ def copyleft_source_lines(packages: Iterable[Package]) -> list[str]:
             continue
         entries.extend(["", f"{package.title} ({package.declaration})"])
         entries.extend(f"  {line}" for line in where(package))
+    for crate in rust_crates:
+        if crate.obligation == "source-offer":
+            entries.extend(["", f"{_crate_label(crate)} ({crate.chosen}), Rust crate", f"  {crate.source_url}"])
+    if system is not None and system.libraries:
+        linux = linux_source_lines(system)
+        if linux:
+            entries.extend(["", "System libraries of the Linux build", *(f"  {line}" for line in linux)])
     return [COPYLEFT_NOTE, *entries] if entries else []
+
+
+def _append_deduplicated(
+    lines: list[str],
+    label: str,
+    text: str,
+    here: str,
+    printed: dict[str, str],
+    terms_printed: dict[str, str],
+) -> None:
+    """Add a license text under ``--- label ---``, or something shorter when it is already there.
+
+    *printed* maps the digest of each text printed so far to where it is, and
+    *terms_printed* the digest of the wording without its copyright lines (see
+    terms_digest()); *here* says where this text is, for the entries after it.
+    A text that is word for word one printed before becomes a pointer; one that
+    differs only in its copyright lines keeps those and points to the wording.
+    """
+    digest = LicenseText(label, text).digest
+    earlier = printed.get(digest)
+    if earlier is not None:
+        lines.append(f"--- {label} (same text as {earlier}) ---")
+        return
+    terms = terms_digest(text)
+    if terms is not None and terms[0] in terms_printed:
+        lines.append(f"--- {label} ---")
+        lines.extend(terms[1])
+        lines.append("")
+        lines.append(
+            "[The permission notice and conditions are word for word those of\n"
+            f"{terms_printed[terms[0]]}; only the copyright notice differs.]"
+        )
+        return
+    printed[digest] = here
+    if terms is not None:
+        terms_printed[terms[0]] = here
+    lines.append(f"--- {label} ---")
+    lines.append(text)
 
 
 def render(
     packages: list[Package],
     system_libraries: SystemLibraries | None = None,
     upstream_notice: str | None = None,
+    rust_crates: Sequence[RustCrate] | None = None,
 ) -> str:
     """The notices text. *upstream_notice* defaults to read_upstream_notice().
 
     A notice that is given must not be empty or only whitespace either.
+    *rust_crates* (see collect_rust_crates()) adds the section of the Rust
+    crates linked into the Python packages.
     """
     if upstream_notice is None:
         upstream_notice = read_upstream_notice()
@@ -1860,6 +2588,7 @@ def render(
 
     printed: dict[str, str] = {}
     terms_printed: dict[str, str] = {}
+    rust_crates = list(rust_crates or ())
     shared_apache = find_shared_apache_text(packages)
     standard_lines = (
         set() if shared_apache is None else {line.strip() for line in shared_apache.split("\n")}
@@ -1894,29 +2623,23 @@ def render(
                 lines.append(f"--- {license_text.name} ---")
                 lines.append(shrink_apache(text, standard_lines))
                 continue
-            digest = LicenseText(license_text.name, text).digest
-            earlier = printed.get(digest)
-            if earlier is not None:
-                lines.append(
-                    f"--- {license_text.name} (same text as {earlier}) ---"
-                )
-                continue
-            here = f"{license_text.name} of {package.title}, above"
-            terms = terms_digest(text)
-            if terms is not None and terms[0] in terms_printed:
-                lines.append(f"--- {license_text.name} ---")
-                lines.extend(terms[1])
-                lines.append("")
-                lines.append(
-                    "[The permission notice and conditions are word for word those of\n"
-                    f"{terms_printed[terms[0]]}; only the copyright notice differs.]"
-                )
-                continue
-            printed[digest] = here
-            if terms is not None:
-                terms_printed[terms[0]] = here
-            lines.append(f"--- {license_text.name} ---")
-            lines.append(text)
+            _append_deduplicated(
+                lines,
+                license_text.name,
+                text,
+                f"{license_text.name} of {package.title}, above",
+                printed,
+                terms_printed,
+            )
+    if rust_crates:
+        needs_apache = any(crate.needs_apache for crate in rust_crates)
+        if needs_apache and shared_apache is None:
+            raise SharedLicenseError(
+                "Rust crates are used under the Apache License 2.0, but no component of this "
+                "file carries that text to print once"
+            )
+        lines.extend(render_rust_crates(rust_crates, printed, terms_printed))
+        apache_used = apache_used or needs_apache
     if apache_used and shared_apache is not None:
         lines.extend(
             [
@@ -1933,11 +2656,15 @@ def render(
         printed[LicenseText(APACHE_TITLE, shared_apache).digest] = (
             f"the {APACHE_TITLE} under \"{SHARED_TEXTS_TITLE}\", above"
         )
-    source_lines = copyleft_source_lines(packages)
+    source_lines = copyleft_source_lines(packages, system_libraries, rust_crates)
     if source_lines:
         lines.extend(["", _RULE, COPYLEFT_TITLE, _RULE, *source_lines])
     if system_libraries is not None and system_libraries.libraries:
-        lines.extend(render_system_libraries(system_libraries, printed))
+        lines.extend(
+            render_system_libraries(
+                system_libraries, printed, apache_printed=apache_used and shared_apache is not None
+            )
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -2004,7 +2731,8 @@ def build_notices(
         components.append(libffi)
     components.extend(collect_python_components(platform))
     components.extend(collect_packages(project, extras, build_tools))
-    return render(components, system_libraries, upstream_notice), components
+    rust_crates = collect_rust_crates(collect_distributions(project, extras, build_tools))
+    return render(components, system_libraries, upstream_notice, rust_crates), components
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2056,7 +2784,12 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    except (ArchivedLicenseError, PackedLicenseFileError, SharedLicenseError) as exc:
+    except (
+        ArchivedLicenseError,
+        PackedLicenseFileError,
+        SharedLicenseError,
+        RustCratesError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

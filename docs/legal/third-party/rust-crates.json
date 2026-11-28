@@ -1,0 +1,2112 @@
+{
+ "schema": 1,
+ "purpose": "License data of the Rust crates statically linked into the cryptography, pydantic_core and rpds-py wheels, read by tools/write_third_party_notices.py. The build lists the crates of the SBOM in each installed wheel and fails for a crate that is not in this file: rerun the license research for the new crates and add them here.",
+ "obligation_values": {
+  "none": "nothing to print",
+  "shared-apache": "Apache-2.0 chosen; listed by name, the text is printed once under 'Shared license texts' (plus a notice, if any)",
+  "text": "MIT/BSD/Unicode-style text: copyright lines and the text are printed",
+  "source-offer": "source code location is printed"
+ },
+ "text_note": "The license texts are the text as published on crates.io (via the docs.rs source view), line endings LF; they are not the upstream bytes. Each file is pinned by sha256.",
+ "texts": {
+  "rust-archery-1.2.3-LICENSE.md.txt": {
+   "sha256": "e326b5fef9084c437878cc2184ba6dfa15503f46e5359dd67246f51761ea709f"
+  },
+  "rust-asn1-0.24.1-LICENSE.txt": {
+   "sha256": "c6deb2d156619439e147f8b62e1b3928598c8e3652ec8b56cc039490696b3985"
+  },
+  "rust-bitvec-1.0.1-LICENSE.txt": {
+   "sha256": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5"
+  },
+  "rust-funty-2.0.0-LICENSE.txt": {
+   "sha256": "f790cc576999f5998c766d3d26d7d64dc368e805a98461484f65e8d961ec6d9f"
+  },
+  "rust-icu_collections-1.5.0-LICENSE.txt": {
+   "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+  },
+  "rust-jiter-0.18.0-LICENSE.txt": {
+   "sha256": "7c7134b9f7b978c03fca875517cf398db91f19bbb8109b6685e742aa3f57468e"
+  },
+  "rust-lru-0.18.5-LICENSE.txt": {
+   "sha256": "061dc50af2cd9340703daf61978af3200cf681b12ea67a323c33ba109a23a45e"
+  },
+  "rust-openssl-sys-0.9.117-LICENSE-MIT.txt": {
+   "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+  },
+  "rust-pem-4.0.0-LICENSE.md.txt": {
+   "sha256": "b7c76ff4466a3aeb6a7d903e81b651335e97d64ecb857e2ee9812a36c6fd1acf"
+  },
+  "rust-radium-0.7.0-LICENSE.txt": {
+   "sha256": "13f4cc9fbc8d4a447b28aa84019c10ad4abf4b5f6919db061bf6690ccc23bc02"
+  },
+  "rust-speedate-0.18.0-LICENSE.txt": {
+   "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a"
+  },
+  "rust-strum-0.28.0-LICENSE.txt": {
+   "sha256": "8bce3b45e49ecd1461f223b46de133d8f62cd39f745cfdaf81bee554b908bd42"
+  },
+  "rust-tap-1.0.1-LICENSE.txt": {
+   "sha256": "8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a"
+  },
+  "rust-zmij-1.0.6-LICENSE-MIT.txt": {
+   "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+  }
+ },
+ "generic_components": [
+  {
+   "name": "openssl",
+   "version": "4.0.3",
+   "role": "statically linked into the cryptography package",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "notice": null,
+   "notice_check": "Checked 2026-11-28: the root of tag openssl-4.0.3 of github.com/openssl/openssl (GitHub contents API) has LICENSE.txt and no NOTICE file, so only the Apache License 2.0 text (printed once under Shared license texts) is owed.",
+   "source_url": "https://github.com/openssl/openssl/tree/openssl-4.0.3"
+  }
+ ],
+ "crates": [
+  {
+   "name": "ahash",
+   "version": "0.8.12",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/ahash/0.8.12/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "aho-corasick",
+   "version": "1.1.3",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unlicense OR MIT",
+   "chosen": "Unlicense",
+   "obligation": "none",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/aho-corasick/1.1.3/source/"
+  },
+  {
+   "name": "archery",
+   "version": "1.2.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2025 Diogo Sousa"
+   ],
+   "license_text_file": "rust-archery-1.2.3-LICENSE.md.txt",
+   "source_url": "https://docs.rs/crate/archery/1.2.3/source/LICENSE.md"
+  },
+  {
+   "name": "arrayvec",
+   "version": "0.7.8",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/arrayvec/0.7.8/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "asn1",
+   "version": "0.24.1",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "BSD-3-Clause",
+   "chosen": "BSD-3-Clause",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) Alex Gaynor and individual contributors."
+   ],
+   "license_text_file": "rust-asn1-0.24.1-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/asn1/0.24.1/source/LICENSE"
+  },
+  {
+   "name": "asn1_derive",
+   "version": "0.24.1",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "BSD-3-Clause",
+   "chosen": "BSD-3-Clause",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/asn1_derive/0.24.1/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/asn1_derive/0.24.1/source/LICENSE"
+  },
+  {
+   "name": "autocfg",
+   "version": "1.3.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/autocfg/1.3.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "base64",
+   "version": "0.23.0",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/base64/0.23.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "base64",
+   "version": "0.23.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/base64/0.23.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "bitflags",
+   "version": "2.13.1",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/bitflags/2.13.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "bitflags",
+   "version": "2.9.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/bitflags/2.9.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "bitvec",
+   "version": "1.0.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2018 myrrlyn (Alexander Payne)"
+   ],
+   "license_text_file": "rust-bitvec-1.0.1-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/bitvec/1.0.1/source/LICENSE.txt"
+  },
+  {
+   "name": "bumpalo",
+   "version": "3.19.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/bumpalo/3.19.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "cc",
+   "version": "1.4.0",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/cc/1.4.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "cfg-if",
+   "version": "1.0.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/cfg-if/1.0.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "cfg-if",
+   "version": "1.0.4",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/cfg-if/1.0.4/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "cryptography-cffi",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "cryptography-crypto",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "cryptography-keepalive",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "cryptography-key-parsing",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "cryptography-openssl",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "cryptography-x509",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "cryptography-x509-verification",
+   "version": "0.50.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR BSD-3-Clause",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://github.com/pyca/cryptography/tree/50.0.2 (repo root has LICENSE, LICENSE.APACHE, LICENSE.BSD; no NOTICE file)"
+  },
+  {
+   "name": "displaydoc",
+   "version": "0.2.5",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/displaydoc/0.2.5/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/displaydoc/0.2.5/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "enum_dispatch",
+   "version": "0.3.13",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/enum_dispatch/0.3.13/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/enum_dispatch/0.3.13/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "equivalent",
+   "version": "1.0.3",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/equivalent/1.0.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "find-msvc-tools",
+   "version": "0.1.9",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/find-msvc-tools/0.1.9/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "foldhash",
+   "version": "0.2.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Zlib",
+   "chosen": "Zlib",
+   "obligation": "none",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/foldhash/0.2.0/source/"
+  },
+  {
+   "name": "foreign-types",
+   "version": "0.3.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/foreign-types/0.3.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "foreign-types-shared",
+   "version": "0.1.1",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/foreign-types-shared/0.1.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "form_urlencoded",
+   "version": "1.2.2",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/form_urlencoded/1.2.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "funty",
+   "version": "2.0.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2020 myrrlyn (Alexander Payne)"
+   ],
+   "license_text_file": "rust-funty-2.0.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/funty/2.0.0/source/LICENSE.txt"
+  },
+  {
+   "name": "getrandom",
+   "version": "0.3.3",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/getrandom/0.3.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "hashbrown",
+   "version": "0.17.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/hashbrown/0.17.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "heck",
+   "version": "0.5.0",
+   "used_by": [
+    "cryptography",
+    "pydantic_core",
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of cryptography, pydantic-core, rpds-py (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/heck/0.5.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "hex",
+   "version": "0.4.3",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/hex/0.4.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "icu_collections",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_collections/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_locid",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_locid/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_locid_transform",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_locid_transform/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_locid_transform_data",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_locid_transform_data/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_normalizer",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_normalizer/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_normalizer_data",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_normalizer_data/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_properties",
+   "version": "1.5.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_properties/1.5.1/source/LICENSE"
+  },
+  {
+   "name": "icu_properties_data",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_properties_data/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_provider",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/icu_provider/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "icu_provider_macros",
+   "version": "1.5.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/icu_provider_macros/1.5.0/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/icu_provider_macros/1.5.0/source/LICENSE"
+  },
+  {
+   "name": "idna",
+   "version": "1.1.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/idna/1.1.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "idna_adapter",
+   "version": "1.2.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/idna_adapter/1.2.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "indexmap",
+   "version": "2.14.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/indexmap/2.14.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "itoa",
+   "version": "1.0.11",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/itoa/1.0.11/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "itoa",
+   "version": "1.0.18",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/itoa/1.0.18/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "jiter",
+   "version": "0.18.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2022 to present Samuel Colvin"
+   ],
+   "license_text_file": "rust-jiter-0.18.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/jiter/0.18.0/source/LICENSE"
+  },
+  {
+   "name": "js-sys",
+   "version": "0.3.77",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/js-sys/0.3.77/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "lexical-parse-float",
+   "version": "1.0.6",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/lexical-parse-float/1.0.6/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "lexical-parse-integer",
+   "version": "1.0.6",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/lexical-parse-integer/1.0.6/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "lexical-util",
+   "version": "1.0.7",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/lexical-util/1.0.7/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "libc",
+   "version": "0.2.177",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/libc/0.2.177/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "libc",
+   "version": "0.2.185",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/libc/0.2.185/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "libc",
+   "version": "0.2.189",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/libc/0.2.189/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "litemap",
+   "version": "0.7.3",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/litemap/0.7.3/source/LICENSE"
+  },
+  {
+   "name": "log",
+   "version": "0.4.27",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/log/0.4.27/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "lru",
+   "version": "0.18.5",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2016 Jerome Froelich"
+   ],
+   "license_text_file": "rust-lru-0.18.5-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/lru/0.18.5/source/LICENSE"
+  },
+  {
+   "name": "memchr",
+   "version": "2.7.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unlicense OR MIT",
+   "chosen": "Unlicense",
+   "obligation": "none",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/memchr/2.7.4/source/"
+  },
+  {
+   "name": "num-bigint",
+   "version": "0.4.6",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/num-bigint/0.4.6/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "num-integer",
+   "version": "0.1.46",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/num-integer/0.1.46/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "num-traits",
+   "version": "0.2.19",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/num-traits/0.2.19/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "once_cell",
+   "version": "1.21.3",
+   "used_by": [
+    "pydantic_core",
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/once_cell/1.21.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "once_cell",
+   "version": "1.21.4",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/once_cell/1.21.4/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "openssl",
+   "version": "0.10.81",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/openssl/0.10.81/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "openssl-macros",
+   "version": "0.1.1",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/openssl-macros/0.1.1/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/openssl-macros/0.1.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "openssl-sys",
+   "version": "0.9.117",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2014 Alex Crichton"
+   ],
+   "license_text_file": "rust-openssl-sys-0.9.117-LICENSE-MIT.txt",
+   "source_url": "https://docs.rs/crate/openssl-sys/0.9.117/source/LICENSE-MIT"
+  },
+  {
+   "name": "pem",
+   "version": "4.0.0",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2016 Jonathan Creekmore"
+   ],
+   "license_text_file": "rust-pem-4.0.0-LICENSE.md.txt",
+   "source_url": "https://docs.rs/crate/pem/4.0.0/source/LICENSE.md"
+  },
+  {
+   "name": "percent-encoding",
+   "version": "2.3.2",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/percent-encoding/2.3.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pkg-config",
+   "version": "0.3.33",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pkg-config/0.3.33/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "portable-atomic",
+   "version": "1.14.0",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/portable-atomic/1.14.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "portable-atomic",
+   "version": "1.6.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/portable-atomic/1.6.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "proc-macro2",
+   "version": "1.0.103",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of rpds-py (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/proc-macro2/1.0.103/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "proc-macro2",
+   "version": "1.0.107",
+   "used_by": [
+    "cryptography",
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of cryptography, pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/proc-macro2/1.0.107/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3",
+   "version": "0.29.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3/0.29.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3",
+   "version": "0.29.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3/0.29.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3",
+   "version": "0.30.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3/0.30.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-build-config",
+   "version": "0.29.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3-build-config/0.29.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-build-config",
+   "version": "0.29.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3-build-config/0.29.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-build-config",
+   "version": "0.30.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3-build-config/0.30.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-ffi",
+   "version": "0.29.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3-ffi/0.29.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-ffi",
+   "version": "0.29.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3-ffi/0.29.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-ffi",
+   "version": "0.30.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/pyo3-ffi/0.30.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-macros",
+   "version": "0.29.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/pyo3-macros/0.29.2/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/pyo3-macros/0.29.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-macros",
+   "version": "0.29.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/pyo3-macros/0.29.3/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/pyo3-macros/0.29.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-macros",
+   "version": "0.30.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/pyo3-macros/0.30.1/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/pyo3-macros/0.30.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-macros-backend",
+   "version": "0.29.2",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of cryptography (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/pyo3-macros-backend/0.29.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-macros-backend",
+   "version": "0.29.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of rpds-py (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/pyo3-macros-backend/0.29.3/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "pyo3-macros-backend",
+   "version": "0.30.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/pyo3-macros-backend/0.30.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "quote",
+   "version": "1.0.42",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of rpds-py (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/quote/1.0.42/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "quote",
+   "version": "1.0.44",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/quote/1.0.44/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "quote",
+   "version": "1.0.47",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of cryptography (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/quote/1.0.47/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "r-efi",
+   "version": "5.2.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/r-efi/5.2.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "radium",
+   "version": "0.7.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2019 kneecaw (Nika Layzell)"
+   ],
+   "license_text_file": "rust-radium-0.7.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/radium/0.7.0/source/LICENSE.txt"
+  },
+  {
+   "name": "regex",
+   "version": "1.13.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/regex/1.13.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "regex-automata",
+   "version": "0.4.18",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/regex-automata/0.4.18/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "regex-syntax",
+   "version": "0.8.11",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/regex-syntax/0.8.11/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "rpds",
+   "version": "1.2.1",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2025 Diogo Sousa"
+   ],
+   "license_text_file": "rust-archery-1.2.3-LICENSE.md.txt",
+   "source_url": "https://docs.rs/crate/rpds/1.2.1/source/LICENSE.md"
+  },
+  {
+   "name": "self_cell",
+   "version": "1.3.0",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 OR GPL-2.0-only",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/self_cell/1.3.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "serde",
+   "version": "1.0.229",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/serde/1.0.229/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "serde_core",
+   "version": "1.0.229",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/serde_core/1.0.229/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "serde_derive",
+   "version": "1.0.229",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/serde_derive/1.0.229/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/serde_derive/1.0.229/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "serde_json",
+   "version": "1.0.151",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/serde_json/1.0.151/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "shlex",
+   "version": "2.0.1",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/shlex/2.0.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "smallvec",
+   "version": "1.15.1",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/smallvec/1.15.1/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "smallvec",
+   "version": "1.16.2",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/smallvec/1.16.2/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "speedate",
+   "version": "0.18.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2022 Samuel Colvin"
+   ],
+   "license_text_file": "rust-speedate-0.18.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/speedate/0.18.0/source/LICENSE"
+  },
+  {
+   "name": "stable_deref_trait",
+   "version": "1.2.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/stable_deref_trait/1.2.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "strum",
+   "version": "0.28.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2019 Peter Glotfelty"
+   ],
+   "license_text_file": "rust-strum-0.28.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/strum/0.28.0/source/LICENSE"
+  },
+  {
+   "name": "strum_macros",
+   "version": "0.28.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/strum_macros/0.28.0/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/strum_macros/0.28.0/source/LICENSE"
+  },
+  {
+   "name": "syn",
+   "version": "2.0.111",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of rpds-py (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/syn/2.0.111/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "syn",
+   "version": "2.0.119",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of cryptography (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/syn/2.0.119/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "syn",
+   "version": "2.0.82",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/syn/2.0.82/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "syn",
+   "version": "3.0.6",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/syn/3.0.6/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "synstructure",
+   "version": "0.13.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/synstructure/0.13.1/source/LICENSE"
+  },
+  {
+   "name": "tap",
+   "version": "1.0.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2017 Elliot Linder <darfink@gmail.com>"
+   ],
+   "license_text_file": "rust-tap-1.0.1-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/tap/1.0.1/source/LICENSE.txt"
+  },
+  {
+   "name": "target-lexicon",
+   "version": "0.13.3",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "Apache-2.0 WITH LLVM-exception",
+   "chosen": "Apache-2.0 WITH LLVM-exception",
+   "obligation": "none",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/target-lexicon/0.13.3/source/"
+  },
+  {
+   "name": "target-lexicon",
+   "version": "0.13.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 WITH LLVM-exception",
+   "chosen": "Apache-2.0 WITH LLVM-exception",
+   "obligation": "none",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/target-lexicon/0.13.4/source/"
+  },
+  {
+   "name": "target-lexicon",
+   "version": "0.13.5",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "Apache-2.0 WITH LLVM-exception",
+   "chosen": "Apache-2.0 WITH LLVM-exception",
+   "obligation": "none",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/target-lexicon/0.13.5/source/"
+  },
+  {
+   "name": "tinystr",
+   "version": "0.7.6",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/tinystr/0.7.6/source/LICENSE"
+  },
+  {
+   "name": "triomphe",
+   "version": "0.1.16",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/triomphe/0.1.16/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "unicode-ident",
+   "version": "1.0.12",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "(MIT OR Apache-2.0) AND Unicode-DFS-2016",
+   "chosen": "Apache-2.0 (shared) + Unicode-DFS-2016",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/unicode-ident/1.0.12/source/LICENSE-UNICODE"
+  },
+  {
+   "name": "unicode-ident",
+   "version": "1.0.22",
+   "used_by": [
+    "rpds-py"
+   ],
+   "spdx": "(MIT OR Apache-2.0) AND Unicode-3.0",
+   "chosen": "Apache-2.0 (shared) + Unicode-3.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of rpds-py (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/unicode-ident/1.0.22/source/LICENSE-UNICODE"
+  },
+  {
+   "name": "unicode-ident",
+   "version": "1.0.24",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "(MIT OR Apache-2.0) AND Unicode-3.0",
+   "chosen": "Apache-2.0 (shared) + Unicode-3.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of cryptography (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/unicode-ident/1.0.24/source/LICENSE-UNICODE"
+  },
+  {
+   "name": "url",
+   "version": "2.5.8",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/url/2.5.8/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "utf16_iter",
+   "version": "1.0.5",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/utf16_iter/1.0.5/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "utf8_iter",
+   "version": "1.0.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/utf8_iter/1.0.4/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "uuid",
+   "version": "1.23.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/uuid/1.23.4/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "vcpkg",
+   "version": "0.2.15",
+   "used_by": [
+    "cryptography"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/vcpkg/0.2.15/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "version_check",
+   "version": "0.9.5",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "build_time_note": "possibly build-time only (build script or similar); not proven, so the obligation stays",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/version_check/0.9.5/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "wasi",
+   "version": "0.14.2+wasi-0.2.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0 WITH LLVM-exception",
+   "obligation": "none",
+   "copyright_lines": [],
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wasi/0.14.2+wasi-0.2.4/source/"
+  },
+  {
+   "name": "wasm-bindgen",
+   "version": "0.2.100",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wasm-bindgen/0.2.100/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "wasm-bindgen-backend",
+   "version": "0.2.100",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wasm-bindgen-backend/0.2.100/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "wasm-bindgen-macro",
+   "version": "0.2.100",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/wasm-bindgen-macro/0.2.100/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wasm-bindgen-macro/0.2.100/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "wasm-bindgen-macro-support",
+   "version": "0.2.100",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wasm-bindgen-macro-support/0.2.100/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "wasm-bindgen-shared",
+   "version": "0.2.100",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT OR Apache-2.0",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "only reachable through proc-macro crates in the Cargo.lock of pydantic-core (the crate is a dependency of proc-macro crates and of crates only they use), so it is used at compile time only",
+   "obligation_before_build_time_check": "shared-apache",
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wasm-bindgen-shared/0.2.100/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "wit-bindgen-rt",
+   "version": "0.39.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0 WITH LLVM-exception",
+   "obligation": "none",
+   "copyright_lines": [],
+   "note": "probably not linked on desktop targets (wasm/wasi/UEFI only); listed because it is in the SBOM",
+   "source_url": "https://docs.rs/crate/wit-bindgen-rt/0.39.0/source/"
+  },
+  {
+   "name": "write16",
+   "version": "1.0.0",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/write16/1.0.0/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "writeable",
+   "version": "0.5.5",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/writeable/0.5.5/source/LICENSE"
+  },
+  {
+   "name": "wyz",
+   "version": "0.5.1",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "Copyright (c) 2018 myrrlyn (Alexander Payne)"
+   ],
+   "license_text_file": "rust-bitvec-1.0.1-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/wyz/0.5.1/source/LICENSE.txt"
+  },
+  {
+   "name": "yoke",
+   "version": "0.7.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/yoke/0.7.4/source/LICENSE"
+  },
+  {
+   "name": "yoke-derive",
+   "version": "0.7.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/yoke-derive/0.7.4/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/yoke-derive/0.7.4/source/LICENSE"
+  },
+  {
+   "name": "zerocopy",
+   "version": "0.8.25",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "BSD-2-Clause OR Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "shared-apache",
+   "copyright_lines": [],
+   "source_url": "https://docs.rs/crate/zerocopy/0.8.25/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "zerocopy-derive",
+   "version": "0.8.25",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "BSD-2-Clause OR Apache-2.0 OR MIT",
+   "chosen": "Apache-2.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/zerocopy-derive/0.8.25/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "shared-apache",
+   "source_url": "https://docs.rs/crate/zerocopy-derive/0.8.25/source/ (file listing has no NOTICE)"
+  },
+  {
+   "name": "zerofrom",
+   "version": "0.1.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/zerofrom/0.1.4/source/LICENSE"
+  },
+  {
+   "name": "zerofrom-derive",
+   "version": "0.1.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/zerofrom-derive/0.1.4/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/zerofrom-derive/0.1.4/source/LICENSE"
+  },
+  {
+   "name": "zerovec",
+   "version": "0.10.4",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "text",
+   "copyright_lines": [
+    "COPYRIGHT AND PERMISSION NOTICE",
+    "Copyright © 2020-2024 Unicode, Inc."
+   ],
+   "license_text_file": "rust-icu_collections-1.5.0-LICENSE.txt",
+   "source_url": "https://docs.rs/crate/zerovec/0.10.4/source/LICENSE"
+  },
+  {
+   "name": "zerovec-derive",
+   "version": "0.10.3",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "Unicode-3.0",
+   "chosen": "Unicode-3.0",
+   "obligation": "none",
+   "build_time_only": true,
+   "build_time_evidence": "proc-macro crate: [lib] proc-macro = true in its Cargo.toml (docs.rs/crate/zerovec-derive/0.10.3/source/Cargo.toml); it runs inside the compiler and is not linked into the binary",
+   "obligation_before_build_time_check": "text",
+   "source_url": "https://docs.rs/crate/zerovec-derive/0.10.3/source/LICENSE"
+  },
+  {
+   "name": "zmij",
+   "version": "1.0.6",
+   "used_by": [
+    "pydantic_core"
+   ],
+   "spdx": "MIT",
+   "chosen": "MIT",
+   "obligation": "text",
+   "copyright_lines": [
+    "David Tolnay <dtolnay@gmail.com>"
+   ],
+   "license_text_file": "rust-zmij-1.0.6-LICENSE-MIT.txt",
+   "copyright_note": "LICENSE-MIT has no Copyright line; name taken from Cargo.toml authors",
+   "copyright_source_url": "https://docs.rs/crate/zmij/1.0.6/source/Cargo.toml",
+   "source_url": "https://docs.rs/crate/zmij/1.0.6/source/LICENSE-MIT"
+  }
+ ]
+}
