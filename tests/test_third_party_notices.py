@@ -2109,3 +2109,519 @@ def test_a_platform_without_an_entry_gets_no_cpython_components():
 def test_the_cpython_components_fail_loudly_when_an_archived_file_is_unusable(tmp_path):
     with pytest.raises(notices.ArchivedLicenseError, match="cannot read the archived license"):
         notices.collect_python_components("linux", root=tmp_path)
+
+
+# --- the minimum the licenses ask for (2026-11-28) -----------------------------
+# One Apache License text, one copy of each MIT/BSD wording, no GPL text that a
+# file only reproduces, no history of Python, and the copyleft source offer.
+
+BYTE_BUDGET = 200_000  # the Windows output was 321,185 bytes before, 168,980 after
+
+
+@pytest.fixture(scope="module")
+def real_notices():
+    """The notices of this environment: ``(text, components)``."""
+    return notices.build_notices()
+
+
+@pytest.fixture(scope="module")
+def apache_text(real_notices):
+    """A real Apache License 2.0 file from the installed packages (its body is pinned)."""
+    _, components = real_notices
+    found = notices.find_shared_apache_text(components)
+    assert found is not None, "no installed package ships the Apache License 2.0"
+    return found
+
+
+def dist_text(site, name: str, files: dict[str, str], **kwargs):
+    make_dist(
+        site,
+        name,
+        files={path: body.encode("utf-8") for path, body in files.items()},
+        **kwargs,
+    )
+
+
+def test_the_pinned_apache_body_digest_matches_the_installed_licenses(apache_text):
+    assert notices.apache_body_digest(apache_text) == notices.APACHE_BODY_SHA256
+    assert notices.is_apache_license_file(apache_text)
+    assert not notices.is_apache_license_file("Apache License\nsomething else entirely")
+    changed = apache_text.replace("Grant of Copyright License", "Grant of Copyleft License")
+    assert not notices.is_apache_license_file(changed)
+
+
+def test_the_real_notices_carry_the_apache_license_exactly_once(real_notices):
+    text, _ = real_notices
+
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 1
+    assert text.count(f"--- {notices.APACHE_TITLE} ---") == 1
+    assert f"\n{notices.SHARED_TEXTS_TITLE}\n" in text
+
+
+def test_every_apache_component_keeps_its_copyright_lines_and_its_notice(site, apache_text):
+    make_dist(site, "noticetest-app", requires=("noticetest-one", "noticetest-two"))
+    dist_text(
+        site,
+        "noticetest-one",
+        {
+            "licenses/LICENSE": apache_text + "\n\n   Copyright 2026 Example Person\n",
+            "licenses/NOTICE": "Example One\nCopyright 2019 Someone Else\n",
+        },
+        license_file_entries=("LICENSE",),
+        expression="Apache-2.0",
+    )
+    dist_text(site, "noticetest-two", {"licenses/LICENSE": apache_text}, expression="Apache-2.0")
+
+    text, _ = build("noticetest-app")
+
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 1
+    assert "   Copyright 2026 Example Person" in text
+    assert "Example One\nCopyright 2019 Someone Else" in text
+    # Both entries point at the shared text.
+    assert text.count(notices.APACHE_POINTER) == 2
+
+
+def test_an_apache_text_whose_body_differs_is_kept_whole(site, apache_text):
+    make_dist(site, "noticetest-app", requires=("noticetest-std", "noticetest-odd"))
+    dist_text(site, "noticetest-std", {"licenses/LICENSE": apache_text}, expression="Apache-2.0")
+    odd = apache_text.replace("Grant of Patent License", "Grant of Patents License")
+    assert odd != apache_text
+    dist_text(site, "noticetest-odd", {"licenses/LICENSE": odd}, expression="Apache-2.0")
+
+    text, _ = build("noticetest-app")
+
+    # The standard one is printed once (shared), the odd one in full.
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 2
+    assert "Grant of Patents License" in text
+
+
+def test_a_file_that_looks_like_apache_but_is_not_the_standard_text_is_not_shortened(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-fake",))
+    fake = "Apache License\n\nTERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\nmine\n"
+    dist_text(site, "noticetest-fake", {"licenses/LICENSE": fake}, expression="Apache-2.0")
+
+    text, _ = build("noticetest-app")
+
+    assert "\nmine\n" in text
+    assert f"\n{notices.SHARED_TEXTS_TITLE}\n" not in text
+
+
+def test_the_shared_section_is_absent_when_no_component_uses_it(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-one",))
+    dist_text(site, "noticetest-one", {"licenses/LICENSE": "Some license text.\n"})
+
+    text, _ = build("noticetest-app")
+
+    assert f"\n{notices.SHARED_TEXTS_TITLE}\n" not in text
+
+
+def test_an_entry_that_needs_the_shared_apache_text_fails_without_it(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-one",))
+    dist_text(site, "noticetest-one", {"licenses/LICENSE": "Some license text.\n"})
+    text, packages = notices.build_notices(
+        "noticetest-app", (), (), python_dirs=[], platform="darwin"
+    )
+
+    with pytest.raises(notices.SharedLicenseError, match="OpenSSL"):
+        notices.check_shared_texts(packages, text)
+
+
+def test_the_openssl_entry_passes_the_shared_text_check_in_the_real_environment():
+    text, packages = notices.build_notices(platform="darwin")
+
+    notices.check_shared_texts(packages, text)
+    assert "OpenSSL (used-by-CPython-ssl-and-hashlib) - Apache-2.0" in text
+
+
+MIT_TEXT = (
+    "MIT License\n\n{copyright}\n\nPermission is hereby granted, free of charge, to any "
+    "person obtaining a copy\nof this noticetest software and associated documentation files (the "
+    '"Software"), to deal\nin the Software without restriction, including without limitation '
+    "the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n"
+    "copies of the Software, and to permit persons to whom the Software is\nfurnished to do so, "
+    "subject to the following conditions:\n\nThe above copyright notice and this permission "
+    "notice shall be included in all\ncopies or substantial portions of the Software.\n"
+)
+
+
+def test_texts_that_differ_only_in_the_copyright_line_share_one_wording(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-a", "noticetest-b", "noticetest-c"))
+    for name, holder in (("a", "Alice"), ("b", "Bob"), ("c", "Carol")):
+        text = MIT_TEXT.format(copyright=f"Copyright (c) 2020 {holder}")
+        dist_text(site, f"noticetest-{name}", {"licenses/LICENSE": text}, expression="MIT")
+
+    text, _ = build("noticetest-app")
+
+    assert text.count("of this noticetest software") == 1
+    for holder in ("Alice", "Bob", "Carol"):
+        assert f"Copyright (c) 2020 {holder}" in text
+    assert text.count("only the copyright notice differs") == 2
+    assert "LICENSE of noticetest-a 1.0, above" in text
+
+
+def test_a_wording_that_differs_is_not_merged(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-a", "noticetest-b"))
+    dist_text(
+        site,
+        "noticetest-a",
+        {"licenses/LICENSE": MIT_TEXT.format(copyright="Copyright (c) 2020 Alice")},
+        expression="MIT",
+    )
+    other = MIT_TEXT.format(copyright="Copyright (c) 2020 Bob").replace("sublicense", "relicense")
+    dist_text(site, "noticetest-b", {"licenses/LICENSE": other}, expression="MIT")
+
+    text, _ = build("noticetest-app")
+
+    assert text.count("of this noticetest software") == 2
+    assert "only the copyright notice differs" not in text
+
+
+def test_a_short_text_or_one_without_a_copyright_line_is_not_merged(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-a", "noticetest-b", "noticetest-c"))
+    short = "Copyright (c) 2020 Alice\nDo what you like.\n"
+    dist_text(site, "noticetest-a", {"licenses/LICENSE": short})
+    dist_text(site, "noticetest-b", {"licenses/LICENSE": short.replace("Alice", "Bob")})
+    body = MIT_TEXT.format(copyright="")
+    dist_text(site, "noticetest-c", {"licenses/LICENSE": body})
+
+    text, _ = build("noticetest-app")
+
+    assert text.count("Do what you like.") == 2
+    assert text.count("of this noticetest software") == 1
+
+
+def test_a_sentence_about_the_copyright_notice_is_not_a_copyright_line():
+    sentence = "The above copyright notice and this permission notice shall be included"
+    assert notices.copyright_lines(sentence) == []
+    assert notices.copyright_lines("Copyright (c) 2020 Alice") == ["Copyright (c) 2020 Alice"]
+    assert notices.copyright_lines("Copyright © 2019, Encode OSS Ltd.") != []
+    assert notices.copyright_lines("Copyright 2019 Kenneth Reitz") != []
+    assert notices.copyright_lines("(c) 2008 Somebody") != []
+    assert notices.copyright_lines("All rights reserved.") != []
+    assert notices.copyright_lines("Copyright [yyyy] [name of copyright owner]") == []
+
+
+def test_the_real_notices_keep_every_copyright_line_of_every_component(real_notices):
+    text, components = real_notices
+    # These four lose parts of their files on purpose (the GPL and Apache texts a
+    # file reproduces, the history of Python); their lines are checked below.
+    trimmed = {"pyinstaller", "pyinstaller-hooks-contrib", "python", "typing-extensions"}
+    missing = []
+    for package in components:
+        if package.canonical_name in trimmed:
+            continue
+        for license_text in package.texts:
+            for line in notices.copyright_lines(license_text.text):
+                if line.rstrip() not in text:
+                    missing.append((package.title, line))
+    assert missing == []
+    for package in components:
+        section = text.split(f"\n{package.title}\n{notices._RULE}\n", 1)[1]
+        assert section.startswith(f"Declared license: {package.declaration}\n"), package.title
+
+
+def test_the_real_notices_still_list_every_component_that_ships(real_notices):
+    # The components of the lock file for this platform, followed from the
+    # project itself (its runtime requirements and the "mcp" extra), must all
+    # be in the index of the file.
+    import tomllib
+
+    from packaging.markers import Marker
+    from packaging.utils import canonicalize_name
+
+    lock = tomllib.loads((Path(__file__).resolve().parents[1] / "uv.lock").read_text("utf-8"))
+    entries = {canonicalize_name(entry["name"]): entry for entry in lock["package"]}
+    root = canonicalize_name(notices.PROJECT)
+
+    def requirements(entry, extra):
+        found = list(entry.get("dependencies", ()))
+        if extra:
+            found += entry.get("optional-dependencies", {}).get(extra, ())
+        return found
+
+    wanted: set[str] = set()
+    pending = [(root, extra) for extra in ("", *notices.SHIPPED_EXTRAS)]
+    seen = set()
+    while pending:
+        name, extra = pending.pop()
+        if (name, extra) in seen:
+            continue
+        seen.add((name, extra))
+        for dependency in requirements(entries[name], extra):
+            marker = dependency.get("marker")
+            if marker and not Marker(marker).evaluate():
+                continue
+            dep_name = canonicalize_name(dependency["name"])
+            wanted.add(dep_name)
+            pending.append((dep_name, ""))
+            for dep_extra in dependency.get("extra", ()):
+                pending.append((dep_name, dep_extra))
+    wanted.discard(root)
+
+    text, _ = real_notices
+    listed = set(notices.listed_component_names(text))
+    assert wanted - listed == set()
+    assert {"pyqt6", "pyqt6-qt6", "requests", "keyring"} <= wanted  # the walk found something
+
+
+def test_the_real_notices_index_keeps_its_format(real_notices):
+    text, components = real_notices
+
+    assert len(notices.listed_component_names(text)) == len(components)
+    assert f"Components ({len(components)})\n{notices._THIN_RULE}\n" in text
+
+
+def test_the_real_notices_stay_under_the_byte_budget(real_notices):
+    text, _ = real_notices
+
+    assert len(text.encode("utf-8")) <= BYTE_BUDGET
+
+
+PACKED_FILES = {
+    "licenses/win32/License.txt": "Copyright (c) 1994-2008, Mark Hammond\nwin32 terms\n",
+    "licenses/adodbapi/license.txt": "LGPL text for adodbapi\n",
+    "licenses/pythonwin/pywin/idle/LICENSE.txt": "PSF text for IDLE\n",
+}
+
+
+def test_pywin32_keeps_only_the_license_of_its_win32_folder(site):
+    make_dist(site, "noticetest-app", requires=("pywin32",))
+    dist_text(
+        site,
+        "pywin32",
+        PACKED_FILES,
+        expression="PSF",
+        license_file_entries=("win32/License.txt", "adodbapi/license.txt"),
+    )
+
+    text, packages = build("noticetest-app")
+
+    (pywin32,) = [package for package in packages if package.name == "pywin32"]
+    assert [license_text.name for license_text in pywin32.texts] == ["win32/License.txt"]
+    assert "win32 terms" in text
+    assert "LGPL text for adodbapi" not in text and "PSF text for IDLE" not in text
+
+
+def test_a_listed_license_file_that_is_missing_is_an_error_not_a_skip(site):
+    make_dist(site, "noticetest-app", requires=("pywin32",))
+    dist_text(site, "pywin32", {"licenses/adodbapi/license.txt": "LGPL\n"}, expression="PSF")
+
+    with pytest.raises(notices.PackedLicenseFileError, match=r"win32/License\.txt"):
+        build("noticetest-app")
+
+
+def test_cryptography_keeps_the_apache_license_and_not_the_bsd_one(site, apache_text):
+    make_dist(site, "noticetest-app", requires=("cryptography",))
+    dist_text(
+        site,
+        "cryptography",
+        {
+            "licenses/LICENSE": "Either of LICENSE.APACHE or LICENSE.BSD.\n",
+            "licenses/LICENSE.APACHE": apache_text,
+            "licenses/LICENSE.BSD": "Copyright (c) Individual contributors. BSD wording here\n",
+        },
+        expression="Apache-2.0 OR BSD-3-Clause",
+    )
+
+    text, packages = build("noticetest-app")
+
+    (crypto,) = [package for package in packages if package.name == "cryptography"]
+    assert [license_text.name for license_text in crypto.texts] == ["LICENSE", "LICENSE.APACHE"]
+    assert "BSD wording here" not in text
+    assert "uses it under the Apache License 2.0" in " ".join(text.split())
+
+
+def test_the_filter_table_is_applied_only_to_the_packages_it_names():
+    texts = [notices.LicenseText("A", "a"), notices.LicenseText("B", "b")]
+
+    assert notices.packed_license_texts("other", texts) == texts
+    assert notices.packed_license_texts("x", texts, {"x": ("B",)}) == [texts[1]]
+    with pytest.raises(notices.PackedLicenseFileError, match="C"):
+        notices.packed_license_texts("x", texts, {"x": ("C",)})
+
+
+def test_the_real_pyinstaller_entries_keep_the_exception_and_drop_the_gpl_text(real_notices):
+    text, _ = real_notices
+
+    assert (
+        "In addition to the permissions in the GNU General Public License, the\n"
+        "authors give you unlimited permission to link or embed compiled bootloader\n"
+        "and related files into combinations with other programs, and to distribute\n"
+        "those combinations without any restriction coming from the use of those\n"
+        "files."
+    ) in text
+    assert "Copyright (c) 2010-2023, PyInstaller Development Team" in text
+    assert (
+        "The PyInstaller Community Hooks are licensed under the terms of the GNU General\n"
+        "Public License"
+    ) in text
+    # The GPL 2 text is gone: its title, preamble and terms.
+    assert "Version 2, June 1991" not in text
+    assert "TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION" not in text
+    assert text.count("[The full text of the GNU General Public License, version 2") == 2
+    assert text.count("[The Apache License 2.0 that follows here in the original file") == 2
+
+
+PYINSTALLER_LIKE = (
+    "Head\nCopyright (c) 2010 Team\n\n================================\nGNU General Public License\n"
+    "================================\n\nGPL words\n\t\t     END OF TERMS AND CONDITIONS\n\nTail\n"
+)
+
+
+def test_a_cut_replaces_only_the_part_between_its_points(site):
+    make_dist(site, "noticetest-app", requires=("pyinstaller",))
+    dist_text(site, "pyinstaller", {"licenses/COPYING.txt": PYINSTALLER_LIKE}, expression="GPL")
+
+    text, _ = build("noticetest-app")
+
+    assert "Head\nCopyright (c) 2010 Team" in text
+    assert "GPL words" not in text
+    assert "is not reproduced in this copy.]\n\nTail" in text
+
+
+def test_a_file_without_the_cut_points_is_printed_whole_with_a_warning(site, capsys):
+    make_dist(site, "noticetest-app", requires=("pyinstaller",))
+    changed = PYINSTALLER_LIKE.replace("GNU General Public License", "GNU Public License")
+    dist_text(site, "pyinstaller", {"licenses/COPYING.txt": changed}, expression="GPL")
+
+    text, _ = build("noticetest-app")
+
+    assert "GPL words" in text
+    assert "cannot find the cut points" in capsys.readouterr().err
+
+
+def test_an_apache_part_that_is_not_the_standard_text_is_not_cut(site, apache_text):
+    make_dist(site, "noticetest-app", requires=("pyinstaller", "noticetest-std"))
+    dist_text(site, "noticetest-std", {"licenses/LICENSE": apache_text}, expression="Apache-2.0")
+    head = "Head\n================================\nApache License 2.0\n"
+    head += "================================\n"
+    other = head + apache_text.replace("Grant of Patent", "Grant of Patents")
+    other += "\n   limitations under the License.\n\nTail\n"
+    dist_text(site, "pyinstaller", {"licenses/COPYING.txt": other}, expression="GPL")
+
+    text, _ = build("noticetest-app")
+
+    assert "Grant of Patents License" in text
+
+
+PSF_TEXT = (
+    "A. HISTORY OF THE SOFTWARE\n==========================\n\nPython was created in 1990.\n\n"
+    "B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON\n"
+    "===============================================================\n\n"
+    "Copyright (c) 2001 Python Software Foundation; All Rights Reserved\n\nPSF terms.\n"
+)
+
+
+def test_the_history_of_python_is_dropped_and_the_psf_terms_stay(site):
+    make_dist(site, "noticetest-app", requires=("typing-extensions",))
+    dist_text(site, "typing-extensions", {"licenses/LICENSE": PSF_TEXT}, expression="PSF-2.0")
+
+    text, _ = build("noticetest-app")
+
+    assert "Python was created in 1990." not in text
+    assert "A. HISTORY OF THE SOFTWARE\n=" not in text
+    assert "B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON" in text
+    assert "Copyright (c) 2001 Python Software Foundation; All Rights Reserved" in text
+    assert "PSF terms." in text
+
+
+def test_the_python_license_loses_its_history_too(tmp_path):
+    (tmp_path / "LICENSE.txt").write_text(PSF_TEXT, encoding="utf-8")
+
+    package = notices.collect_python([tmp_path])
+    text = notices.render([package], upstream_notice="x")
+
+    assert "Python was created in 1990." not in text
+    assert "PSF terms." in text
+
+
+def test_a_psf_text_without_the_section_headings_is_kept_whole_with_a_warning(site, capsys):
+    make_dist(site, "noticetest-app", requires=("typing-extensions",))
+    dist_text(site, "typing-extensions", {"licenses/LICENSE": "Some other wording.\n"})
+
+    text, _ = build("noticetest-app")
+
+    assert "Some other wording." in text
+    assert "cannot find the cut points" in capsys.readouterr().err
+
+
+def test_the_real_python_licenses_have_no_history_but_all_their_terms(real_notices):
+    text, components = real_notices
+
+    assert "A. HISTORY OF THE SOFTWARE\n=" not in text
+    assert "Python was created in the early 1990s" not in text
+    marker = "B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON"
+    checked = 0
+    for package in components:
+        if package.canonical_name not in {"python", "typing-extensions"}:
+            continue
+        for license_text in package.texts:
+            raw = license_text.text
+            if marker not in raw:
+                continue
+            kept = raw[raw.index(marker) :]
+            assert kept in text, package.title
+            checked += 1
+    assert checked >= 1  # typing_extensions at least
+
+
+def test_the_introduction_says_the_program_contains_gpl_and_lgpl_components():
+    intro = " ".join(notices.INTRO.split())
+
+    assert (
+        "The packaged program also contains components under the GNU GPL and LGPL, "
+        "among them PyQt6 (GPL-3.0); the package as a whole is distributed under the "
+        "terms those licenses require. Where to get their source code is listed under "
+        '"Source code of copyleft components".'
+    ) in intro
+    assert intro.index("licensed under the MIT License") < intro.index("also contains")
+
+
+def test_the_real_notices_say_where_the_source_of_each_copyleft_component_is(real_notices):
+    text, components = real_notices
+    section = text.split(f"\n{notices.COPYLEFT_TITLE}\n", 1)[1]
+    versions = {package.canonical_name: package.version for package in components}
+
+    for name in ("pyqt6", "pyqt6-webengine", "pyqt6-qt6", "pyqt6-webengine-qt6", "certifi"):
+        assert name in versions, name
+    qt = versions["pyqt6-qt6"]
+    qt_series = ".".join(qt.split(".")[:2])
+    webengine = versions["pyqt6-webengine-qt6"]
+    webengine_series = ".".join(webengine.split(".")[:2])
+    assert f"/source/P/PyQt6/pyqt6-{versions['pyqt6']}.tar.gz" in section
+    assert (
+        f"/source/P/PyQt6-WebEngine/pyqt6_webengine-{versions['pyqt6-webengine']}.tar.gz"
+        in section
+    )
+    assert f"https://download.qt.io/archive/qt/{qt_series}/{qt}/single/" in section
+    assert f"https://download.qt.io/archive/qt/{qt_series}/{qt}/submodules/" in section
+    assert (
+        f"https://download.qt.io/archive/qtwebengine/{webengine_series}/{webengine}/src/"
+        in section
+    )
+    assert f"/source/c/certifi/certifi-{versions['certifi']}.tar.gz" in section
+    # The section follows the shared texts and names no BSD-licensed PyQt6 part.
+    shared = text.index(f"\n{notices.SHARED_TEXTS_TITLE}\n")
+    assert shared < text.index(f"\n{notices.COPYLEFT_TITLE}\n")
+    assert "PyQt6_sip" not in section
+
+
+def test_the_source_section_is_derived_from_the_installed_versions(site):
+    make_dist(site, "noticetest-app", requires=("PyQt6-Qt6", "certifi"))
+    make_dist(site, "PyQt6-Qt6", "7.1.2", expression="LGPL-3.0-only")
+    make_dist(site, "certifi", "2030.1.1", license_field="MPL-2.0")
+
+    text, _ = build("noticetest-app")
+
+    assert "https://download.qt.io/archive/qt/7.1/7.1.2/single/" in text
+    assert "certifi-2030.1.1.tar.gz" in text
+    assert "PyQt6 (" not in text.split(notices.COPYLEFT_TITLE)[-1]
+
+
+def test_without_copyleft_components_there_is_no_source_section(site):
+    make_dist(site, "noticetest-app", requires=("noticetest-one",))
+    dist_text(site, "noticetest-one", {"licenses/LICENSE": "Some license text.\n"})
+
+    text, _ = build("noticetest-app")
+
+    assert f"\n{notices.COPYLEFT_TITLE}\n" not in text

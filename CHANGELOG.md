@@ -21,6 +21,7 @@
 - Python dependencies are locked in `uv.lock`. CI pins every tool it uses to an exact version (runner images, CPython, uv and Node.js, in addition to the commit-SHA-pinned actions), and a test fails if a workflow ever uses a floating reference.
 - `THIRD_PARTY_NOTICES.txt` now carries the full license texts of the winrt packages and pyobjc-core, whose wheels ship none, and of libffi in the Windows and macOS builds. The Linux build already carries libffi's license through the Debian copyright file of libffi8.
 - `THIRD_PARTY_NOTICES.txt` now also carries the copyright notices that the licenses of the code CPython bundles inside the Python runtime require, per platform.
+- `THIRD_PARTY_NOTICES.txt` is cut down to what each license asks for: the Apache License 2.0 and identical MIT/BSD wordings are printed once with every component keeping its own copyright line, license files for parts that are not packed are left out, and it now says where to get the source code of the copyleft components (PyQt6, Qt, Qt WebEngine, certifi).
 
 ### Fixed
 

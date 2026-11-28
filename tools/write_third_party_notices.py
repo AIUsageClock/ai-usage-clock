@@ -35,6 +35,15 @@ output is UTF-8 with LF
 line endings and carries no timestamp, so the same environment always yields
 the same bytes.
 
+How much of each license text is printed follows the user's rule of the minimum
+the licenses ask for (see "how much of each license text is printed" below):
+the Apache License 2.0 once, in a "Shared license texts" section after the
+components; identical MIT/BSD wordings once, each component keeping its own
+copyright line; of some packages only the license files of the packed parts;
+no GPL text a file only reproduces and no history of Python. A "Source code of
+copyleft components" section says where the source of the GPL, LGPL and MPL
+components is.
+
 That list is derived from metadata, not from what PyInstaller really packed, so
 the two can drift apart: an optional import can drag in a package that is only
 installed for development (pytest through anyio, PyYAML through uvicorn,
@@ -348,12 +357,14 @@ _MIMALLOC = PythonComponent(
         "{url}"
     ),
 )
+SHARED_TEXTS_TITLE = "Shared license texts"
 # OpenSSL is Apache-2.0. Redistributing it needs the license text and, under
 # section 4(d), the content of a NOTICE file if the project has one. The text
 # is already in every notices file (several cross-platform dependencies, for
-# example requests and cryptography, are Apache-2.0 and ship it), so no copy of
-# it is archived here: the entry names the component and points there, and a
-# test makes sure the text really is in any output that carries this entry.
+# example requests and cryptography, are Apache-2.0 and ship it; it is printed
+# once, in the shared section), so no copy of it is archived here: the entry
+# names the component and points there, and render() fails when the shared
+# text is not available for an entry that needs it.
 # The source tree of openssl-3.5.9 has no NOTICE file (checked in the root
 # listing of that tag, 2026-11-28), so nothing else is owed.
 _OPENSSL = PythonComponent(
@@ -367,7 +378,7 @@ _OPENSSL = PythonComponent(
         "hashlib modules. Whether the application bundle ends up with those\n"
         "libraries was not confirmed; the component is listed anyway. OpenSSL 3.x\n"
         "is licensed under the Apache License 2.0, the full text of which is\n"
-        "reproduced in this file under other components that carry it. The source\n"
+        f"printed once under \"{SHARED_TEXTS_TITLE}\" in this file. The source\n"
         "tree of OpenSSL 3.5.9 has no NOTICE file."
     ),
 )
@@ -510,9 +521,14 @@ INTRO = f"""\
 THIRD-PARTY NOTICES
 
 AI Usage Clock is licensed under the MIT License; see the LICENSE file that
-ships next to this file. This file lists the third-party components that are
-distributed with it, with each component's declared license and the license
-text it ships. The source code of AI Usage Clock is available at
+ships next to this file. The packaged program also contains components under
+the GNU GPL and LGPL, among them PyQt6 (GPL-3.0); the package as a whole is
+distributed under the terms those licenses require. Where to get their source
+code is listed under "Source code of copyleft components".
+
+This file lists the third-party components that are distributed with it, with
+each component's declared license and the license text it ships. The source
+code of AI Usage Clock is available at
 {REPO_URL}
 """
 
@@ -551,6 +567,33 @@ NOTES = {
         "describes the licenses involved and lists the third-party licenses:\n"
         f"{_QT_WEBENGINE_LICENSING}"
     ),
+    "pyinstaller": (
+        "The executables embed PyInstaller's bootloader and run-time hooks. Of the\n"
+        "license file of PyInstaller, this copy leaves out the full text of the GNU\n"
+        "General Public License, version 2, which the file only reproduces, and\n"
+        "refers to the Apache License 2.0 printed once under\n"
+        f"\"{SHARED_TEXTS_TITLE}\"."
+    ),
+    "pyinstaller-hooks-contrib": (
+        "Only the run-time hooks of this package are embedded in the executables;\n"
+        "its other hooks are used while the executables are built. Of its license\n"
+        "file, this copy leaves out the full text of the GNU General Public\n"
+        "License, version 2, which the file only reproduces, and refers to the\n"
+        f"Apache License 2.0 printed once under \"{SHARED_TEXTS_TITLE}\"."
+    ),
+    "pywin32": (
+        "The executables contain only modules from the win32 folder of pywin32\n"
+        "(win32api, win32cred, win32evtlog, win32evtlogutil, pywintypes and a few\n"
+        "more). The license text below is the one of that folder; the other\n"
+        "parts of the package (adodbapi, Scintilla, IDLE and so on) are not in\n"
+        "the executables and their texts are not reproduced."
+    ),
+    "cryptography": (
+        "This package is offered under either the Apache License 2.0 or the\n"
+        "3-clause BSD license. AI Usage Clock uses it under the Apache License\n"
+        f"2.0 (printed once under \"{SHARED_TEXTS_TITLE}\"); the BSD license text is\n"
+        "not reproduced."
+    ),
 }
 
 # Python's own license file covers Python itself and a few pieces of third-party
@@ -575,6 +618,250 @@ PYTHON_MISSING = (
     "No license file (LICENSE, COPYING or NOTICE) was found in the Python\n"
     "installation used for this build."
 )
+
+# --- how much of each license text is printed -------------------------------
+# The user's rule (2026-11-28) is the minimum the licenses ask for: a license
+# that only wants a name gets a name, a text that several components share is
+# printed once, and nothing a license requires is left out. Four mechanisms:
+#   * PACKED_LICENSE_FILES: of a package that ships several license files, only
+#     the ones that cover what the executables contain are printed.
+#   * TEXT_CUTS: parts of a license file that the license does not ask to
+#     travel with the program (the GPL text a file only reproduces, the history
+#     of Python) are replaced by a one-line note. The cut points are literal
+#     strings of the upstream files; a file in which they cannot be found is
+#     printed whole, with a warning on stderr.
+#   * the Apache License 2.0 is printed once (SHARED_TEXTS_TITLE); a component
+#     whose text has the standard body keeps its copyright lines and any NOTICE.
+#   * license texts that are word for word the same apart from the copyright
+#     line (MIT, BSD) are printed once, at their first occurrence; the others
+#     keep their own copyright lines and point there.
+# Keys are canonical package names (see Package.canonical_name); the names in
+# the tuples are the paths inside the dist-info folder, as license_texts_of()
+# reports them. A listed file that is not there is an error, not a skip.
+PACKED_LICENSE_FILES: dict[str, tuple[str, ...]] = {
+    # The tool's own text; its other files are not license files.
+    "pyinstaller": ("COPYING.txt",),
+    "pyinstaller-hooks-contrib": ("LICENSE",),
+    # win32/License.txt covers the win32 folder, the only part of pywin32 that
+    # the executables contain (checked against the Analysis-00.toc files of the
+    # local Windows build, 2026-11-28). The other files belong to adodbapi,
+    # Scintilla, IDLE, the MAPI stub library and so on.
+    "pywin32": ("win32/License.txt",),
+    # Apache-2.0 OR BSD-3-Clause: the Apache License is the one used. LICENSE
+    # (the file that says "either of") stays; LICENSE.BSD goes.
+    "cryptography": ("LICENSE", "LICENSE.APACHE"),
+}
+
+
+class PackedLicenseFileError(Exception):
+    """A license file named in PACKED_LICENSE_FILES is not in the installed package."""
+
+
+def packed_license_texts(
+    canonical_name: str,
+    texts: list[LicenseText],
+    table: Mapping[str, tuple[str, ...]] | None = None,
+) -> list[LicenseText]:
+    """The license texts of a package that are printed (all of them when it is not in *table*).
+
+    Fails loudly when the table lists a file the package does not have: the
+    table was written for particular versions, and a package that changed its
+    layout must be looked at again rather than lose a license text in silence.
+    """
+    table = PACKED_LICENSE_FILES if table is None else table
+    wanted = table.get(canonical_name)
+    if wanted is None:
+        return texts
+    present = {text.name for text in texts}
+    missing = [name for name in wanted if name not in present]
+    if missing:
+        raise PackedLicenseFileError(
+            f"{canonical_name}: PACKED_LICENSE_FILES lists {', '.join(missing)}, which is not "
+            f"among the license files of the installed package ({', '.join(sorted(present)) or 'none'})"
+        )
+    return [text for text in texts if text.name in wanted]
+
+
+@dataclass(frozen=True)
+class Cut:
+    """A part of a license file that is replaced by one line.
+
+    The part starts at the line that begins with *start* and ends after the
+    line that contains *end* (the next occurrence after *start*), or, with
+    *keep_end*, just before the line that begins with *end*. *needs_apache*:
+    the part is the Apache License 2.0 and may only go when that text is
+    printed once elsewhere and the part has the standard body.
+    """
+
+    start: str
+    end: str
+    replacement: str
+    keep_end: bool = False
+    needs_apache: bool = False
+
+
+_GPL_CUT_NOTE = (
+    "[The full text of the GNU General Public License, version 2\n"
+    "(https://gnu.org/licenses/gpl-2.0.html), which follows here in the original\n"
+    "file, is not reproduced in this copy.]"
+)
+_APACHE_CUT_NOTE = (
+    "[The Apache License 2.0 that follows here in the original file is the one\n"
+    f"printed once under \"{SHARED_TEXTS_TITLE}\".]"
+)
+_PSF_HISTORY_CUT = Cut(
+    start="A. HISTORY OF THE SOFTWARE",
+    end="B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON",
+    replacement=(
+        "[Section A of the original file, \"HISTORY OF THE SOFTWARE\", is not\n"
+        "reproduced in this copy; the license terms start with section B.]"
+    ),
+    keep_end=True,
+)
+TEXT_CUTS: dict[str, tuple[Cut, ...]] = {
+    "pyinstaller": (
+        Cut(
+            "================================\nGNU General Public License\n"
+            "================================",
+            "END OF TERMS AND CONDITIONS",
+            _GPL_CUT_NOTE,
+        ),
+        Cut(
+            "================================\nApache License 2.0\n"
+            "================================",
+            "limitations under the License.",
+            _APACHE_CUT_NOTE,
+            needs_apache=True,
+        ),
+    ),
+    "pyinstaller-hooks-contrib": (
+        Cut(
+            "GNU General Public License\n--------------------------",
+            "END OF TERMS AND CONDITIONS",
+            _GPL_CUT_NOTE,
+        ),
+        Cut(
+            "Apache License 2.0\n++++++++++++++++++",
+            "limitations under the License.",
+            _APACHE_CUT_NOTE,
+            needs_apache=True,
+        ),
+    ),
+    # Python's own license file and typing_extensions' copy of it: the
+    # history of the software is not part of the license terms (2026-11-28).
+    PYTHON_NAME.lower(): (_PSF_HISTORY_CUT,),
+    "typing-extensions": (_PSF_HISTORY_CUT,),
+}
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _warn(message: str) -> None:
+    print(f"warning: {message}", file=sys.stderr)
+
+
+def apply_cut(text: str, cut: Cut, apache_available: bool) -> str | None:
+    """*text* with the part *cut* describes replaced by its note; None when it does not apply."""
+    start = text.find(cut.start)
+    if start < 0 or (start > 0 and text[start - 1] != "\n"):
+        return None
+    end = text.find(cut.end, start + len(cut.start))
+    if end < 0:
+        return None
+    if cut.keep_end:
+        if text[end - 1] != "\n":
+            return None
+        return text[:start] + cut.replacement + "\n\n" + text[end:]
+    newline = text.find("\n", end)
+    stop = len(text) if newline < 0 else newline
+    if cut.needs_apache and (
+        not apache_available or apache_body_digest(text[start:stop]) != APACHE_BODY_SHA256
+    ):
+        return None
+    return text[:start] + cut.replacement + text[stop:]
+
+
+# The Apache License 2.0. Its body (from the heading of the terms to the last
+# sentence of section 9) is the same word for word in every copy found in the
+# installed packages (cryptography, requests, python-multipart,
+# websocket-client, PyInstaller, pyinstaller-hooks-contrib; checked 2026-11-28);
+# the digest is that of the body with whitespace collapsed. The headers
+# ("https" or "http") and the appendix differ, which is why only the body counts.
+_APACHE_BODY_START = "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION"
+_APACHE_BODY_END = "accepting any such warranty or additional liability."
+APACHE_BODY_SHA256 = "efc42672d5e2255417ab2bbcef2a39e8400f0ab6d32f4c790d95a3640087923c"
+APACHE_TITLE = "Apache License, Version 2.0"
+APACHE_POINTER = (
+    "The Apache License, Version 2.0. Its text is printed once, under\n"
+    f"\"{SHARED_TEXTS_TITLE}\"."
+)
+# What counts as a copyright line: "Copyright" followed by (c), the copyright
+# sign or a year, a line that begins with "(c) <year>" or "©", or "All rights
+# reserved". A sentence such as "The above copyright notice ..." does not.
+_COPYRIGHT_LINE = re.compile(
+    r"copyright\s*(?:\(c\)|©|\d)|^\W*(?:\(c\)|©)\s*\d|all rights reserved", re.IGNORECASE
+)
+# A text shorter than this (in characters, whitespace collapsed, copyright
+# lines removed) is not worth pointing at.
+_MIN_SHARED_TERMS = 200
+
+
+def apache_body_digest(text: str) -> str | None:
+    """Digest of the body of the Apache License 2.0 found in *text*; None when there is none."""
+    start = text.find(_APACHE_BODY_START)
+    if start < 0:
+        return None
+    end = text.find(_APACHE_BODY_END, start)
+    if end < 0:
+        return None
+    body = _squash(text[start : end + len(_APACHE_BODY_END)])
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def is_apache_license_file(text: str) -> bool:
+    """A whole license file of the Apache License 2.0 with the standard body."""
+    return text.lstrip().startswith("Apache License") and (
+        apache_body_digest(text) == APACHE_BODY_SHA256
+    )
+
+
+def copyright_lines(text: str) -> list[str]:
+    return [line.rstrip() for line in text.split("\n") if _COPYRIGHT_LINE.search(line)]
+
+
+def shrink_apache(text: str, standard_lines: set[str]) -> str:
+    """What stays of an Apache License file: a pointer, and the lines about copyright it adds.
+
+    *standard_lines* are the stripped lines of the standard text; a line with
+    "copyright" in it that is not one of them (a copyright notice at the end,
+    for example) is kept.
+    """
+    extra = [
+        line.rstrip()
+        for line in text.split("\n")
+        if "copyright" in line.lower() and line.strip() not in standard_lines
+    ]
+    return "\n".join([APACHE_POINTER, *extra])
+
+
+def terms_digest(text: str) -> tuple[str, list[str]] | None:
+    """``(digest, copyright lines)`` of a license text, or None when it takes no part.
+
+    The digest is that of the text without its copyright lines, whitespace
+    collapsed: two texts with the same digest differ only in who holds the
+    copyright. None for a text without a copyright line, or with so little
+    left that sharing it would save nothing.
+    """
+    lines = text.split("\n")
+    notices = [line for line in lines if _COPYRIGHT_LINE.search(line)]
+    if not notices:
+        return None
+    body = _squash(" ".join(line for line in lines if not _COPYRIGHT_LINE.search(line)))
+    if len(body) < _MIN_SHARED_TERMS:
+        return None
+    return hashlib.sha256(body.encode("utf-8")).hexdigest(), [n.rstrip() for n in notices]
 
 
 @dataclass
@@ -829,13 +1116,21 @@ def collect_packages(
     build_tools: tuple[str, ...] = EMBEDDED_BUILD_TOOLS,
     archived: Mapping[str, ArchivedLicense] | None = None,
     archive_root: Path | None = None,
+    packed: Mapping[str, tuple[str, ...]] | None = None,
 ) -> list[Package]:
+    """The installed packages that ship, with their license texts.
+
+    *packed* (default PACKED_LICENSE_FILES) says which license files of a
+    package are kept; see packed_license_texts().
+    """
     packages = [
         Package(
             name=dist.metadata["Name"],
             version=dist.version,
             declaration=declaration_of(dist),
-            texts=license_texts_of(dist),
+            texts=packed_license_texts(
+                str(canonicalize_name(dist.metadata["Name"])), license_texts_of(dist), packed
+            ),
         )
         for dist in collect_distributions(project, extras, build_tools)
     ]
@@ -895,8 +1190,8 @@ def collect_python_components(platform: str, root: Path | None = None) -> list[P
                 note=component.note.format(url=url),
                 text_elsewhere=component.license is None,
                 missing_message=(
-                    "The license text is reproduced under other components of this\n"
-                    "file (the Apache License 2.0)."
+                    "The license text (the Apache License 2.0) is printed once under\n"
+                    f"\"{SHARED_TEXTS_TITLE}\" in this file."
                     if component.license is None
                     else ""
                 ),
@@ -1413,6 +1708,129 @@ def listed_system_library_names(text: str) -> list[str] | None:
     return names
 
 
+class SharedLicenseError(Exception):
+    """A text that the file prints once, in its shared section, is not available."""
+
+
+def check_shared_texts(packages: Iterable[Package], text: str) -> None:
+    """Raise SharedLicenseError when a component points at a shared text that *text* lacks.
+
+    Only the Apache License 2.0 is shared on request of a component (OpenSSL,
+    see PythonComponent.license); the section is written when some component
+    ships the license file (see find_shared_apache_text()).
+    """
+    for package in packages:
+        if package.text_elsewhere and f"\n--- {APACHE_TITLE} ---\n" not in text:
+            raise SharedLicenseError(
+                f"{package.title} refers to the Apache License 2.0 under "
+                f"'{SHARED_TEXTS_TITLE}', but no component of this file carries that text"
+            )
+
+
+def find_shared_apache_text(packages: Iterable[Package]) -> str | None:
+    """The Apache License 2.0 text that is printed once: a real file of a component.
+
+    The first license file (in component order) with the standard body, a
+    file without copyright lines of its own preferred, so that the shared text
+    carries nobody's notice. None when no component ships such a file.
+    """
+    found = [
+        text.text for package in packages for text in package.texts if is_apache_license_file(text.text)
+    ]
+    for candidate in found:
+        if not copyright_lines(candidate):
+            return candidate
+    return found[0] if found else None
+
+
+def apply_text_cuts(
+    package: Package, license_text: LicenseText, apache_available: bool
+) -> tuple[str, bool]:
+    """The text of *license_text* as it is printed, and whether a cut pointed to the Apache text.
+
+    Applies the cuts of TEXT_CUTS for the package. A cut whose points cannot be
+    found, or whose Apache text is not the standard one, is not applied: the
+    text stays whole and a warning says which file it was.
+    """
+    text = license_text.text
+    used_apache = False
+    for cut in TEXT_CUTS.get(package.canonical_name, ()):
+        cut_text = apply_cut(text, cut, apache_available)
+        if cut_text is None:
+            _warn(
+                f"cannot find the cut points ({cut.start.splitlines()[0]!r} ...) in "
+                f"{license_text.name} of {package.title}; the file is printed whole"
+            )
+            continue
+        text = cut_text
+        used_apache = used_apache or cut.needs_apache
+    return text, used_apache
+
+
+# --- where the source code of copyleft components is ----------------------
+# GPL-3.0 section 6, LGPL-3.0 section 4(d) and MPL-2.0 section 3.2 want the
+# source code, or where to get it, to go along with the binaries. What is
+# listed comes from the installed metadata (name and version), not from
+# numbers written here. Qt's version is the one of its wheel (PyQt6-Qt6 6.12.1
+# carries Qt 6.12.1); Qt WebEngine's is the one of its wheel (6.140.0). The
+# addresses were checked on 2026-11-28 against the releases of this build.
+COPYLEFT_TITLE = "Source code of copyleft components"
+COPYLEFT_NOTE = (
+    "Some components of this program are under licenses that call for their source\n"
+    "code to be available to the recipients of the program. For the versions that\n"
+    "are part of this package it can be downloaded from the addresses below."
+)
+_PYPI_FILES = "https://files.pythonhosted.org/packages/source"
+
+
+def _pypi_source(package: Package) -> list[str]:
+    archive = f"{package.canonical_name.replace('-', '_')}-{package.version}.tar.gz"
+    return [
+        "Source distribution on PyPI:",
+        f"{_PYPI_FILES}/{package.name[0]}/{package.name}/{archive}",
+    ]
+
+
+def _qt_source(package: Package) -> list[str]:
+    series = ".".join(package.version.split(".")[:2])
+    base = f"https://download.qt.io/archive/qt/{series}/{package.version}"
+    return [
+        f"Qt {package.version} source code, as one archive:",
+        f"{base}/single/",
+        "or one archive per module:",
+        f"{base}/submodules/",
+    ]
+
+
+def _qt_webengine_source(package: Package) -> list[str]:
+    series = ".".join(package.version.split(".")[:2])
+    return [
+        f"Qt WebEngine {package.version} source code:",
+        f"https://download.qt.io/archive/qtwebengine/{series}/{package.version}/src/",
+    ]
+
+
+COPYLEFT_SOURCES: dict[str, Callable[[Package], list[str]]] = {
+    "pyqt6": _pypi_source,
+    "pyqt6-webengine": _pypi_source,
+    "pyqt6-qt6": _qt_source,
+    "pyqt6-webengine-qt6": _qt_webengine_source,
+    "certifi": _pypi_source,
+}
+
+
+def copyleft_source_lines(packages: Iterable[Package]) -> list[str]:
+    """The lines of the "Source code of copyleft components" section; none without a component."""
+    entries: list[str] = []
+    for package in packages:
+        where = COPYLEFT_SOURCES.get(package.canonical_name)
+        if where is None:
+            continue
+        entries.extend(["", f"{package.title} ({package.declaration})"])
+        entries.extend(f"  {line}" for line in where(package))
+    return [COPYLEFT_NOTE, *entries] if entries else []
+
+
 def render(
     packages: list[Package],
     system_libraries: SystemLibraries | None = None,
@@ -1441,6 +1859,12 @@ def render(
     lines.extend(f"{package.title} - {package.declaration}" for package in packages)
 
     printed: dict[str, str] = {}
+    terms_printed: dict[str, str] = {}
+    shared_apache = find_shared_apache_text(packages)
+    standard_lines = (
+        set() if shared_apache is None else {line.strip() for line in shared_apache.split("\n")}
+    )
+    apache_used = False
     for package in packages:
         lines.extend(["", _RULE, package.title, _RULE])
         lines.append(f"Declared license: {package.declaration}")
@@ -1449,6 +1873,10 @@ def render(
         note = package.note or NOTES.get(package.canonical_name)
         if note:
             lines.extend(["", note])
+        if package.text_elsewhere:
+            # Its license text is the Apache License, printed in the shared section.
+            # (main() refuses to write a file in which the text is missing.)
+            apache_used = True
         if not package.texts:
             lines.extend(
                 [
@@ -1459,15 +1887,55 @@ def render(
             )
         for license_text in package.texts:
             lines.append("")
-            earlier = printed.get(license_text.digest)
+            text, cut_apache = apply_text_cuts(package, license_text, shared_apache is not None)
+            apache_used = apache_used or cut_apache
+            if shared_apache is not None and is_apache_license_file(text):
+                apache_used = True
+                lines.append(f"--- {license_text.name} ---")
+                lines.append(shrink_apache(text, standard_lines))
+                continue
+            digest = LicenseText(license_text.name, text).digest
+            earlier = printed.get(digest)
             if earlier is not None:
                 lines.append(
                     f"--- {license_text.name} (same text as {earlier}) ---"
                 )
                 continue
-            printed[license_text.digest] = f"{license_text.name} of {package.title}, above"
+            here = f"{license_text.name} of {package.title}, above"
+            terms = terms_digest(text)
+            if terms is not None and terms[0] in terms_printed:
+                lines.append(f"--- {license_text.name} ---")
+                lines.extend(terms[1])
+                lines.append("")
+                lines.append(
+                    "[The permission notice and conditions are word for word those of\n"
+                    f"{terms_printed[terms[0]]}; only the copyright notice differs.]"
+                )
+                continue
+            printed[digest] = here
+            if terms is not None:
+                terms_printed[terms[0]] = here
             lines.append(f"--- {license_text.name} ---")
-            lines.append(license_text.text)
+            lines.append(text)
+    if apache_used and shared_apache is not None:
+        lines.extend(
+            [
+                "",
+                _RULE,
+                SHARED_TEXTS_TITLE,
+                _RULE,
+                "License texts that several components above refer to are printed here once.",
+                "",
+                f"--- {APACHE_TITLE} ---",
+                shared_apache,
+            ]
+        )
+        printed[LicenseText(APACHE_TITLE, shared_apache).digest] = (
+            f"the {APACHE_TITLE} under \"{SHARED_TEXTS_TITLE}\", above"
+        )
+    source_lines = copyleft_source_lines(packages)
+    if source_lines:
+        lines.extend(["", _RULE, COPYLEFT_TITLE, _RULE, *source_lines])
     if system_libraries is not None and system_libraries.libraries:
         lines.extend(render_system_libraries(system_libraries, printed))
     return "\n".join(lines) + "\n"
@@ -1588,7 +2056,13 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    except ArchivedLicenseError as exc:
+    except (ArchivedLicenseError, PackedLicenseFileError, SharedLicenseError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        check_shared_texts(packages, text)
+    except SharedLicenseError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
