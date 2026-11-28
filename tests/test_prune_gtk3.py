@@ -239,3 +239,35 @@ def test_main_prunes_on_linux_only_and_syncs_the_toc(tmp_path, capsys):
     mac = run("darwin", tmp_path / "m")
     assert (mac / "_internal" / "libgtk-3.so.0").exists()
     assert "libgtk-3" in (tmp_path / "m" / "Analysis-00.toc").read_text(encoding="utf-8")
+
+
+def test_main_works_with_relative_paths_like_build_sh(tmp_path, monkeypatch, capsys):
+    root = gtk_bundle(tmp_path)
+    toc = tmp_path / "Analysis-00.toc"
+    entry = ("PyQt6/Qt6/plugins/platformthemes/libqgtk3.so", "/x/libqgtk3.so", "BINARY")
+    keep = ("libglib-2.0.so.0", "/usr/lib/libglib-2.0.so.0", "BINARY")
+    toc.write_text(pprint.pformat([entry, keep]), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys, "argv",
+        ["prune_bundle.py", "ai-usage-clock", "--platform", "linux", "--analysis", "Analysis-00.toc"],
+    )  # fmt: skip
+    assert prune.main() == 0
+    out = capsys.readouterr().out
+    assert "PyQt6/Qt6/plugins/platformthemes/libqgtk3.so" in out
+    assert str(tmp_path) not in out.split("GTK3 platform theme")[0].split("B  ", 1)[-1]
+    assert not (root / PLUGINS / "libqgtk3.so").exists()
+    text = toc.read_text(encoding="utf-8")
+    assert "libqgtk3" not in text and "libglib-2.0.so.0" in text
+
+
+def test_main_with_a_symlinked_bundle_root(tmp_path, monkeypatch):
+    root = gtk_bundle(tmp_path)
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(root, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    monkeypatch.setattr(sys, "argv", ["prune_bundle.py", str(link), "--platform", "linux"])
+    assert prune.main() == 0
+    assert not (root / PLUGINS / "libqgtk3.so").exists()

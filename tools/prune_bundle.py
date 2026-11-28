@@ -421,6 +421,17 @@ def prune_gtk3_theme(
         _delete(link, removed)
 
 
+def _relative(path: Path, base: Path) -> str:
+    """*path* relative to *base* in POSIX form; absolute if it is outside it."""
+    try:
+        return path.resolve().relative_to(base.resolve()).as_posix()
+    except (ValueError, OSError):
+        try:
+            return path.absolute().relative_to(base.absolute()).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+
 def sync_analysis_toc(toc: Path, removed: Iterable[Path], root: Path) -> int:
     """Drop the entries of deleted files from a PyInstaller Analysis-00.toc.
 
@@ -429,15 +440,13 @@ def sync_analysis_toc(toc: Path, removed: Iterable[Path], root: Path) -> int:
     the number of entries dropped. Destination names in the toc are relative
     to the bundle's library directory (`_internal` in a PyInstaller 6 onedir).
     """
+    root = root.resolve()
     lib_dir = root / "_internal"
     if not lib_dir.is_dir():
         lib_dir = root
     gone: set[str] = set()
     for path in removed:
-        try:
-            gone.add(path.relative_to(lib_dir).as_posix())
-        except ValueError:
-            continue
+        gone.add(_relative(path, lib_dir))
     dropped = 0
 
     def is_entry(node: object) -> bool:
@@ -501,7 +510,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    root: Path = args.bundle
+    # build.sh passes a relative path; symlink resolution below yields absolute
+    # ones, so every comparison must use the same resolved root.
+    root: Path = args.bundle.resolve()
     if not root.exists():
         print(f"Bundle not found: {root}", file=sys.stderr)
         return 1
@@ -528,12 +539,16 @@ def main() -> int:
         except ElfError as exc:
             print(f"prune_bundle: {exc}", file=sys.stderr)
             return 1
+        # Sync the toc first: the files are already gone, so the analysis must
+        # follow even if a later print fails.
+        dropped = {
+            toc: sync_analysis_toc(toc, [p for p, _ in gtk3], root) for toc in args.analysis
+        }
         for path, size in sorted(gtk3, key=lambda item: str(item[0])):
-            print(f"    {size:>12,} B  {path.relative_to(root).as_posix()}")
+            print(f"    {size:>12,} B  {_relative(path, root)}")
         _report(gtk3, "GTK3 platform theme and its libraries")
-        for toc in args.analysis:
-            dropped = sync_analysis_toc(toc, [p for p, _ in gtk3], root)
-            print(f"  {toc}: dropped {dropped} entries of removed files")
+        for toc, count in dropped.items():
+            print(f"  {toc}: dropped {count} entries of removed files")
 
     after = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
     print(
