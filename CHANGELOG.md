@@ -10,6 +10,7 @@
 
 ### Changed
 
+- Antigravity: the agy CLI path field in Settings now sits above the Show options.
 - The main process no longer loads Qt WebEngine. Sign-in, reading the Claude and Codex usage pages and checking a pasted cookie now run in a short-lived helper process that exits when it is idle, so the browser engine's memory is returned to the system after each refresh. On Windows the app's idle private memory drops from about 220 MB to about 60 MB.
 - The sign-in window no longer blocks the main window. Only one sign-in can be open at a time; pressing Sign in again brings it to the front.
 - Clearing a sign-in now deletes that account's browser profile folder, including site storage.
@@ -21,6 +22,7 @@
 
 ### Fixed
 
+- Antigravity: the "Claude & GPT models" checkbox in Settings was shown as "Claude  GPT models" (since 1.1.0).
 - Antigravity: when `agy` is signed in with `GEMINI_API_KEY` it exits with code 2 and provides no quota data. This is now shown as a recoverable "sign in with a Google account" error instead of a vague or paused state.
 - Antigravity: a run cut short by `agy`'s own print timeout is now reported as a timeout.
 - Antigravity: a used quota whose reset time `agy` reports as 1970-01-01 no longer shows a reset in 1970.
@@ -30,6 +32,7 @@
 ### Documentation
 
 - The setup guides (English, Traditional Chinese, Simplified Chinese) describe the new lookup, the sign-in requirement, and how quota rows may differ by plan. All READMEs describe the Gemini and Claude+GPT groups, whose members `agy` reports.
+
 ## 1.1.0 - 2026-10-22
 
 ### Licensing

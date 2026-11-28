@@ -96,11 +96,11 @@ Dependabot cannot update the last four rows, so upgrade them by hand:
    a CPython release that `actions/setup-python` can install, a uv release, a
    Node.js 24.x release).
 2. Change it in every place it appears: `git grep -n "3.14.10"` (and likewise
-   for the other versions) lists them. Runner labels also appear in `if:`
-   conditions in `release.yml`.
+   for the other versions) lists them.
 3. Run `tests/test_ci_pins.py` and `tests/test_license_bundling.py`.
 4. Push to a branch and let the `test` workflow pass on all three systems
    before tagging a release.
+
 ## First-launch warnings on unsigned builds
 
 Release artifacts are unsigned, and SHA256 sums are published next to each
