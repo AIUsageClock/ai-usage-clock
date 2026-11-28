@@ -974,3 +974,109 @@ def test_the_real_cryptography_wheel_lists_its_openssl(real_rust_data):
     ]
     text, _ = notices.build_notices()
     assert "openssl 4.0.3 (cryptography): statically linked into the cryptography package." in text
+
+# --- an Apache License inside another license file --------------------------------
+# python.org's Windows LICENSE.txt is made by PCbuild/regen.targets (_RegenLicense,
+# CPython v3.14.10) from LICENSE, PC/crtlicense.txt and the LICENSE of bzip2,
+# libffi and zstd, and last OpenSSL's LICENSE.txt (the Apache License 2.0), one
+# after the other with nothing between them. The fixture is exactly that
+# concatenation (cpython-source-deps tags bzip2-1.0.8, libffi-3.4.4, zstd-1.5.7
+# and openssl-3.5.9).
+
+PYTHON_ORG_LICENSE = Path(__file__).resolve().parent / "fixtures" / "python-org-windows-LICENSE.txt"
+
+
+SHARED_HEADING = f"\n{notices._RULE}\n{notices.SHARED_TEXTS_TITLE}\n{notices._RULE}\n"
+
+
+def python_with_license(tmp_path: Path, text: str) -> list[Path]:
+    folder = tmp_path / "python-install"
+    folder.mkdir()
+    (folder / "LICENSE.txt").write_text(text, encoding="utf-8", newline="")
+    return [folder]
+
+
+def build_with_python_license(site, tmp_path, text):
+    make_dist(site, "noticetest-app", requires=("noticetest-apache",))
+    make_dist(
+        site,
+        "noticetest-apache",
+        expression="Apache-2.0",
+        files={"licenses/LICENSE": notices.find_shared_apache_text(notices.collect_packages()).encode()},
+        license_file_entries=("licenses/LICENSE",),
+    )
+    return notices.build_notices(
+        "noticetest-app", (), (), python_dirs=python_with_license(tmp_path, text), platform="linux"
+    )
+
+
+def test_the_fixture_is_the_concatenation_regen_targets_makes():
+    text = PYTHON_ORG_LICENSE.read_text(encoding="utf-8")
+
+    assert text.startswith("A. HISTORY OF THE SOFTWARE")
+    order = [
+        "PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2",
+        "This program, \"bzip2\"",
+        "libffi - Copyright",
+        "BSD License\n\nFor Zstandard",
+        "\n                                 Apache License",
+    ]
+    positions = [text.index(marker) for marker in order]
+    assert positions == sorted(positions)
+    assert text.rstrip().endswith("END OF TERMS AND CONDITIONS")  # OpenSSL's file has no appendix
+    assert notices.apache_body_digest(text) == notices.APACHE_BODY_SHA256
+
+
+def test_the_apache_text_inside_pythons_license_becomes_a_pointer_and_nothing_else_goes(site, tmp_path):
+    original = PYTHON_ORG_LICENSE.read_text(encoding="utf-8")
+    text, components = build_with_python_license(site, tmp_path, original)
+
+    section = text.split(SHARED_HEADING)[0]
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 1
+    assert text.index("TERMS AND CONDITIONS FOR USE") > text.index(SHARED_HEADING)
+    assert notices.EMBEDDED_APACHE_POINTER in section
+    # every line of the other texts is still there, in order (the Apache part is the one gap)
+    bzip2_to_zstd = original[original.index("This program, \"bzip2\"") : original.index("\n                                 Apache License")].rstrip()
+    assert bzip2_to_zstd in section
+    for kept in ("Copyright (c) 2001 Python Software Foundation", "libffi - Copyright (c) 1996-2022",
+                 "Copyright (c) Meta Platforms"):
+        assert kept in section, kept
+    assert len(components) > 1
+
+
+def test_a_license_file_whose_apache_body_differs_is_kept_whole(site, tmp_path):
+    original = PYTHON_ORG_LICENSE.read_text(encoding="utf-8")
+    changed = original.replace("Unless required by applicable law", "Unless required by law", 1)
+    assert notices.apache_body_digest(changed) != notices.APACHE_BODY_SHA256
+
+    text, _ = build_with_python_license(site, tmp_path, changed)
+
+    assert notices.EMBEDDED_APACHE_POINTER not in text
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 2
+
+
+def embedded_apache_case(tail_changes=False):
+    shared = notices.find_shared_apache_text(notices.collect_packages())
+    plain = f"Intro of the other component.\nCopyright (c) 2020 Someone\n\n{shared}\n\nTail of the other component."
+    if tail_changes:
+        plain = plain.replace("limitations under the License.", "limitations under the License (ours).")
+    return plain
+
+
+def test_the_standard_heading_and_appendix_go_with_the_body(site, tmp_path):
+    text, _ = build_with_python_license(site, tmp_path, embedded_apache_case())
+
+    section = text.split(SHARED_HEADING)[0]
+    assert "Intro of the other component.\nCopyright (c) 2020 Someone" in section
+    assert "Tail of the other component." in section
+    assert "APPENDIX" not in section
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 1
+
+
+def test_an_unusual_appendix_stays_and_only_the_body_goes(site, tmp_path):
+    text, _ = build_with_python_license(site, tmp_path, embedded_apache_case(True))
+
+    section = text.split(SHARED_HEADING)[0]
+    assert "limitations under the License (ours)." in section
+    assert notices.EMBEDDED_APACHE_POINTER in section
+    assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 1

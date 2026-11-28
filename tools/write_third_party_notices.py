@@ -838,6 +838,43 @@ def is_apache_license_file(text: str) -> bool:
     )
 
 
+_APACHE_APPENDIX_END = "limitations under the License."
+EMBEDDED_APACHE_POINTER = (
+    "[The Apache License, Version 2.0 stands here in the original. Its text is printed\n"
+    f"once, under \"{SHARED_TEXTS_TITLE}\".]"
+)
+
+
+def shrink_embedded_apache(text: str, shared_apache: str) -> str | None:
+    """*text* with a standard Apache License 2.0 inside it replaced by a pointer, or None.
+
+    For a license file that carries the Apache License among other texts (the
+    LICENSE.txt of python.org's Windows build ends with OpenSSL's). Only the
+    body of the license has to be word for word the standard one (see
+    APACHE_BODY_SHA256). The heading above it and the appendix below it (the
+    "How to apply" boilerplate) go too when they are the standard ones; every
+    other line of *text*, before and after, stays. None when *text* has no such
+    license.
+    """
+    if apache_body_digest(text) != APACHE_BODY_SHA256:
+        return None
+    start = text.find(_APACHE_BODY_START)
+    end = text.find(_APACHE_BODY_END, start) + len(_APACHE_BODY_END)
+    heading = text.rfind("Apache License", 0, start)
+    if heading >= 0 and _squash(text[heading:start]).startswith("Apache License Version 2.0"):
+        if len(_squash(text[heading:start])) < 120:
+            start = text.rfind("\n", 0, heading) + 1
+    standard_end = shared_apache.find(_APACHE_BODY_END)
+    standard_tail = shared_apache.find(_APACHE_APPENDIX_END, standard_end)
+    tail = text.find(_APACHE_APPENDIX_END, end)
+    if standard_tail >= 0 and tail >= 0:
+        tail += len(_APACHE_APPENDIX_END)
+        standard_segment = shared_apache[standard_end + len(_APACHE_BODY_END) : standard_tail + len(_APACHE_APPENDIX_END)]
+        if _squash(text[end:tail]) == _squash(standard_segment):
+            end = tail
+    return text[:start] + EMBEDDED_APACHE_POINTER + text[end:]
+
+
 def copyright_lines(text: str) -> list[str]:
     return [line.rstrip() for line in text.split("\n") if _COPYRIGHT_LINE.search(line)]
 
@@ -2623,6 +2660,11 @@ def render(
                 lines.append(f"--- {license_text.name} ---")
                 lines.append(shrink_apache(text, standard_lines))
                 continue
+            if shared_apache is not None:
+                shortened = shrink_embedded_apache(text, shared_apache)
+                if shortened is not None:
+                    text = shortened
+                    apache_used = True
             _append_deduplicated(
                 lines,
                 license_text.name,
