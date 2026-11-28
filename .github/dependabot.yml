@@ -4,6 +4,15 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Major versions of these are bumped by hand (mcp and the Windows/macOS bindings
+    # break their APIs between majors).
+    ignore:
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pyobjc-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "winrt-*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
