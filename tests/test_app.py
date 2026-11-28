@@ -439,13 +439,15 @@ def test_cancelled_login_does_not_refresh(monkeypatch):
     assert app._login_job is None  # noqa: SLF001
 
 
-def test_login_without_gl_shows_the_unavailable_dialog_with_the_reason(monkeypatch):
+def test_login_without_gl_shows_the_unavailable_dialog_with_the_reason(qtbot, monkeypatch):
     shown = []
     app, host = _login_app(monkeypatch)
     app._show_webengine_unavailable = lambda name, reason: shown.append((name, reason))  # noqa: SLF001
 
     app.open_login("claude")
     host.submitted[0].on_result({"ok": False, "error": "no_gl", "reason": "no GLX/EGL"})
+    assert shown == [], "the dialog is shown after the callback returns"
+    qtbot.waitUntil(lambda: bool(shown), timeout=3000)
 
     assert shown == [("Claude", "no GLX/EGL")]
     assert app._calls == ["suspend", "restore"]  # noqa: SLF001
@@ -461,15 +463,17 @@ def _capture_warnings(monkeypatch):
     return shown
 
 
-def test_login_worker_failure_is_reported_but_cancel_is_silent(monkeypatch):
+def test_login_worker_failure_is_reported_but_cancel_is_silent(qtbot, monkeypatch):
     # The real dialog methods run; only QMessageBox.warning is intercepted.
     shown = _capture_warnings(monkeypatch)
     app, host = _login_app(monkeypatch)
 
     app.open_login("claude")
     host.submitted[0].on_result({"ok": False, "error": "worker_crashed", "detail": "exit code 7"})
+    qtbot.waitUntil(lambda: bool(shown), timeout=3000)
     app.open_login("claude")
     host.submitted[1].on_result({"ok": False, "error": "cancelled"})
+    qtbot.wait(100)
 
     assert len(shown) == 1
     title, text = shown[0]
@@ -481,12 +485,13 @@ def test_login_worker_failure_is_reported_but_cancel_is_silent(monkeypatch):
     assert "OpenGL" not in text and "FORCE" not in text
 
 
-def test_login_timeout_says_the_window_was_open_too_long(monkeypatch):
+def test_login_timeout_says_the_window_was_open_too_long(qtbot, monkeypatch):
     shown = _capture_warnings(monkeypatch)
     app, host = _login_app(monkeypatch)
 
     app.open_login("claude")
     host.submitted[0].on_result({"ok": False, "error": "worker_timeout"})
+    qtbot.waitUntil(lambda: bool(shown), timeout=3000)
 
     minutes = int(app_module.worker_ipc.LOGIN_TIMEOUT_S // 60)
     assert shown == [
@@ -499,19 +504,20 @@ def test_login_timeout_says_the_window_was_open_too_long(monkeypatch):
     assert "OpenGL" not in shown[0][1] and "FORCE" not in shown[0][1]
 
 
-def test_login_without_gl_still_uses_the_original_dialog_text(monkeypatch):
+def test_login_without_gl_still_uses_the_original_dialog_text(qtbot, monkeypatch):
     shown = _capture_warnings(monkeypatch)
     app, host = _login_app(monkeypatch)
 
     app.open_login("claude")
     host.submitted[0].on_result({"ok": False, "error": "no_gl", "reason": "no GLX/EGL"})
+    qtbot.waitUntil(lambda: bool(shown), timeout=3000)
 
     assert len(shown) == 1
     assert shown[0][0] == "Browser sign-in unavailable"
     assert "OpenGL" in shown[0][1] and "no GLX/EGL" in shown[0][1]
 
 
-def test_login_failure_reason_ending_in_a_period_is_not_doubled(monkeypatch):
+def test_login_failure_reason_ending_in_a_period_is_not_doubled(qtbot, monkeypatch):
     shown = _capture_warnings(monkeypatch)
     app, host = _login_app(monkeypatch)
 
@@ -519,6 +525,7 @@ def test_login_failure_reason_ending_in_a_period_is_not_doubled(monkeypatch):
     host.submitted[0].on_result(
         {"ok": False, "error": "profile_locked", "detail": "The file is in use."}
     )
+    qtbot.waitUntil(lambda: bool(shown), timeout=3000)
 
     assert shown == [
         ("Sign-in did not complete", "Signing in to Claude did not finish: The file is in use.")
@@ -1392,3 +1399,301 @@ def test_restart_stops_the_browser_worker_before_the_new_process_starts(monkeypa
     app.restart()
 
     assert events == ["worker stopped", "new process started", "quit"]
+
+
+# ----- a sign-in opened during a round: the round still ends (review 3, F1) -----
+
+
+class _RoundProvider:
+    """Hands its emit callback to the test, which delivers the reading later."""
+
+    def __init__(self):
+        self.emits = []
+
+    def refresh(self, emit):
+        self.emits.append(emit)
+
+
+class _CountingTimer(_Timer):
+    def __init__(self):
+        super().__init__()
+        self.starts = 0
+
+    def start(self, ms: int):
+        self.starts += 1
+        super().start(ms)
+
+
+def _ok(name: str) -> UsageSnapshot:
+    return UsageSnapshot(
+        provider=name,
+        status=SnapshotStatus.OK,
+        metrics=[UsageMetric(label="Session", percent_used=10.0)],
+    )
+
+
+def _round_app(monkeypatch, *names: str):
+    """An App whose refresh, snapshot and sign-in code is the real one."""
+    from unittest.mock import MagicMock
+
+    from PyQt6.QtCore import QObject
+
+    host = _FakeHost()
+    monkeypatch.setattr(app_module, "get_host", lambda: host)
+    monkeypatch.setattr(app_module, "existing_host", lambda: host)
+    app = App.__new__(App)
+    QObject.__init__(app)
+    app._config = Config()  # noqa: SLF001
+    app._settings_dialog = None  # noqa: SLF001
+    app._providers = {name: _RoundProvider() for name in names}  # noqa: SLF001
+    app._inflight = set()  # noqa: SLF001
+    app._refresh_queue = []  # noqa: SLF001
+    app._login_job = None  # noqa: SLF001
+    app._cycle_signatures = {}  # noqa: SLF001
+    app._last_cycle_signatures = None  # noqa: SLF001
+    app._snapshots = {}  # noqa: SLF001
+    app._cleared_sessions = set()  # noqa: SLF001
+    app._unchanged_cycles = 0  # noqa: SLF001
+    app._active_until = datetime.now()  # noqa: SLF001
+    app._current_refresh_manual = False  # noqa: SLF001
+    app._timer = _CountingTimer()  # noqa: SLF001
+    app._widget = MagicMock()  # noqa: SLF001
+    app._history = MagicMock()  # noqa: SLF001
+    app._history.record_snapshot.return_value = []
+    app._ratio = MagicMock()  # noqa: SLF001
+    app._ratio_recent = lambda provider: []  # noqa: SLF001
+    app._local_usage_on_snapshot = lambda snapshot, closed: None  # noqa: SLF001
+    app._sync_usage_cache = MagicMock()  # noqa: SLF001
+    app._update_tray = MagicMock()  # noqa: SLF001
+    app._signals = app_module.ProviderSignals()  # noqa: SLF001
+    app._signals.snapshot_ready.connect(app._on_snapshot)  # noqa: SLF001
+    app.cycles = 0
+    real_finish = app._finish_refresh_cycle  # noqa: SLF001
+
+    def counting_finish():
+        app.cycles += 1
+        real_finish()
+
+    app._finish_refresh_cycle = counting_finish  # noqa: SLF001
+    return app, host
+
+
+def test_a_sign_in_opened_mid_round_lets_the_round_end_and_the_timer_restart(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude", "copilot")
+    app.refresh_now(manual=False)
+    assert app._inflight == {"claude"}  # noqa: SLF001 - handed to the worker
+    assert app._refresh_queue == ["copilot"]  # noqa: SLF001
+
+    app.open_login("codex")  # another account's sign-in takes the worker
+
+    # copilot does not need the browser, so it runs although claude is held up
+    qtbot.waitUntil(lambda: bool(app._providers["copilot"].emits), timeout=3000)  # noqa: SLF001
+    app._providers["copilot"].emits[0](_ok("copilot"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: app.cycles == 1 and app._timer.active, timeout=3000)  # noqa: SLF001
+
+    assert app._inflight == set()  # noqa: SLF001
+    assert app._refresh_queue == []  # noqa: SLF001
+    assert app._timer.starts == 1  # noqa: SLF001
+
+
+def test_a_sign_in_opened_when_only_a_browser_scrape_is_left_ends_the_round(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude")
+    app.refresh_now(manual=False)
+    assert app._inflight == {"claude"} and app._refresh_queue == []  # noqa: SLF001
+
+    app.open_login("codex")
+
+    qtbot.waitUntil(lambda: app.cycles == 1, timeout=3000)
+    assert app._timer.active  # noqa: SLF001
+
+
+def test_the_late_reading_is_recorded_but_does_not_end_or_restart_anything(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude", "copilot")
+    app.refresh_now(manual=False)
+    app.open_login("codex")
+    qtbot.waitUntil(lambda: bool(app._providers["copilot"].emits), timeout=3000)  # noqa: SLF001
+    app._providers["copilot"].emits[0](_ok("copilot"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: app.cycles == 1, timeout=3000)
+    starts = app._timer.starts  # noqa: SLF001
+    records = app._history.record_snapshot.call_count  # noqa: SLF001
+    update_tray_calls = app._update_tray.call_count  # noqa: SLF001
+
+    app._providers["claude"].emits[0](_ok("claude"))  # noqa: SLF001
+    qtbot.wait(100)
+
+    assert app._snapshots["claude"].status == SnapshotStatus.OK  # noqa: SLF001
+    assert app._history.record_snapshot.call_count == records + 1  # noqa: SLF001
+    app._ratio.record_snapshot.assert_called_with(app._snapshots["claude"])  # noqa: SLF001
+    app._widget.update_snapshot.assert_called()  # noqa: SLF001
+    assert app._update_tray.call_count == update_tray_calls + 1  # noqa: SLF001
+    assert app.cycles == 1, "no second end of round"
+    assert app._timer.starts == starts, "the timer was not reset"  # noqa: SLF001
+    assert app._detached_browser_scrapes == set()  # noqa: SLF001
+
+
+def test_the_late_reading_reaches_the_mcp_cache(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude")
+    app._config.mcp_enabled = True  # noqa: SLF001
+    app.refresh_now(manual=False)
+    app.open_login("codex")
+    qtbot.waitUntil(lambda: app.cycles == 1, timeout=3000)
+
+    app._providers["claude"].emits[0](_ok("claude"))  # noqa: SLF001
+    qtbot.wait(100)
+
+    app._sync_usage_cache.assert_called()  # noqa: SLF001
+
+
+def test_a_new_round_while_the_sign_in_is_open_does_not_send_a_second_scrape(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude", "copilot")
+    app.refresh_now(manual=False)
+    app.open_login("codex")
+    qtbot.waitUntil(lambda: bool(app._providers["copilot"].emits), timeout=3000)  # noqa: SLF001
+    app._providers["copilot"].emits[0](_ok("copilot"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: app.cycles == 1, timeout=3000)
+    assert app._detached_browser_scrapes == {"claude"}  # noqa: SLF001
+    assert app._login_job is not None  # noqa: SLF001 - the window is still open
+
+    app.refresh_now(manual=True)  # the round is free to start again
+
+    qtbot.waitUntil(lambda: len(app._providers["copilot"].emits) == 2, timeout=3000)  # noqa: SLF001
+    assert len(app._providers["claude"].emits) == 1, "still only the first claude scrape"  # noqa: SLF001
+    app._providers["copilot"].emits[1](_ok("copilot"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: app.cycles == 2, timeout=3000)
+    assert app._detached_browser_scrapes == {"claude"}  # noqa: SLF001
+
+    # The old scrape finally reports in the middle of nothing: no new round.
+    app._providers["claude"].emits[0](_ok("claude"))  # noqa: SLF001
+    qtbot.wait(100)
+    assert app.cycles == 2
+    assert app._detached_browser_scrapes == set()  # noqa: SLF001
+
+
+def test_a_reading_that_arrives_during_a_new_round_does_not_disturb_its_count(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude", "copilot", "openrouter")
+    app.refresh_now(manual=False)  # openrouter first, then claude, copilot
+    app._providers["openrouter"].emits[0](_ok("openrouter"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: app._inflight == {"claude"}, timeout=3000)  # noqa: SLF001
+    app.open_login("codex")
+    qtbot.waitUntil(lambda: bool(app._providers["copilot"].emits), timeout=3000)  # noqa: SLF001
+    app._providers["copilot"].emits[0](_ok("copilot"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: app.cycles == 1, timeout=3000)
+
+    app.refresh_now(manual=True)
+    qtbot.waitUntil(lambda: len(app._providers["openrouter"].emits) == 2, timeout=3000)  # noqa: SLF001
+    # the old claude scrape reports while the new round is waiting on openrouter
+    app._providers["claude"].emits[0](_ok("claude"))  # noqa: SLF001
+    qtbot.wait(100)
+
+    assert app.cycles == 1, "the new round is still running"
+    assert app._inflight == {"openrouter"}  # noqa: SLF001
+    assert app._refresh_queue == ["claude", "copilot"]  # noqa: SLF001
+
+
+def test_a_refresh_asked_for_a_detached_account_waits_for_its_running_scrape(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude")
+    app.refresh_now(manual=False)
+    app.open_login("codex")
+    qtbot.waitUntil(lambda: app.cycles == 1, timeout=3000)
+    assert app._detached_browser_scrapes == {"claude"}  # noqa: SLF001
+    # the sign-in window closes (the person signed in) while the old scrape runs
+    host.submitted[0].on_result({"ok": True, "accepted": True, "session_may_have_changed": True})
+    assert app._login_job is None  # noqa: SLF001
+
+    app.refresh_provider("claude")  # what the sign-in asks for
+    app._queue_refresh_of(["claude"])  # noqa: SLF001
+    qtbot.wait(50)
+
+    assert len(app._providers["claude"].emits) == 1, "no duplicate scrape"  # noqa: SLF001
+    assert app._refresh_queue == [] and app._inflight == set()  # noqa: SLF001
+
+    app._providers["claude"].emits[0](_ok("claude"))  # noqa: SLF001
+    qtbot.waitUntil(lambda: len(app._providers["claude"].emits) == 2, timeout=3000)  # noqa: SLF001
+
+
+def test_login_dialogs_are_shown_after_the_result_callback_has_returned(qtbot, monkeypatch):
+    shown = _capture_warnings(monkeypatch)
+    app, host = _login_app(monkeypatch)
+
+    app.open_login("claude")
+    host.submitted[0].on_result({"ok": False, "error": "worker_timeout"})
+    assert shown == [], "QMessageBox.warning was not called inside the callback"
+    qtbot.waitUntil(lambda: bool(shown), timeout=3000)
+    assert shown[0][0] == "Sign-in did not complete"
+
+
+# ----- quitting while a scrape is running (review 3, F5) -----
+
+
+def test_the_worker_is_stopped_before_the_caches_are_cleared_at_quit(monkeypatch):
+    connected = []
+
+    class _Signal:
+        def connect(self, slot):
+            connected.append(slot.__name__)
+
+    class _FakeTimer:
+        def __init__(self, *a, **k):
+            self.timeout = _Signal()
+
+        def setInterval(self, ms):
+            pass
+
+        def start(self):
+            pass
+
+    monkeypatch.setattr(
+        app_module, "QApplication", SimpleNamespace(instance=lambda: SimpleNamespace(aboutToQuit=_Signal()))
+    )
+    monkeypatch.setattr(app_module, "QTimer", _FakeTimer)
+    monkeypatch.setattr(app_module.atexit, "register", lambda *a: None)
+    app = App.__new__(App)
+
+    app._install_lifecycle_logging()  # noqa: SLF001
+
+    assert connected.index("_stop_worker_host") < connected.index("_invalidate_usage_cache")
+    assert connected.index("_stop_worker_host") < connected.index("_shutdown_local_usage")
+
+
+def _cancelled(name: str) -> UsageSnapshot:
+    return UsageSnapshot(provider=name, status=SnapshotStatus.ERROR, error="cancelled")
+
+
+def test_a_scrape_cancelled_by_quitting_is_not_recorded_or_cached(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude", "copilot")
+    app.refresh_now(manual=False)
+    app._config.mcp_enabled = True  # noqa: SLF001
+
+    def stop(graceful=True):
+        # what WorkerHost.stop does: the running scrape is cancelled at once
+        app._providers["claude"].emits[0](_cancelled("claude"))  # noqa: SLF001
+
+    host.stop = stop
+
+    app._stop_worker_host()  # noqa: SLF001
+    qtbot.wait(100)
+
+    assert app._snapshots == {}  # noqa: SLF001
+    app._history.record_snapshot.assert_not_called()  # noqa: SLF001
+    app._ratio.record_snapshot.assert_not_called()  # noqa: SLF001
+    app._sync_usage_cache.assert_not_called()  # noqa: SLF001
+
+
+def test_a_scrape_cancelled_by_restarting_is_not_recorded_or_cached(qtbot, monkeypatch):
+    app, host = _round_app(monkeypatch, "claude")
+    app.refresh_now(manual=False)
+    app._config.mcp_enabled = True  # noqa: SLF001
+    app._instance_lock = None  # noqa: SLF001
+    monkeypatch.setattr(app_module, "_flush_log_handlers", lambda: None)
+    monkeypatch.setattr(app_module.subprocess, "Popen", lambda *a, **k: None)
+    monkeypatch.setattr(
+        app_module, "QApplication", SimpleNamespace(instance=lambda: SimpleNamespace(quit=lambda: None))
+    )
+    host.stop = lambda graceful=True: app._providers["claude"].emits[0](_cancelled("claude"))  # noqa: SLF001
+
+    app.restart()
+    qtbot.wait(100)
+
+    assert app._snapshots == {}  # noqa: SLF001
+    app._history.record_snapshot.assert_not_called()  # noqa: SLF001
+    app._sync_usage_cache.assert_not_called()  # noqa: SLF001

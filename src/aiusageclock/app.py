@@ -367,6 +367,16 @@ class App(QObject):
     # Browser accounts skipped from a refresh round because a sign-in window
     # was open; they run once it closes (None until something is deferred).
     _deferred_browser_refresh = None
+    # Browser scrapes that were still running when a round ended because a
+    # sign-in window held the worker; their results are recorded when they
+    # arrive but no longer belong to any round. Replaced, never mutated, so a
+    # stub without __init__ can use the class-level default.
+    _detached_browser_scrapes: frozenset[str] | set[str] = frozenset()
+    # Detached accounts that were asked to refresh again (for instance right
+    # after signing in): they run once the detached scrape is done.
+    _rerun_after_detached: frozenset[str] | set[str] = frozenset()
+    # Set once the app is quitting or restarting; see _stop_worker_host.
+    _quitting = False
 
     def __init__(self):
         super().__init__()
@@ -516,9 +526,11 @@ class App(QObject):
         qt_app = QApplication.instance()
         if qt_app is not None:
             qt_app.aboutToQuit.connect(self._log_about_to_quit)
+            # First, so that the scrapes it cancels cannot rewrite the caches
+            # the next two steps clear.
+            qt_app.aboutToQuit.connect(self._stop_worker_host)
             qt_app.aboutToQuit.connect(self._invalidate_usage_cache)
             qt_app.aboutToQuit.connect(self._shutdown_local_usage)
-            qt_app.aboutToQuit.connect(self._stop_worker_host)
         atexit.register(self._log_atexit)
         atexit.register(self._invalidate_usage_cache)
 
@@ -589,6 +601,10 @@ class App(QObject):
         self._log_lifecycle_event("qt aboutToQuit")
 
     def _stop_worker_host(self) -> None:
+        # Stopping cancels every scrape that is still running, and each one
+        # reports back at once. The app is going away: those results must not
+        # be recorded or written to the usage cache.
+        self._quitting = True
         host = existing_host()
         if host is not None:
             host.stop(graceful=True)
@@ -801,6 +817,8 @@ class App(QObject):
     def refresh_provider(self, provider: str) -> None:
         if provider not in self._providers:
             return
+        if not self._without_running_detached([provider]):
+            return
         if self._inflight or self._refresh_queue:
             return
         self._active_until = datetime.now() + timedelta(minutes=_ACTIVE_MODE_MINUTES)
@@ -829,12 +847,16 @@ class App(QObject):
     def _browser_paused(self) -> bool:
         return self._login_job is not None
 
-    def _defer_browser_refresh(self, name: str) -> None:
-        deferred = self._deferred_browser_refresh
-        if deferred is None:
-            deferred = self._deferred_browser_refresh = []
-        if name not in deferred:
-            deferred.append(name)
+    def _blocked_browser_inflight(self) -> bool:
+        """True when everything still running is a browser scrape that is only
+        waiting behind the open sign-in window."""
+        return (
+            bool(self._inflight)
+            and self._browser_paused()
+            and all(self._needs_browser(name) for name in self._inflight)
+        )
+
+    def _set_aside_for_this_round(self, name: str) -> None:
         # Keep its last reading in this round's comparison, so setting it aside
         # does not look like a change.
         previous = (self._last_cycle_signatures or {}).get(name)
@@ -842,13 +864,47 @@ class App(QObject):
             self._cycle_signatures[name] = previous
         self._widget.unmark_loading(name)
 
+    def _defer_browser_refresh(self, name: str) -> None:
+        deferred = self._deferred_browser_refresh
+        if deferred is None:
+            deferred = self._deferred_browser_refresh = []
+        if name not in deferred:
+            deferred.append(name)
+        self._set_aside_for_this_round(name)
+
+    def _detach_blocked_browser_scrapes(self) -> None:
+        """Let the round end without the browser scrapes the sign-in window holds.
+
+        They stay in the worker's queue and finish once the window closes; their
+        results are still recorded (see ``_on_snapshot``) but nothing waits for
+        them, so the round ends and the timer is set again meanwhile.
+        """
+        names = set(self._inflight)
+        self._inflight.clear()
+        self._detached_browser_scrapes = self._detached_browser_scrapes | names
+        for name in names:
+            self._set_aside_for_this_round(name)
+        log.info("round ends without browser scrapes held by the sign-in: %s", sorted(names))
+
     def _take_deferred_browser_refresh(self) -> list[str]:
         deferred, self._deferred_browser_refresh = self._deferred_browser_refresh, None
         return list(deferred or [])
 
+    def _without_running_detached(self, names: list[str]) -> list[str]:
+        """Drop accounts whose scrape is already running (detached from its round).
+
+        A second scrape would only queue behind the first; instead the account
+        is refreshed again once the running one has reported.
+        """
+        running = [name for name in names if name in self._detached_browser_scrapes]
+        if running:
+            self._rerun_after_detached = self._rerun_after_detached | set(running)
+        return [name for name in names if name not in running]
+
     def _queue_refresh_of(self, names: list[str]) -> None:
         """Refresh ``names`` now, or join the round that is already running."""
         names = [name for name in names if name in self._providers]
+        names = self._without_running_detached(names)
         if not names:
             return
         if self._inflight or self._refresh_queue:
@@ -873,25 +929,34 @@ class App(QObject):
         self.refresh_provider(provider)
 
     def _start_next_refresh(self) -> None:
-        if not self._refresh_queue:
-            return
-        if self._inflight and not (
-            self._browser_paused()
-            and all(self._needs_browser(name) for name in self._inflight)
-        ):
-            # One provider at a time; the exception is a browser scrape that is
-            # only waiting behind the sign-in window and holds nothing up.
-            return
+        had_queue = bool(self._refresh_queue)
         name = None
-        while self._refresh_queue:
-            candidate = self._refresh_queue.pop(0)
-            if self._browser_paused() and self._needs_browser(candidate):
-                self._defer_browser_refresh(candidate)
-                continue
-            name = candidate
-            break
+        if had_queue:
+            if self._inflight and not self._blocked_browser_inflight():
+                # One provider at a time; the exception is a browser scrape that
+                # is only waiting behind the sign-in window and holds nothing up.
+                return
+            while self._refresh_queue:
+                candidate = self._refresh_queue.pop(0)
+                if candidate in self._detached_browser_scrapes:
+                    # Its scrape from an earlier round is still running: a
+                    # second one would only queue behind it.
+                    self._set_aside_for_this_round(candidate)
+                    continue
+                if self._browser_paused() and self._needs_browser(candidate):
+                    self._defer_browser_refresh(candidate)
+                    continue
+                name = candidate
+                break
         if name is None:
-            if not self._inflight:
+            detached = False
+            if self._blocked_browser_inflight():
+                # Nothing is left to start and the only thing running is held
+                # by the sign-in window: end the round now instead of waiting
+                # (possibly for the window's whole timeout) for it.
+                self._detach_blocked_browser_scrapes()
+                detached = True
+            if (had_queue or detached) and not self._inflight:
                 self._finish_refresh_cycle()
             return
         provider = self._providers.get(name)
@@ -915,6 +980,18 @@ class App(QObject):
             )
 
     def _on_snapshot(self, snapshot: UsageSnapshot) -> None:
+        if self._quitting:
+            # Stopping the browser worker cancels what is still running, and
+            # each cancelled scrape reports here. Nothing of it may be kept.
+            return
+        # A scrape that was left behind when its round ended (see
+        # _detach_blocked_browser_scrapes) is recorded like any other, but no
+        # round waits for it: it must not end, restart or count into one.
+        detached = snapshot.provider in self._detached_browser_scrapes
+        if detached:
+            self._detached_browser_scrapes = self._detached_browser_scrapes - {
+                snapshot.provider
+            }
         if (
             snapshot.provider in self._cleared_sessions
             and snapshot.status != SnapshotStatus.AUTH_REQUIRED
@@ -939,8 +1016,9 @@ class App(QObject):
                 log.exception("reset event hook failed provider=%s", snapshot.provider)
         if getattr(self._config, "mcp_enabled", False):
             self._sync_usage_cache()
-        self._cycle_signatures[snapshot.provider] = _snapshot_signature(snapshot)
-        self._inflight.discard(snapshot.provider)
+        if not detached:
+            self._cycle_signatures[snapshot.provider] = _snapshot_signature(snapshot)
+            self._inflight.discard(snapshot.provider)
         if snapshot.status == SnapshotStatus.ERROR:
             log.warning(
                 "snapshot error provider=%s error=%s raw_keys=%s raw_summary=%s",
@@ -982,7 +1060,16 @@ class App(QObject):
         except Exception:  # noqa: BLE001
             log.exception("local usage snapshot hook failed")
 
-        if self._refresh_queue:
+        if detached:
+            self._update_tray()
+            if snapshot.provider in self._rerun_after_detached:
+                self._rerun_after_detached = self._rerun_after_detached - {
+                    snapshot.provider
+                }
+                name = snapshot.provider
+                QTimer.singleShot(0, lambda: self._queue_refresh_of([name]))
+            return
+        if self._refresh_queue or self._blocked_browser_inflight():
             QTimer.singleShot(0, self._start_next_refresh)
         elif not self._inflight:
             self._finish_refresh_cycle()
@@ -1347,6 +1434,12 @@ class App(QObject):
             on_event=self._on_login_event,
             priority=True,
         )
+        if self._inflight or self._refresh_queue:
+            # A round is running and the sign-in now holds the browser worker:
+            # let it carry on with what does not need the browser, or end if
+            # only browser scrapes are left. Later, so this call cannot re-enter
+            # the refresh code.
+            QTimer.singleShot(0, self._start_next_refresh)
 
     def _on_login_event(self, message: dict) -> None:
         if message.get("event") == "browser_preference":
@@ -1364,9 +1457,13 @@ class App(QObject):
     def _handle_login_result(self, provider: str, display_name: str, result: dict) -> None:
         self._login_job = None
         self._widget.restore_always_on_top()
+        # The dialogs are shown later, not from inside this callback: it runs
+        # in the worker host's delivery, which would then wait for the person
+        # to dismiss the box before it could start the next queued job.
         if result.get("error") == worker_ipc.ERR_NO_GL:
-            self._show_webengine_unavailable(
-                display_name, str(result.get("reason") or "no OpenGL context")
+            reason = str(result.get("reason") or "no OpenGL context")
+            QTimer.singleShot(
+                0, lambda: self._show_webengine_unavailable(display_name, reason)
             )
             return
         if not result.get("ok"):
@@ -1377,7 +1474,9 @@ class App(QObject):
                 result.get("detail"),
             )
             if result.get("error") != worker_ipc.ERR_CANCELLED:
-                self._show_sign_in_incomplete(display_name, result)
+                QTimer.singleShot(
+                    0, lambda: self._show_sign_in_incomplete(display_name, result)
+                )
             return
         accepted = bool(result.get("accepted"))
         session_may_have_changed = bool(result.get("session_may_have_changed"))
