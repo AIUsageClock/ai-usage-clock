@@ -34,6 +34,27 @@ def test_parse_reset_text_handles_at_prefix_and_date_at_time():
     assert dated.minute == 36
 
 
+def test_parse_reset_text_without_year_uses_the_current_year():
+    now = datetime(2026, 11, 28, 12, 0)
+    parsed = _parse_reset_text("Dec 2 8:53 AM", now=now)
+
+    assert parsed == datetime(2026, 12, 2, 8, 53)
+
+
+def test_parse_reset_text_without_year_rolls_over_a_year_boundary():
+    now = datetime(2026, 12, 30, 12, 0)
+    parsed = _parse_reset_text("Jan 2 8:53 AM", now=now)
+
+    assert parsed == datetime(2027, 1, 2, 8, 53)
+
+
+def test_parse_reset_text_without_year_never_returns_1900():
+    parsed = _parse_reset_text("Jan 2 8:53 AM")
+
+    assert parsed is not None
+    assert parsed.year >= datetime.now().year
+
+
 def test_codex_logged_out_payload_is_auth_required():
     snapshot = _build_snapshot(
         {

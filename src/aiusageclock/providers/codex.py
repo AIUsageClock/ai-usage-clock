@@ -81,11 +81,24 @@ def _parse_reset_text(text: str | None, *, now: datetime | None = None) -> datet
             return now + timedelta(hours=hours, minutes=minutes)
 
     # Absolute date+time: "Apr 29, 2026 8:53 AM"
-    for fmt in ("%b %d, %Y %I:%M %p", "%b %d %I:%M %p", "%B %d, %Y %I:%M %p"):
+    for fmt in ("%b %d, %Y %I:%M %p", "%B %d, %Y %I:%M %p"):
         try:
             return datetime.strptime(text, fmt)
         except ValueError:
             continue
+    # No year given ("Jan 2 8:53 AM"): parse it with this year, and roll to the
+    # next one when that lands more than a day in the past (a year boundary).
+    try:
+        parsed = datetime.strptime(f"{now.year} {text}", "%Y %b %d %I:%M %p")
+    except ValueError:
+        parsed = None
+    if parsed is not None:
+        if parsed < now - timedelta(days=1):
+            try:
+                parsed = parsed.replace(year=now.year + 1)
+            except ValueError:  # Feb 29 in a non-leap following year
+                pass
+        return parsed
 
     # Weekday + time: "Mon 6:00 PM", "Monday 18:00" → next matching weekday.
     weekday_match = re.match(r"([A-Za-z]+)\s+(.+)$", text)
