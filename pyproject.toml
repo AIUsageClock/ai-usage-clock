@@ -47,10 +47,10 @@ Security = "https://github.com/AIUsageClock/ai-usage-clock/security"
 
 [project.optional-dependencies]
 mcp = [
-    "mcp>=1.27,<2",
+    "mcp>=1.27,<3",
 ]
 dev = [
-    "mcp>=1.27,<2",
+    "mcp>=1.27,<3",
     "pytest>=8.0",
     "pytest-qt>=4.4",
     "responses>=0.25",
