@@ -30,7 +30,7 @@ dependencies = [
     "websocket-client>=1.8",
     "pydantic>=2.6",
     "keyring>=25.0",
-    "pyobjc-core>=10.0,<13; sys_platform == 'darwin'",
+    "pyobjc-core>=10.0,<14; sys_platform == 'darwin'",
     "pyobjc-framework-Cocoa>=10.0,<13; sys_platform == 'darwin'",
     "winrt-runtime>=3.2,<4; sys_platform == 'win32'",
     "winrt-Windows.Data.Xml.Dom>=3.2,<4; sys_platform == 'win32'",
