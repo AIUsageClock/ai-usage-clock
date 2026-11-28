@@ -2574,6 +2574,7 @@ def test_the_real_python_licenses_have_no_history_but_all_their_terms(real_notic
     assert "A. HISTORY OF THE SOFTWARE\n=" not in text
     assert "Python was created in the early 1990s" not in text
     marker = "B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON"
+    shared = notices.find_shared_apache_text(components)
     checked = 0
     for package in components:
         if package.canonical_name not in {"python", "typing-extensions"}:
@@ -2583,6 +2584,11 @@ def test_the_real_python_licenses_have_no_history_but_all_their_terms(real_notic
             if marker not in raw:
                 continue
             kept = raw[raw.index(marker) :]
+            # An Apache License inside the file (OpenSSL's, at the end of python.org's
+            # Windows LICENSE.txt) is printed once in the shared section instead;
+            # everything else from B. on stays word for word.
+            if shared is not None:
+                kept = notices.shrink_embedded_apache(kept, shared) or kept
             assert kept in text, package.title
             checked += 1
     assert checked >= 1  # typing_extensions at least

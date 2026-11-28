@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 
 import pytest
@@ -55,6 +56,10 @@ def make_dist(
         (dist_info / "top_level.txt").write_text("\n".join(top_level) + "\n", encoding="utf-8")
     if with_record:
         (dist_info / "RECORD").write_text("\n".join(record) + "\n", encoding="utf-8")
+    # importlib.metadata caches a directory's listing by its mtime. A dist-info that is
+    # made right after an earlier lookup can leave the mtime unchanged (a coarse file
+    # system clock, Linux CI), and the lookup would then not see it.
+    importlib.invalidate_caches()
     return dist_info
 
 

@@ -1080,3 +1080,15 @@ def test_an_unusual_appendix_stays_and_only_the_body_goes(site, tmp_path):
     assert "limitations under the License (ours)." in section
     assert notices.EMBEDDED_APACHE_POINTER in section
     assert text.count("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION") == 1
+
+def test_the_terms_of_the_psf_license_stay_word_for_word_except_the_embedded_apache_text(site, tmp_path):
+    """What test_the_real_python_licenses_have_no_history... checks, on python.org's real file shape."""
+    original = PYTHON_ORG_LICENSE.read_text(encoding="utf-8")
+    marker = "B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON"
+    text, components = build_with_python_license(site, tmp_path, original)
+    shared = notices.find_shared_apache_text(components)
+    terms = original[original.index(marker) :]
+
+    assert terms not in text  # the Apache License at its end is a pointer now
+    assert notices.shrink_embedded_apache(terms, shared) in text
+    assert "A. HISTORY OF THE SOFTWARE\n=" not in text
