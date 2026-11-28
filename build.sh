@@ -173,7 +173,12 @@ if [ "$ONEFILE" -eq 0 ]; then
     fi
     echo
     echo "Pruning unused Qt/Chromium payload..."
-    "$VENV_PY" "$SCRIPT_DIR/tools/prune_bundle.py" "$PRUNE_TARGET"
+    # On Linux this also removes Qt's GTK3 platform theme plugin and the system
+    # libraries only it needs, then drops them from PyInstaller's analysis so
+    # THIRD_PARTY_NOTICES.txt (generated below, after the prune) does not list
+    # files that are no longer in the bundle.
+    "$VENV_PY" "$SCRIPT_DIR/tools/prune_bundle.py" "$PRUNE_TARGET" \
+        --analysis "$SCRIPT_DIR/build/ai-usage-clock/Analysis-00.toc"
 
     # The prune removed Qt libraries by name; prove nothing left in the bundle
     # still needs one of them (a miss would only surface on a user's machine).

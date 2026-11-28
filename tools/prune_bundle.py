@@ -24,6 +24,11 @@ Three tiers, because they are not equally free:
   name and matched exactly; see UNUSED_QT_MODULES. `tools/check_bundle_deps.py`
   runs afterwards and fails the build if anything still needs a removed file.
 
+A fourth step runs on Linux only: Qt's GTK3 platform theme plugin
+(`libqgtk3.so`) is removed together with the system libraries that only it
+needs (see prune_gtk3_theme). With `--analysis` the removed files are also
+dropped from PyInstaller's Analysis-00.toc, which the notices generator reads.
+
 Run after PyInstaller, before archiving:
 
     python tools/prune_bundle.py dist/ai-usage-clock
@@ -32,11 +37,15 @@ Run after PyInstaller, before archiving:
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
 import os
+import pprint
 import re
 import shutil
+import struct
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 # en-US is always kept: Chromium needs a loadable locale pak to fall back to,
@@ -239,6 +248,227 @@ def prune_unused_qt(root: Path, removed: list[tuple[Path, int]]) -> None:
         _delete(link, removed)
 
 
+# --------------------------------------------------------------------------
+# Linux: Qt's GTK3 platform theme and the libraries only it pulls in
+# --------------------------------------------------------------------------
+
+# The plugin links GTK3, pango, cairo, gdk-pixbuf, atk, cups, krb5, gnutls and
+# more, none of which the app uses. Without it Qt falls back to its own
+# widget style (the xdg-desktop-portal theme plugin, which needs only DBus,
+# stays). Only libraries that are in the plugin's NEEDED closure are removal
+# candidates, and a candidate stays if any remaining ELF still needs it.
+GTK3_THEME_PLUGIN = "libqgtk3.so"
+
+_PT_LOAD = 1
+_PT_DYNAMIC = 2
+_DT_NEEDED = 1
+_DT_STRTAB = 5
+
+
+class ElfError(RuntimeError):
+    """An ELF file could not be read well enough to know what it needs."""
+
+
+def elf_needed(path: Path) -> list[str] | None:
+    """DT_NEEDED names of an ELF file; None if *path* is not an ELF file.
+
+    Reads the dynamic segment directly so it works on any host, without
+    readelf. Raises ElfError for an ELF file that is damaged or unsupported,
+    because guessing its dependencies could delete a library that is in use.
+    """
+    try:
+        with path.open("rb") as handle:
+            ident = handle.read(16)
+            if ident[:4] != b"\x7fELF":
+                return None
+            if len(ident) < 16 or ident[4] not in (1, 2) or ident[5] not in (1, 2):
+                raise ElfError(f"{path}: unsupported ELF header")
+            is64 = ident[4] == 2
+            end = "<" if ident[5] == 1 else ">"
+            if is64:
+                handle.seek(0x20)
+                (phoff,) = struct.unpack(end + "Q", handle.read(8))
+                handle.seek(0x36)
+                phentsize, phnum = struct.unpack(end + "HH", handle.read(4))
+                phdr_fmt = end + "IIQQQQQQ"  # type flags off vaddr paddr filesz memsz align
+            else:
+                handle.seek(0x1C)
+                (phoff,) = struct.unpack(end + "I", handle.read(4))
+                handle.seek(0x2A)
+                phentsize, phnum = struct.unpack(end + "HH", handle.read(4))
+                phdr_fmt = end + "IIIIIIII"  # type off vaddr paddr filesz memsz flags align
+            segments = []
+            for index in range(phnum):
+                handle.seek(phoff + index * phentsize)
+                raw = handle.read(struct.calcsize(phdr_fmt))
+                if len(raw) != struct.calcsize(phdr_fmt):
+                    raise ElfError(f"{path}: truncated program headers")
+                fields = struct.unpack(phdr_fmt, raw)
+                if is64:
+                    p_type, _flags, offset, vaddr, _pa, filesz, _ms, _al = fields
+                else:
+                    p_type, offset, vaddr, _pa, filesz, _ms, _flags, _al = fields
+                segments.append((p_type, offset, vaddr, filesz))
+
+            dynamic = [s for s in segments if s[0] == _PT_DYNAMIC]
+            if not dynamic:
+                return []  # statically linked: needs nothing
+            _t, dyn_off, _va, dyn_size = dynamic[0]
+            handle.seek(dyn_off)
+            blob = handle.read(dyn_size)
+            entry_fmt = end + ("qQ" if is64 else "iI")
+            entry_size = struct.calcsize(entry_fmt)
+            needed_offsets: list[int] = []
+            strtab_addr: int | None = None
+            for pos in range(0, len(blob) - entry_size + 1, entry_size):
+                tag, value = struct.unpack_from(entry_fmt, blob, pos)
+                if tag == 0:
+                    break
+                if tag == _DT_NEEDED:
+                    needed_offsets.append(value)
+                elif tag == _DT_STRTAB:
+                    strtab_addr = value
+            if not needed_offsets:
+                return []
+            if strtab_addr is None:
+                raise ElfError(f"{path}: NEEDED entries but no string table")
+            strtab_off = None
+            for p_type, offset, vaddr, filesz in segments:
+                if p_type == _PT_LOAD and vaddr <= strtab_addr < vaddr + filesz:
+                    strtab_off = strtab_addr - vaddr + offset
+                    break
+            if strtab_off is None:
+                raise ElfError(f"{path}: string table is not in a loadable segment")
+            names = []
+            for rel in needed_offsets:
+                handle.seek(strtab_off + rel)
+                chunk = handle.read(512)
+                nul = chunk.find(b"\0")
+                if nul < 0:
+                    raise ElfError(f"{path}: unterminated NEEDED name")
+                names.append(chunk[:nul].decode("utf-8", "replace"))
+            return names
+    except (OSError, struct.error) as exc:
+        raise ElfError(f"{path}: cannot read ELF dynamic section ({exc})") from exc
+
+
+def _resolve_in_bundle(root: Path, path: Path) -> Path | None:
+    """The regular file a bundle path ends at, or None if it leaves the bundle."""
+    try:
+        target = path.resolve(strict=True)
+        target.relative_to(root.resolve())
+    except (OSError, ValueError, RuntimeError):
+        return None
+    return target if target.is_file() else None
+
+
+def find_orphans_of_gtk3_theme(root: Path) -> list[Path]:
+    """Files to delete when the GTK3 theme plugin goes: the plugin itself and
+    each library in its NEEDED closure that no remaining ELF still needs.
+
+    Libraries that are only dlopen()ed never show up in NEEDED; those are not
+    in the closure and are therefore never candidates.
+    """
+    by_name: dict[str, list[Path]] = {}
+    elves: dict[Path, list[str]] = {}
+    plugins: list[Path] = []
+    for dirpath, _dirnames, filenames in os.walk(root):  # does not follow links
+        for name in filenames:
+            path = Path(dirpath) / name
+            real = _resolve_in_bundle(root, path)
+            if real is None:
+                continue
+            by_name.setdefault(name, []).append(real)
+            if path.is_symlink() or real in elves:
+                continue
+            needed = elf_needed(path)
+            if needed is not None:
+                elves[real] = needed
+            if name == GTK3_THEME_PLUGIN and needed is not None:
+                plugins.append(real)
+    if not plugins:
+        return []
+
+    def closure(start: Iterable[Path]) -> set[Path]:
+        seen: set[Path] = set()
+        stack = list(start)
+        while stack:
+            node = stack.pop()
+            if node in seen:
+                continue
+            seen.add(node)
+            for dep in elves.get(node, ()):
+                stack.extend(by_name.get(dep, ()))
+        return seen
+
+    candidates = closure(plugins)
+    live = closure(node for node in elves if node not in candidates)
+    return sorted(candidates - live)
+
+
+def prune_gtk3_theme(
+    root: Path,
+    removed: list[tuple[Path, int]],
+    platform: str = sys.platform,
+) -> None:
+    """Linux only: drop libqgtk3.so and the libraries nothing else needs."""
+    if not platform.startswith("linux"):
+        return
+    before_broken = _broken_symlinks(root)
+    for path in find_orphans_of_gtk3_theme(root):
+        _delete(path, removed)
+    for link in sorted(_broken_symlinks(root) - before_broken):
+        _delete(link, removed)
+
+
+def sync_analysis_toc(toc: Path, removed: Iterable[Path], root: Path) -> int:
+    """Drop the entries of deleted files from a PyInstaller Analysis-00.toc.
+
+    The notices generator reads that file to learn which system libraries were
+    packed; without this it would still list the ones pruned above. Returns
+    the number of entries dropped. Destination names in the toc are relative
+    to the bundle's library directory (`_internal` in a PyInstaller 6 onedir).
+    """
+    lib_dir = root / "_internal"
+    if not lib_dir.is_dir():
+        lib_dir = root
+    gone: set[str] = set()
+    for path in removed:
+        try:
+            gone.add(path.relative_to(lib_dir).as_posix())
+        except ValueError:
+            continue
+    dropped = 0
+
+    def is_entry(node: object) -> bool:
+        return (
+            isinstance(node, tuple)
+            and len(node) == 3
+            and all(isinstance(v, str) for v in node)
+            and re.match(r"^[A-Z][A-Z0-9]*(-[0-9]+)?$", node[2]) is not None
+        )
+
+    def walk(node):
+        nonlocal dropped
+        if is_entry(node):
+            return node
+        if isinstance(node, (list, tuple)):
+            kept = []
+            for child in node:
+                if is_entry(child) and child[0].replace("\\", "/") in gone:
+                    dropped += 1
+                    continue
+                kept.append(walk(child))
+            return type(node)(kept) if isinstance(node, list) else tuple(kept)
+        return node
+
+    data = ast.literal_eval(toc.read_text(encoding="utf-8"))
+    data = walk(data)
+    if dropped:
+        toc.write_text(pprint.pformat(data, width=160) + "\n", encoding="utf-8")
+    return dropped
+
+
 def _report(removed: list[tuple[Path, int]], label: str) -> int:
     total = sum(size for _, size in removed)
     for path, size in sorted(removed, key=lambda item: -item[1])[:6]:
@@ -256,6 +486,18 @@ def main() -> int:
         "--keep-localisation",
         action="store_true",
         help="keep Qt translations and Chromium locale packs",
+    )
+    parser.add_argument(
+        "--platform",
+        default=sys.platform,
+        help="override the platform detected from sys.platform (win32, darwin, linux)",
+    )
+    parser.add_argument(
+        "--analysis",
+        type=Path,
+        nargs="*",
+        default=[],
+        help="PyInstaller Analysis-00.toc files to update after Linux pruning",
     )
     args = parser.parse_args()
 
@@ -278,6 +520,20 @@ def main() -> int:
     unused_qt: list[tuple[Path, int]] = []
     prune_unused_qt(root, unused_qt)
     _report(unused_qt, "unused Qt modules")
+
+    if args.platform.startswith("linux"):
+        gtk3: list[tuple[Path, int]] = []
+        try:
+            prune_gtk3_theme(root, gtk3, args.platform)
+        except ElfError as exc:
+            print(f"prune_bundle: {exc}", file=sys.stderr)
+            return 1
+        for path, size in sorted(gtk3, key=lambda item: str(item[0])):
+            print(f"    {size:>12,} B  {path.relative_to(root).as_posix()}")
+        _report(gtk3, "GTK3 platform theme and its libraries")
+        for toc in args.analysis:
+            dropped = sync_analysis_toc(toc, [p for p, _ in gtk3], root)
+            print(f"  {toc}: dropped {dropped} entries of removed files")
 
     after = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
     print(
