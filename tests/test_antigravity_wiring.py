@@ -208,6 +208,38 @@ def test_settings_gemini_checkbox_has_scope_hint(qtbot, monkeypatch):
     ]
 
 
+def test_settings_agy_cli_path_comes_before_the_show_options(qtbot, monkeypatch):
+    dialog = _dialog(qtbot, monkeypatch)
+    form = dialog.antigravity_show_gemini_cb.parentWidget().layout()
+    cli_row_widget = dialog.antigravity_cli_path_edit.parentWidget()
+
+    cli_row, _ = form.getWidgetPosition(cli_row_widget)
+    status_row, _ = form.getWidgetPosition(dialog.antigravity_cli_path_status)
+    gemini_row, _ = form.getWidgetPosition(dialog.antigravity_show_gemini_cb)
+    third_party_row, _ = form.getWidgetPosition(dialog.antigravity_show_third_party_cb)
+
+    assert 0 <= cli_row < status_row < gemini_row < third_party_row
+    assert form.labelForField(cli_row_widget).text() == "agy CLI:"
+    assert form.labelForField(dialog.antigravity_show_gemini_cb).text() == "Show:"
+
+
+def test_no_settings_button_or_title_swallows_an_ampersand(qtbot, monkeypatch):
+    """Qt takes a single "&" in a button, group or tab title as a shortcut marker
+    and hides it, so "Claude & GPT models" showed as "Claude  GPT models"."""
+    import re
+
+    from PyQt6.QtWidgets import QAbstractButton, QGroupBox, QTabWidget
+
+    dialog = _dialog(qtbot, monkeypatch)
+    texts = [button.text() for button in dialog.findChildren(QAbstractButton)]
+    texts += [group.title() for group in dialog.findChildren(QGroupBox)]
+    for tabs in dialog.findChildren(QTabWidget):
+        texts += [tabs.tabText(index) for index in range(tabs.count())]
+
+    assert [text for text in texts if re.search(r"(?<!&)&(?!&)", text)] == []
+    assert dialog.antigravity_show_third_party_cb.text() == "Claude && GPT models"
+
+
 @pytest.mark.parametrize("platform", ["darwin", "linux"])
 def test_settings_status_flags_non_executable_agy(
     qtbot, monkeypatch, tmp_path, platform

@@ -1057,22 +1057,6 @@ class SettingsDialog(QDialog):
         antigravity_form.setFieldGrowthPolicy(
             QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
         )
-        self.antigravity_show_gemini_cb = QCheckBox("Gemini models")
-        self.antigravity_show_gemini_cb.setChecked(config.antigravity.show_gemini)
-        antigravity_form.addRow("Show:", self.antigravity_show_gemini_cb)
-        antigravity_form.addRow(
-            "",
-            _hint_label(
-                "Covers the models that share the Gemini limits, and any separate "
-                "Gemini limit agy reports. Hover a row to see the models in its "
-                "group."
-            ),
-        )
-        self.antigravity_show_third_party_cb = QCheckBox("Claude & GPT models")
-        self.antigravity_show_third_party_cb.setChecked(
-            config.antigravity.show_third_party
-        )
-        antigravity_form.addRow("", self.antigravity_show_third_party_cb)
         self.antigravity_cli_path_edit = QLineEdit(config.antigravity.cli_path or "")
         try:
             detected_cli = resolve_cli(None)
@@ -1106,6 +1090,23 @@ class SettingsDialog(QDialog):
                 "No account or API key is needed."
             ),
         )
+        self.antigravity_show_gemini_cb = QCheckBox("Gemini models")
+        self.antigravity_show_gemini_cb.setChecked(config.antigravity.show_gemini)
+        antigravity_form.addRow("Show:", self.antigravity_show_gemini_cb)
+        antigravity_form.addRow(
+            "",
+            _hint_label(
+                "Covers the models that share the Gemini limits, and any separate "
+                "Gemini limit agy reports. Hover a row to see the models in its "
+                "group."
+            ),
+        )
+        # "&&" shows one "&"; a single "&" is taken as a keyboard shortcut marker.
+        self.antigravity_show_third_party_cb = QCheckBox("Claude && GPT models")
+        self.antigravity_show_third_party_cb.setChecked(
+            config.antigravity.show_third_party
+        )
+        antigravity_form.addRow("", self.antigravity_show_third_party_cb)
         self.antigravity_colors = _ColorThresholdLauncher(config.antigravity.colors)
         antigravity_form.addRow("Gauge colors:", self.antigravity_colors)
 
