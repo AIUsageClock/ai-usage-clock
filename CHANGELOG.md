@@ -16,7 +16,7 @@
 - Clearing a sign-in now deletes that account's browser profile folder, including site storage.
 - A sign-in window that has been open for more than 30 minutes is closed automatically.
 - Qt modules the app never loads are no longer shipped, and the build fails if any bundled binary is missing a library it needs. The unpacked Windows build shrinks from about 422 MB to about 357 MB.
-- Builds use Python 3.14, PyQt6 6.12.1 and PyQt6-WebEngine 6.140.1.
+- Builds use Python 3.14, PyQt6 6.12.1 on Qt 6.12.1 (which carries the security fixes of that Qt release), and PyQt6-WebEngine 6.140.1 on Qt WebEngine 6.140.0 (Chromium 140, with security fixes backported up to Chromium 157.0.8103.50).
 - Python dependencies are locked in `uv.lock`. CI pins every tool it uses to an exact version (runner images, CPython, uv and Node.js, in addition to the commit-SHA-pinned actions), and a test fails if a workflow ever uses a floating reference.
 - `THIRD_PARTY_NOTICES.txt` now carries the full license texts of the winrt packages and pyobjc-core, whose wheels ship none, and of libffi in the Windows and macOS builds. The Linux build already carries libffi's license through the Debian copyright file of libffi8.
 
