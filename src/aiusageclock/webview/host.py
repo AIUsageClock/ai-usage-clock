@@ -197,12 +197,17 @@ class WorkerHost(QObject):
         if self._proc is None or account_id not in self._worker_accounts:
             return
         current = self._current
+        # A job that was already being ended (timed out, or cancelled) must
+        # finish with that reason, not be put back and run again.
+        ending_reason = self._kill_reason
         self._current = None
         self._watchdog.stop()
         self._terminate_worker(graceful=True, wait_ms=RELEASE_WAIT_MS)
         if current is not None:
             if current.account_id == account_id:
                 self._deliver_later(current, _failure(ipc.ERR_CANCELLED))
+            elif ending_reason is not None:
+                self._deliver_later(current, _failure(ending_reason))
             else:
                 current.acked = False
                 self._queue.appendleft(current)

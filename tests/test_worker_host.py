@@ -260,6 +260,30 @@ def test_release_profile_asks_a_worker_that_held_it_to_shut_down_first(
     assert other[0]["pid"] != first[0]["pid"]
 
 
+def test_release_profile_does_not_requeue_a_job_that_is_already_being_ended(
+    qtbot, make_host, monkeypatch
+):
+    monkeypatch.setenv("FAKE_WORKER_IGNORE_SHUTDOWN", "1")
+    monkeypatch.setattr(host_module, "RELEASE_WAIT_MS", 300)
+    host = make_host()
+    touched: list[dict] = []
+    host.submit(ipc.JOB_PING, {"op": "echo"}, touched.append, timeout_s=60.0, account_id="b")
+    _wait(qtbot, touched)
+    timed_out: list[dict] = []
+    # a's job runs out of time and the worker is being shut down (it will not
+    # leave by itself), when b's sign-in is cleared.
+    host.submit(ipc.JOB_PING, {"op": "hang"}, timed_out.append, timeout_s=0.5, account_id="a")
+    qtbot.waitUntil(lambda: host._kill_reason == ipc.ERR_TIMEOUT, timeout=WAIT_MS)
+    assert make_host.starts["count"] == 1
+
+    host.release_profile("b")
+    _wait(qtbot, timed_out)
+
+    assert timed_out[0]["error"] == ipc.ERR_TIMEOUT
+    assert make_host.starts["count"] == 1, "the ended job was not sent to a new worker"
+    assert not host._queue
+
+
 def test_cancelling_a_running_job_asks_the_worker_to_shut_down_first(
     qtbot, make_host, monkeypatch, tmp_path
 ):
